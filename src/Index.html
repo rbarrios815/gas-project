@@ -2489,6 +2489,31 @@ input#clientAutocomplete, select#clientSelect {
 
 </style>
 
+<style>
+/* === v393 → v400 BACKPORT: CHIP VISIBILITY & SIZE (UI only) === */
+/* This is additive CSS. It doesn't remove or disable any features. */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0 0.4rem;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.15);
+  font-size: 12px;
+  line-height: 22px;
+  vertical-align: middle;
+}
+.chip-initials { font-weight: 700; }
+.chip-sep { opacity: 0.6; }
+.chip-date { font-weight: 600; font-size: 12px; }
+
+/* Ensure chips show in the default view containers */
+#topClientsDisplay .chip,
+#clientDisplay .chip {
+  display: inline-flex !important;
+}
+</style>
 
 </head>
 <body onload="loadAllHeatmaps()">
