@@ -1,3 +1,7 @@
+/* FEATURE-MERGE CHECKPOINT 1 — 2025-10-26
+   No functional change. Used to verify branch/edit/push/deploy loop.
+*/
+
 function doGet(e) {
   var userEmail = Session.getActiveUser().getEmail(); // Ensure it gets the active user
   Logger.log("Detected User Email: " + userEmail); // Debugging - logs detected email
