@@ -248,18 +248,6 @@ html { font-size: 200%; }
   overflow: hidden;    /* clip during measurement */
 }
 
-/* Chips take remaining space, single line only */
-.recent-row#recentRow .recent-bar.inside-autocomplete {
-  flex: 1 1 auto;
-  display: flex;
-  flex-wrap: nowrap;   /* prevent wrap */
-  gap: 6px;
-  min-width: 0;        /* allow shrinking */
-  overflow: hidden;    /* clip while shrinking */
-  white-space: nowrap; /* single line */
-}
-
-
 .assigned-chip-slot { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
 
 /* Compact chips just in the recent list’s chip slot */
@@ -283,6 +271,18 @@ html { font-size: 200%; }
 .assigned-chip-slot .chip--xs img{
   width: 14px;
   height: 14px;
+}
+
+
+/* Chips take remaining space, single line only */
+.recent-row#recentRow .recent-bar.inside-autocomplete {
+  flex: 1 1 auto;
+  display: flex;
+  flex-wrap: nowrap;   /* prevent wrap */
+  gap: 6px;
+  min-width: 0;        /* allow shrinking */
+  overflow: hidden;    /* clip while shrinking */
+  white-space: nowrap; /* single line */
 }
 
 /* NEW CLIENT button sits on the right, doesn't wrap */
@@ -357,7 +357,6 @@ a:focus {
   text-decoration: none !important;
   color: var(--darker-blue, #007bff);
 }
-
 /* === CHIP 10x MINI OVERRIDES (scoped) ============================== */
 /* Scope 1: chips under the assigned client box */
 .assigned-chip-slot {
@@ -484,20 +483,16 @@ a:focus {
   <!-- === DASHBOARD (Notes-style bottom sheet) ============================= -->
 <div id="dashOverlay" aria-hidden="true"></div>
 <div id="dashSheet" class="dashboard-closed" aria-hidden="true">
-
-
-
-<div id="dashHandle" role="button" aria-controls="dashSheet" aria-expanded="false">
-  <span id="changeViewLabel">CHANGE VIEW</span>
-  <button id="focusBtn" class="focus-btn" type="button" aria-haspopup="dialog" aria-controls="focusOverlay">FOCUS</button>
-</div>
-
-
-
-
+  <div id="dashHandle" role="button" aria-controls="dashSheet" aria-expanded="false">
+     CHANGE VIEW
+  </div>
 
   <div id="dashBody" role="region" aria-label="Dashboard content">
     <div class="card">
+
+
+
+
       <textarea id="noteInput"></textarea>
 <div class="row" style="margin-top:8px;">
   <button id="addBtn" class="btn">ADD</button>
@@ -570,26 +565,6 @@ function showToast(msg){
     if (e.key === 'Escape' && isOpen()) window.closeDashboard();
   });
 
-
-// Focus Mode: stop the click from reaching the CHANGE VIEW handler and start focus mode instead
-(function wireFocusButton() {
-  const focusBtn = document.getElementById('focusBtn');
-  if (!focusBtn) return;
-  focusBtn.addEventListener('click', function (e) {
-    // prevent the bar's click handler from seeing this click
-    e.preventDefault();
-    e.stopPropagation();
-    // start your focus mode flow
-    if (typeof startFocusMode === 'function') {
-      startFocusMode();
-    } else {
-      // Minimal fallback so you can see it's working
-      console.warn('startFocusMode() is not defined yet. Implement it to launch the popup/cycle.');
-    }
-  });
-})();
-
-
 // initial state — default OPEN (and still restore if previously saved)
 let startOpen = true;
 try {
@@ -655,81 +630,218 @@ addBtn.addEventListener('click', addNote);
     /* Recent (5) with assign */
   const recentList = document.getElementById('recentList');
 
-  function renderRecent(payload){
-    recentList.innerHTML='';
-    const items=(payload&&payload.recent)?payload.recent:[];
-    if(!items.length){ return; }
+function buildChipElement(clientName, initials, dateMMDDYY){
+  // Prefer your existing chip renderer if present
+  if (typeof createChipElement === 'function') {
+    return createChipElement(clientName, (initials||'').toUpperCase(), dateMMDDYY||'');
+  }
+  // Fallback: simple pill
+  const chip = document.createElement('span');
+  chip.className = 'chip';
+  chip.style.cssText = 'display:inline-flex;align-items:center;padding:4px 8px;border-radius:12px;background:#e9f7ef;border:1px solid #c7eed8;font-weight:700;gap:6px;';
+  chip.textContent = clientName + (initials ? ` (${initials.toUpperCase()})` : '') + (dateMMDDYY ? ` · ${dateMMDDYY}` : '');
+  return chip;
+}
 
-    items.forEach(it=>{
-      const row=document.createElement('div'); 
-      row.className='item';
+function setRowChip(slotEl, clientName){
+  if (!slotEl || !clientName) return;
+  slotEl.innerHTML = '';
+  var chip = buildChipFromMap(clientName);
+  chip.setAttribute('data-client', normClientForChip(clientName));
+  slotEl.appendChild(chip);
+}
 
-      // LEFT: note text
-      const note=document.createElement('div'); 
-      note.className='note'; 
-      note.textContent=it.note;
 
-      // RIGHT: timestamp + assign input (auto-assigns on selection)
-      const side=document.createElement('div'); 
-      side.style.minWidth='280px';
 
-      // Timestamp only (NO green assigned label)
-      const meta=document.createElement('div'); 
-      meta.className='meta';
-      meta.textContent = it.timestamp ? it.timestamp : '';
+function renderRecent(payload){
+  recentList.innerHTML='';
+  const items = (payload && payload.recent) ? payload.recent : [];
+  if (!items.length) return;
 
-      // Wider input: 360px (twice the previous 180px)
-      const inp=document.createElement('input'); 
-      inp.type='text'; 
-      inp.className='small'; 
-      inp.setAttribute('list','clientNamesList'); 
-      inp.style.width='360px';
+  items.forEach(it=>{
+    const row = document.createElement('div');
+    row.className = 'item';
 
-      // Keep selection visible in the input (no extra green label elsewhere)
-      inp.value = it.assigned || '';
-      inp.placeholder = it.assigned ? 'Change assignment…' : 'Assign…';
+    // LEFT: note text
+    const note = document.createElement('div');
+    note.className = 'note';
+    note.textContent = it.note;
 
-      // Auto-assign handler
-      function commitAssign(){
-        const name = (inp.value||'').trim();
-        if(!name) return;
-        startLoading();
-        google.script.run
-.withSuccessHandler(_=>{
+    // RIGHT: timestamp + assign input
+    const side = document.createElement('div');
+    side.style.minWidth = '280px';
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = it.timestamp ? it.timestamp : '';
+
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.className = 'small';
+    inp.setAttribute('list','clientNamesList');
+    inp.style.width = '360px';
+    inp.value = it.assigned || '';
+    inp.placeholder = it.assigned ? 'Change assignment…' : 'Assign…';
+
+    // Row with input
+    const r = document.createElement('div');
+    r.className = 'row';
+    r.appendChild(inp);
+
+    // NEW: chip slot under the input
+    const chipSlot = document.createElement('div');
+    chipSlot.className = 'assigned-chip-slot';
+    chipSlot.setAttribute('data-row', String(it.row));
+
+// Seed chip if already assigned
+if (it.assigned && it.assigned.trim()){
+  var assignedName = it.assigned.trim();
+  chipSlot.setAttribute('data-client', assignedName);  // 👈 remember client on the slot
+  setRowChip(chipSlot, assignedName);
+}
+
+
+    // Assign handler
+    function commitAssign(){
+      const name = (inp.value || '').trim();
+      if (!name) return;
+      startLoading();
+      google.script.run
+   .withSuccessHandler(_=>{
   stopLoading();
   showToast('Client note has been updated successfully');
+  // Remember client on the slot and repaint from canonical map
+  chipSlot.setAttribute('data-client', name);   // 👈 persist who this slot belongs to
+  setRowChip(chipSlot, name);
 })
 
-          .withFailureHandler(err=>{
-            alert(err && err.message ? err.message : String(err));
-            stopLoading();
-          })
-          .inboxAssignToClient(it.row, name);
+        .withFailureHandler(err=>{
+          alert(err && err.message ? err.message : String(err));
+          stopLoading();
+        })
+        .inboxAssignToClient(it.row, name);
+    }
+
+    inp.addEventListener('change', commitAssign);
+    inp.addEventListener('keydown', (e)=>{
+      if (e.key === 'Enter'){
+        e.preventDefault();
+        commitAssign();
       }
-
-      // Assign immediately when a value is chosen or Enter is pressed
-      inp.addEventListener('change', commitAssign);
-      inp.addEventListener('keydown', (e)=>{
-        if(e.key === 'Enter'){ 
-          e.preventDefault(); 
-          commitAssign(); 
-        }
-      });
-
-      // Layout row (no Assign button, no green label)
-      const r=document.createElement('div'); 
-      r.className='row'; 
-      r.appendChild(inp);
-
-      side.appendChild(meta);
-      side.appendChild(document.createElement('div')).style.height='6px';
-      side.appendChild(r);
-
-      row.appendChild(note); 
-      row.appendChild(side);
-      recentList.appendChild(row);
     });
+
+    side.appendChild(meta);
+    side.appendChild(document.createElement('div')).style.height = '6px';
+    side.appendChild(r);
+    side.appendChild(chipSlot);
+
+    row.appendChild(note);
+    row.appendChild(side);
+    recentList.appendChild(row);
+  });
+
+  // === Helpers (scoped to this function) ===
+  function setRowChip(slotEl, clientName){
+    if (!slotEl || !clientName) return;
+    slotEl.innerHTML = '';
+
+    // If you’ve got richer chip data cached, use it
+    const info = (window.__chipForCurrentClient || {});
+    const initials = (info.initials || '').toUpperCase();
+    const dateMMDDYY = info.date || '';
+
+    let chip;
+    if (typeof createChipElement === 'function'){
+      chip = createChipElement(clientName, initials, dateMMDDYY);
+    } else {
+      chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.style.cssText = 'display:inline-flex;align-items:center;padding:4px 8px;border-radius:12px;background:#e9f7ef;border:1px solid #c7eed8;font-weight:700;gap:6px;';
+      chip.textContent = clientName
+        + (initials ? ` (${initials})` : '')
+        + (dateMMDDYY ? ` · ${dateMMDDYY}` : '');
+    }
+    chip.setAttribute('data-client', clientName.toLowerCase());
+    slotEl.appendChild(chip);
   }
+}
+
+// === Canonical chip state pulled from sheet P/Q ==========================
+window.__chipMap = Object.create(null);
+
+function normClientForChip(s){
+  return String(s || '')
+    .replace(/\u00A0/g, ' ')
+    .replace(/\s+-\s+.*$/, '')
+    .replace(/\d+$/, '')
+    .trim()
+    .toLowerCase();
+}
+
+/** Pull P/Q for all (or only a subset) and cache in __chipMap */
+function refreshChipStateFromSheet(limitNames, done){
+  startLoading();
+  google.script.run
+    .withSuccessHandler(function(map){
+      // Merge when a subset was requested; replace when pulling all
+      if (Array.isArray(limitNames) && limitNames.length) {
+        window.__chipMap = Object.assign({}, window.__chipMap, map || {});
+      } else {
+        window.__chipMap = map || {};
+      }
+      stopLoading();
+      if (typeof done === 'function') done();
+    })
+    .withFailureHandler(function(err){
+      console.log('getChipState error:', err);
+      stopLoading();
+      if (typeof done === 'function') done(err);
+    })
+    .getChipStateForClients(Array.isArray(limitNames) ? limitNames : null);
+}
+
+
+/** Build a chip DOM strictly from __chipMap */
+function buildChipFromMap(clientName){
+  var key  = normClientForChip(clientName);
+  var info = window.__chipMap[key] || { initials:'', dateMMDDYY:'' };
+
+  if (typeof createChipElement === 'function') {
+    const chip = createChipElement(clientName, info.initials || '', info.dateMMDDYY || '');
+    chip.classList.add('chip--xs');
+    return chip;
+  }
+  var chip = document.createElement('span');
+  chip.className = 'chip chip--xs';
+  chip.style.cssText = 'display:inline-flex;align-items:center;padding:2px 6px;border-radius:10px;background:#e9f7ef;border:1px solid #c7eed8;font-weight:700;gap:6px;font-size:11px;line-height:1.2;';
+  var label = clientName;
+  if (info.initials)   label += ' (' + info.initials + ')';
+  if (info.dateMMDDYY) label += ' · ' + info.dateMMDDYY;
+  chip.textContent = label;
+  return chip;
+}
+
+/** Repaint every visible assigned-chip slot using __chipMap */
+function repaintAllAssignedChips(){
+  document.querySelectorAll('.assigned-chip-slot').forEach(function(slot){
+    // priority: explicit data-client, else sibling input’s value
+    var explicit = slot.getAttribute('data-client')
+              || slot.querySelector('[data-client]')?.getAttribute('data-client')
+              || '';
+    var name = explicit;
+    if (!name) {
+      var input = slot.parentElement?.querySelector('input[list="clientNamesList"]');
+      if (input && input.value) name = input.value.trim();
+    }
+    if (name) {
+      slot.innerHTML = '';
+      var chip = buildChipFromMap(name);
+      chip.setAttribute('data-client', normClientForChip(name));
+      slot.appendChild(chip);
+    }
+  });
+}
+
 
 function loadRecent(done){
   startLoading();
@@ -749,7 +861,15 @@ function loadRecent(done){
 
 
 
-  window.addEventListener('load', ()=>{ loadClientNames(); loadRecent(); });
+window.addEventListener('load', ()=>{
+  loadClientNames();
+  loadRecent(function(){
+    // Pull canonical P/Q map and repaint after recent loads
+    refreshChipStateFromSheet(null, function(){
+      repaintAllAssignedChips();
+    });
+  });
+});
 
 // Mobile textarea height fallback (enforce 50vh on load/resize)
 (function(){
@@ -853,140 +973,8 @@ function loadRecent(done){
     // listeners, loaders, etc...
   })();
 
-(function () {
-  const focusBtn        = document.getElementById('focusBtn');
-  const focusOverlay    = document.getElementById('focusOverlay');
-  const focusCloseBtn   = document.getElementById('focusCloseBtn');
-  const focusBackBtn    = document.getElementById('focusBackBtn');
-  const focusNextBtn    = document.getElementById('focusNextBtn');
-  const focusCategoryEl = document.getElementById('focusCategory');
-  const focusMinutesEl  = document.getElementById('focusMinutes');
-  const focusContent    = document.getElementById('focusContent');
-  const focusStatus     = document.getElementById('focusStatus');
-
-  let timerId = null;
-  let index = 0;
-  let clients = []; // TODO: load per category
-  let lastCategory = focusCategoryEl.value;
-
-  function stopTimer() {
-    if (timerId) { clearInterval(timerId); timerId = null; }
-  }
-
-  function setStatus(msg) {
-    focusStatus.textContent = msg || '';
-  }
-
-  // Placeholder renderer - replace with your app's note renderer
-  function renderClientAt(i) {
-    const name = clients[i] || '(no clients yet)';
-    focusContent.innerHTML = '<h2 style="margin:0 0 8px 0;">' + name + '</h2>'
-      + '<div>(Client notes go here)</div>';
-    setStatus(`Showing ${i + 1} of ${clients.length} • Cat: ${lastCategory}`);
-  }
-
-  function nextClient() {
-    if (!clients.length) return;
-    index = (index + 1) % clients.length;
-    renderClientAt(index);
-  }
-
-  function startAutoAdvance() {
-    stopTimer();
-    const minutes = Math.max(1, parseInt(focusMinutesEl.value || '1', 10));
-    timerId = setInterval(nextClient, minutes * 60 * 1000);
-    setStatus(`Auto-advance every ${minutes} min • Cat: ${lastCategory}`);
-  }
-
-  function loadClientsFor(category) {
-    lastCategory = category;
-    // TODO: Replace with your actual data fetch (e.g., google.script.run)
-    // Example placeholder list while wiring:
-    clients = ['Alice', 'Bobby', 'Carlos', 'Dina', 'Evan'].map(n => `${n} (${category})`);
-    index = 0;
-    renderClientAt(index);
-  }
-
-  function openFocus() {
-    focusOverlay.hidden = false;
-    // initial load for selected category
-    loadClientsFor(focusCategoryEl.value);
-    startAutoAdvance();
-  }
-
-  function closeFocus() {
-    stopTimer();
-    focusOverlay.hidden = true;
-  }
-
-  // Prevent CHANGE VIEW from triggering when FOCUS is clicked
-  if (focusBtn) {
-    focusBtn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      openFocus();
-    });
-  }
-
-  focusCloseBtn.addEventListener('click', closeFocus);
-  focusBackBtn.addEventListener('click', function () {
-    // Optional: go to previous client
-    if (!clients.length) return;
-    index = (index - 1 + clients.length) % clients.length;
-    renderClientAt(index);
-  });
-
-  focusNextBtn.addEventListener('click', function () {
-    nextClient();
-  });
-
-  focusCategoryEl.addEventListener('change', function () {
-    loadClientsFor(focusCategoryEl.value);
-    startAutoAdvance();
-  });
-
-  focusMinutesEl.addEventListener('change', function () {
-    startAutoAdvance();
-  });
-})();
-
-
 </script>
 <div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
-
-
-<!-- === Focus Mode Overlay (paste before </body>) === -->
-<div id="focusOverlay" hidden>
-  <div class="focus-modal" role="dialog" aria-modal="true" aria-labelledby="focusTitle">
-    <div class="focus-header">
-      <button id="focusBackBtn" class="focus-action" type="button">⟵ Back</button>
-      <div id="focusTitle">FOCUS • Category:
-        <select id="focusCategory">
-          <option>JB</option>
-          <option>RB</option>
-          <option>TEAM</option>
-          <option>QC</option>
-          <option>BDAY</option>
-        </select>
-        • Minutes:
-        <input id="focusMinutes" type="number" min="1" step="1" value="2" style="width:4rem">
-      </div>
-      <div class="focus-controls">
-        <button id="focusNextBtn" class="focus-action" type="button">Next ▶</button>
-        <button id="focusCloseBtn" class="focus-action focus-danger" type="button" aria-label="Close">✕</button>
-      </div>
-    </div>
-
-    <div id="focusContent" class="focus-content">
-      <!-- Your client notes will be injected here -->
-    </div>
-
-    <div class="focus-footer">
-      <span id="focusStatus" aria-live="polite"></span>
-    </div>
-  </div>
-</div>
-
-
 
 </body>
 </html>
@@ -2010,8 +1998,6 @@ input#clientAutocomplete, select#clientSelect {
 .chip.RB { background: #28A745; color: #fff; }   /* green */
 .chip.QC { background: #FF8C00; color: #fff; }   /* orange */
 .chip.TEAM { background: #800080; color: #fff; }   /* orange */
-.chip.BDAY { background: #FF8C00; color: #fff; }   /* orange */
-
 
 .chip.EMPTY { background: #f0f0f0; color: #333; }/* placeholder neutral */
 
@@ -2046,8 +2032,6 @@ input#clientAutocomplete, select#clientSelect {
   color: #000;   /* force black */
   opacity: 1;    /* make fully opaque */
 }
-
-
 
 
 /* Wrapper anchors the absolute button & suggestions */
@@ -2503,216 +2487,10 @@ input#clientAutocomplete, select#clientSelect {
   display: inline !important;       /* inline so they sit on one line */
 }
 
-.cat-pill {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  max-width: min(42vw, 380px);
-  border: 1px solid #cfcfcf;
-  border-radius: 999px;
-  padding: 4px 28px 4px 10px;
-  background: #fff;
-  height: 32px;
-}
-.cat-input {
-  border: 0; outline: 0; width: 100%;
-  font: inherit; line-height: 1;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.cat-input::placeholder { color: #777; }
-.cat-caret {
-  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-  font-size: 10px; pointer-events: none;
-}
-
-/* Calendar icon button */
-.calendar-btn {
-  border: 0; background: #21a45e; color: #fff; border-radius: 8px;
-  height: 32px; width: 36px; cursor: pointer;
-}
-
-/* Modal */
-.modal {
-  position: fixed; inset: 0; background: rgba(0,0,0,.4);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 1000;
-}
-.modal-card {
-  width: 50vw; height: 50vh; background: #fff; border-radius: 12px;
-  display: flex; flex-direction: column; overflow: hidden;
-}
-.modal-header, .modal-footer {
-  padding: 12px 16px; border-bottom: 1px solid #eee;
-  display: flex; align-items: center; justify-content: space-between;
-}
-.modal-footer { border-top: 1px solid #eee; border-bottom: 0; }
-.modal-body { padding: 16px; display: grid; gap: 12px; }
-.form-row { display: grid; grid-template-columns: 120px 1fr; gap: 8px; align-items: center; }
-.modal-close, .btn-secondary, .btn-primary {
-  border: 0; border-radius: 8px; height: 32px; padding: 0 12px; cursor: pointer;
-}
-.btn-secondary { background: #efefef; }
-.btn-primary { background: #21a45e; color: #fff; }
-
- #jbCycleOverlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); display: none; z-index: 99999; }
-  #jbCyclePanel  { position: absolute; inset: 0; background: #0b1220; color: #fff; padding: 24px; overflow: auto; }
-  #jbCycleHeader { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 12px; }
-  #jbCycleHeader input, #jbCycleHeader select { padding: 6px 8px; }
-  #jbCycleHeader button { padding: 8px 12px; border-radius: 8px; border: 0; cursor: pointer; }
-  #jbCycleTitle { font-size: 22px; font-weight: 700; margin-right: 12px; }
-  #jbCycleClientName { font-size: 28px; font-weight: 800; }
-  #jbCycleNotes { background:#111826; border-radius: 12px; padding: 16px; margin-top: 12px; min-height: 50vh; }
-
-  /* Progress/loading bar inside overlay */
-  #jbProgressWrap { width: 100%; background: #1f2a44; height: 8px; border-radius: 999px; overflow: hidden; margin-top: 6px; }
-  #jbProgressFill { width: 0%; height: 100%; background: #38bdf8; transition: width 0.25s linear; }
-
-  #focusOverlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.55);
-    display: none; z-index: 99998;
-  }
-  #focusPanel {
-    position: absolute; inset: 0; background: #0b1220; color: #fff;
-    display: flex; flex-direction: column;
-  }
-  #focusHeader {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 14px; background: #102035; border-bottom: 1px solid rgba(255,255,255,0.08);
-  }
-  #focusHeader .title { font-weight: 700; font-size: 16px; }
-  #focusHeader button, #focusHeader select {
-    border: 0; border-radius: 10px; padding: 6px 10px; cursor: pointer;
-  }
-  #focusHeader button { background: #1f8efa; color: #fff; }
-  #focusHeader .ghost { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.25); }
-  #focusBody {
-    flex: 1; overflow: auto; padding: 0; /* content is your live notes */
-    background: #0b1220;
-  }
-
-  /* Progress bar inside header */
-#focusProgWrap{ width:220px; height:8px; border-radius:6px; background:rgba(255,255,255,0.18); overflow:hidden; margin-left:10px; }
-#focusProg{ height:100%; width:0%; background:#1f8efa; }
-
-  /* The container where we reparent your real notes DOM */
-  #focusNotesHost { min-height: 100%; }
-
-
-#dashHandle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-#changeViewLabel {
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-
-.focus-btn {
-  padding: 6px 12px;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  font-weight: 700;
-}
-
-/* Full-screen overlay */
-#focusOverlay[hidden] { display: none !important; }
-
-#focusOverlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  background: rgba(0,0,0,0.66);
-  backdrop-filter: blur(2px);
-}
-
-/* Modal panel */
-.focus-modal {
-  margin: 6vh auto 4vh;
-  width: min(1000px, 92vw);
-  height: min(80vh, 88vh);
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  background: #ffffff;
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
-}
-
-/* Header */
-.focus-modal .focus-header {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; padding: 12px 16px; border-bottom: 1px solid #eee;
-  font-weight: 700;
-}
-
-/* Toolbar */
-.focus-controls {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-}
-
-/* Content area (client notes) */
-.focus-content {
-  padding: 12px 16px; overflow: auto;
-}
-
-/* Footer */
-.focus-footer {
-  display: flex; justify-content: flex-end; gap: 8px;
-  padding: 12px 16px; border-top: 1px solid #eee;
-}
-
-/* Basic button look for modal controls */
-.focus-action {
-  padding: 8px 12px; border-radius: 10px; border: 1px solid #ddd; background: #fafafa; cursor: pointer;
-}
-
-.focus-danger {
-  border-color: #f1c0c0; background: #ffecec;
-}
-
-
-
 </style>
 
 
 </head>
-<div id="focusOverlay" role="dialog" aria-modal="true">
-  <div id="focusPanel">
-    <div id="focusHeader">
-      
-      <button id="focusBackBtn" class="ghost" title="Previous client">⟵ Back</button>
-      <span class="title">FOCUS: <span id="focusClientName">—</span></span>
-      <span style="margin-left:auto;"></span>
-      <label for="focusCategory">Category:</label>
-      <select id="focusCategory">
-        <option>JB</option>
-        <option>RB</option>
-        <option>TEAM</option>
-        <option>QC</option>
-        <option>BDAY</option>
-      </select>
-      <button id="focusNextBtn" title="Next client">Next ▶</button>
-      <button id="focusCloseBtn" class="ghost" title="Close">✕</button>
-    </div>
-    <div id="focusProgWrap"><div id="focusProg"></div></div>
-
-    <div id="focusBody">
-      <!-- We will MOVE your actual notes panel here while FOCUS is open -->
-      <div id="focusNotesHost"></div>
-    </div>
-  </div>
-</div>
-
-
-</div>
-
-
 <body onload="loadAllHeatmaps()">
     <!-- Loading Bar -->
 
@@ -2734,8 +2512,6 @@ input#clientAutocomplete, select#clientSelect {
   <button id="addNewClientBtn" type="button" class="recent-add-btn" onclick="displayAddNewClientModal()">
     <span>NEW</span><span>CLIENT</span>
   </button>
-
-
 </div>
 
 
@@ -2744,30 +2520,6 @@ input#clientAutocomplete, select#clientSelect {
     <input type="text" id="clientAutocomplete"
            placeholder="Type Client Name"
            oninput="autocompleteClient()">
-
-           <!-- Category combo + Calendar icon (hidden until a client is selected) -->
-<div id="catCalWrap" style="display:none; gap:8px; align-items:center; margin-left:auto;">
-  <!-- Category pill (combobox) -->
-  <div class="cat-pill" title="" >
-    <input id="categoryCombo"
-           type="text"
-           placeholder="Select category"
-           list="categoryList"
-           aria-label="Category"
-           aria-expanded="false"
-           aria-autocomplete="list"
-           class="cat-input" />
-    <span class="cat-caret" aria-hidden="true">▼</span>
-    <datalist id="categoryList"></datalist>
-  </div>
-
-  <!-- Calendar button -->
-  <button id="calendarBtn" class="calendar-btn" title="Open calendar">
-    <!-- simple calendar glyph -->
-    🗓️
-  </button>
-</div>
-
 
   </div>
 
@@ -2872,7 +2624,6 @@ input#clientAutocomplete, select#clientSelect {
 
 <br>
 <!-- Button to show appointment scheduling inputs -->
-
 <button id="addAppointmentBtn" class="secondary-button" onclick="showAppointmentInput()" style="display:none;">Add APPOINTMENT to Calendar for This Client</button>
 
 <!-- Appointment scheduling inputs, initially hidden -->
@@ -2917,7 +2668,6 @@ input#clientAutocomplete, select#clientSelect {
   <option value="RB">RB</option>
   <option value="QC">QC</option>
     <option value="TEAM">TEAM</option>
-    <option value="BDAY">BDAY</option>
     <option value="BRIEFCASE">💼</option>
     <option value="STAR">⭐</option>
     <option value="GRADCAP">🎓</option>
@@ -2973,29 +2723,6 @@ input#clientAutocomplete, select#clientSelect {
   </div>
 </div>
 
-<!-- Appointment modal -->
-<div id="apptModal" class="modal" style="display:none;">
-  <div class="modal-card">
-    <div class="modal-header">
-      <span id="apptTitle">Schedule appointment</span>
-      <button id="apptClose" class="modal-close" aria-label="Close">✕</button>
-    </div>
-    <div class="modal-body">
-      <label class="form-row">
-        <span>Date</span>
-        <input id="apptDate" type="date" />
-      </label>
-      <label class="form-row">
-        <span>Time</span>
-        <input id="apptTime" type="time" />
-      </label>
-    </div>
-    <div class="modal-footer">
-      <button id="apptCancel" class="btn-secondary">Cancel</button>
-      <button id="apptSave" class="btn-primary">Save</button>
-    </div>
-  </div>
-</div>
 
 
 <hr>
@@ -3088,43 +2815,9 @@ input#clientAutocomplete, select#clientSelect {
   <div id="tasksList"></div>
 </div>
 <!-- END SNIPPET #2 -->
-<div id="focusOverlay" role="dialog" aria-modal="true">
-  <div id="focusPanel">
-<div id="focusHeader">
-  <button id="focusBackBtn" class="ghost" title="Previous client">⟵ Back</button>
-  <span class="title">FOCUS: <span id="focusClientName">—</span></span>
 
-  <span style="margin-left:auto;"></span>
-
-  <label for="focusCategory">Category:</label>
-  <select id="focusCategory">
-    <option>JB</option>
-    <option>RB</option>
-    <option>TEAM</option>
-    <option>QC</option>
-    <option>BDAY</option>
-  </select>
-
-  <!-- Minutes input + countdown -->
-  <label style="margin-left:10px;">Minutes:
-    <input id="focusMinutes" type="number" min="0.5" step="0.5" value="2" style="width:80px;">
-  </label>
-  <span id="focusCountdown" style="min-width:84px;text-align:right;opacity:0.9;margin-left:8px;">—</span>
-
-  <button id="focusNextBtn" title="Next client" style="margin-left:10px;">Next ▶</button>
-  <button id="focusCloseBtn" class="ghost" title="Close">✕</button>
-</div>
-
-    <div id="focusBody">
-      <!-- We will MOVE your actual notes panel here while FOCUS is open -->
-      <div id="focusNotesHost"></div>
-    </div>
-  </div>
-</div>
 
 <script>
-
-
 
 /* === FIT-TO-ONE-LINE ENGINE (input + suggestions) === */
 
@@ -3397,10 +3090,82 @@ window.addEventListener('resize', function(){
 // Global: whether suggestion textareas in the Top Clients list are visible
 window.__suggestionsVisible = false;
 
-function toggleSuggestions() {
-  window.__suggestionsVisible = !window.__suggestionsVisible;
-  applySuggestionsVisibility();
+(function ensureChipStylesInjected(){
+  if (document.getElementById('chip-compact-style')) return;
+  const css = `
+    .chip{display:inline-flex;align-items:center;gap:4px;border:1px solid #888;background:#f5f5f5}
+    .chip--compact{font-size:11px;line-height:1;padding:2px 6px;border-radius:10px}
+    /* harden main list */
+    #topClientsDisplay .chip{border:1px solid #888}
+    #topClientsDisplay .chip--compact{font-size:11px;line-height:1;padding:2px 6px;border-radius:10px}
+  `;
+  const s = document.createElement('style');
+  s.id = 'chip-compact-style';
+  s.textContent = css;
+  document.head.appendChild(s);
+})();
+
+/* Call this everywhere after createChipElement(...) */
+function styleChipCompact(el){
+  if (!el) return el;
+  el.classList.add('chip','chip--compact');
+  // safety: normalize any legacy inline transforms
+  el.style.transform = 'none';
+  return el;
 }
+
+// Central cache: clientName -> { initials, date }
+window.__chipByClient = window.__chipByClient || {};
+
+// Normalize & store in memory (call this after any chip save)
+
+
+
+// ✅ keep this function, but make it also mirror to MAIN
+function setClientChip(name, initials, date){
+  if (!name) return;
+
+  const normInitials = String(initials || '').toUpperCase();
+  const mmddyy       = normalizeChipDate(date || '');
+
+  window.__chipByClient[name] = { initials: normInitials, date: mmddyy };
+
+  // Mirror chip changes to MAIN view safely (only when data exists)
+  if (typeof updateLiveChip === 'function') {
+    updateLiveChip(name, normInitials, mmddyy);
+  }
+}
+
+
+// Read from cache (falls back to window.__chipForCurrentClient)
+function getClientChip(name){
+  const fromCache = window.__chipByClient[name];
+  if (fromCache) return fromCache;
+  if (window.__chipForCurrentClient && name &&
+      (window.__chipForCurrentClient.clientName||'').toLowerCase() === name.toLowerCase()) {
+    return {
+      initials: String(window.__chipForCurrentClient.initials||'').toUpperCase(),
+      date: normalizeChipDate(window.__chipForCurrentClient.date||'')
+    };
+  }
+  return { initials:'', date:'' };
+}
+
+// Safe chip element (uses your createChipElement if present)
+function makeChipEl(clientName, initials, date){
+  if (typeof createChipElement === 'function') {
+    return createChipElement(clientName, initials, date);
+  }
+  // Fallback mini-pill so we still show *something*
+  const s = document.createElement('span');
+  s.className = 'client-chip';
+  s.style.cssText = 'display:inline-flex;align-items:center;gap:6px;border:1px solid #aaa;border-radius:16px;padding:2px 8px;margin-top:6px;font-size:.85em;background:#f7f7f7';
+  const i = document.createElement('strong'); i.textContent = (initials||'').toUpperCase();
+  const d = document.createElement('span');   d.textContent = date || '';
+  s.appendChild(i); if (date) s.appendChild(d);
+  return s;
+}
+
 
 
 // ===== REQUEST TOKEN to prevent stale paints =====
@@ -3441,17 +3206,33 @@ sanitizeSuggestionBulbs();
 }
 
 
+/* === SUGGESTIONS VISIBILITY (persisted) === */
+const SUG_VIS_KEY = 'toplist.suggestions.visible';
 
-
-function applySuggestionsVisibility() {
-  var blocks = document.querySelectorAll('.toplist-suggestion');
-  blocks.forEach(function(b) {
-    b.style.display = window.__suggestionsVisible ? 'block' : 'none';
-  });
-
-  // after visibility flips, re-enforce the single-left-bulb layout
-  sanitizeSuggestionBulbs();
+function areSuggestionsVisible(){
+  try { return localStorage.getItem(SUG_VIS_KEY) === '1'; } catch(_) { return true; }
 }
+function setSuggestionsVisible(v){
+  try { localStorage.setItem(SUG_VIS_KEY, v ? '1':'0'); } catch(_) {}
+}
+
+/* Call this after painting the Top Clients list */
+function applySuggestionsVisibility(){
+  var show = areSuggestionsVisible();
+  document.querySelectorAll('.toplist-suggestion').forEach(function(el){
+    el.style.display = show ? 'block' : 'none';
+  });
+  // Optional: keep a toggle button label in sync if you have one
+  var btn = document.getElementById('toggleSuggestionsBtn');
+  if (btn) btn.textContent = show ? 'HIDE 💡' : 'SHOW 💡';
+}
+
+/* Wire this to your “SHOW/HIDE 💡” control if you have one */
+function toggleSuggestions(){
+  setSuggestionsVisible(!areSuggestionsVisible());
+  applySuggestionsVisibility();
+}
+
 
 // === SINGLE SOURCE OF TRUTH: list <- dropdown value ===
 function syncClientsListToDropdown(){
@@ -3577,73 +3358,85 @@ sanitizeSuggestionBulbs();
   }
 }
 
-/* ===== REPLACEMENT: wireToplistSuggestionTextareas (no full refresh on blur) ===== */
-function wireToplistSuggestionTextareas() {
-  const nodes = document.querySelectorAll('#topClientsDisplay .toplist-suggestion textarea.note-textarea, #topClientsDisplay .toplist-suggestion textarea.toplist-textarea');
 
-  nodes.forEach(function (ta) {
-    // Never let clicks/focus bubble up and cause row-level re-renders
-    ['mousedown', 'click', 'focus'].forEach(function(ev){
-      ta.addEventListener(ev, function (e) { e.stopPropagation(); }, true);
+function wireToplistSuggestionTextareas(){
+  document.querySelectorAll('.toplist-suggestion .note-textarea').forEach(function(ta){
+    if (ta.__wired) return;
+
+    // Mirror what you did for #loadedInProgressArea:
+    ['mousedown','click','focus','keydown'].forEach(function(ev){
+      ta.addEventListener(ev, function(e){
+        if (ev === 'keydown' && (e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+          e.preventDefault();
+          ta.blur(); // commit quickly
+          return;
+        }
+        e.stopPropagation(); // <-- critical: block parent click/blur handlers
+      }, true);
     });
 
-    // Find the client name (prefer data attribute)
-    let clientName = ta.getAttribute('data-client');
-    if (!clientName) {
-      const host = ta.closest('[data-client]');
-      if (host) clientName = host.getAttribute('data-client');
-    }
-    if (!clientName) {
-      const btn = ta.closest('div')?.querySelector('button.inline-button');
-      if (btn) clientName = btn.innerText.trim();
-    }
-    if (!clientName) return; // can't save without a client
+    // Remember last saved value to avoid unnecessary saves and easy revert
+    ta.setAttribute('data-last-saved', ta.value || '');
 
-    let original = ta.value;
-    let dirty = false;
+    // Save on blur (but safely)
+    ta.addEventListener('blur', function(){
+      var newVal = ta.value || '';
+      var last   = ta.getAttribute('data-last-saved') || '';
+      if (newVal === last) return; // nothing changed
 
-    ta.addEventListener('input', function () {
-      dirty = (ta.value !== original);
-    });
+      var card   = ta.closest('.task-display');
+      var btn    = card ? card.querySelector('.client-button') : null;
+      var raw    = btn ? btn.innerText : '';        // "Client (Category)"
+      var name   = raw ? raw.split(' (')[0] : '';   // just the client name
 
-    // Ctrl/⌘+Enter = quick commit
-    ta.addEventListener('keydown', function (e) {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-        e.preventDefault();
-        ta.blur();
-      }
-      e.stopPropagation();
-    }, true);
+      if (!name) return;
 
-    // SAVE ONLY ON BLUR — but DO NOT re-render the whole list
-    ta.addEventListener('blur', function () {
-      if (!dirty || ta.value.trim() === original.trim()) return;
-
-      if (typeof showLoadingBar === 'function') showLoadingBar();
-
+      showLoadingBar();
       google.script.run
-        .withSuccessHandler(function () {
-          // Keep the screen exactly as-is; just lock in the new value
-          original = ta.value;
-          dirty = false;
+        .withSuccessHandler(function(){
+          ta.setAttribute('data-last-saved', newVal);
 
-          // Small visual ack near the textarea
-          showInlineSavedBadge(ta);
+          // Optional tiny “Saved” chip
+          try {
+            var ok = document.createElement('span');
+            ok.textContent = 'Saved';
+            ok.style.marginLeft = '6px';
+            ok.style.fontSize = '0.8em';
+            ok.style.opacity = '0.85';
+            ok.style.background = '#e8f5e9';
+            ok.style.border = '1px solid #c8e6c9';
+            ok.style.borderRadius = '10px';
+            ok.style.padding = '2px 8px';
+            ta.parentNode.appendChild(ok);
+            setTimeout(() => ok.remove(), 1200);
+          } catch(_){}
 
-          if (typeof applySuggestionsVisibility === 'function') applySuggestionsVisibility();
-          if (typeof hideLoadingBar === 'function') hideLoadingBar();
+          hideLoadingBar();
+
+          // ⚠️ DO NOT hard-reload the page here.
+          // If you want the list fresh, repaint without changing the current filter,
+          // and keep suggestions visible:
+          google.script.run
+            .withSuccessHandler(function(clients){
+              repaintTopClientsWithCurrentFilter(clients);
+              if (typeof applySuggestionsVisibility === 'function') applySuggestionsVisibility();
+            })
+            .getTopClients();
         })
-        .withFailureHandler(function (err) {
-          alert('Error saving In Progress: ' + (err && err.message ? err.message : err));
-          ta.value = original; // revert
-          dirty = false;
-          if (typeof hideLoadingBar === 'function') hideLoadingBar();
+        .withFailureHandler(function(err){
+          hideLoadingBar();
+          alert('Failed to save suggestion: ' + (err && err.message ? err.message : err));
+          // Revert to last-saved so user doesn’t think it saved
+          ta.value = last;
         })
-        // ⬇️ CHANGE THIS if your server save function has a different name
-        .updateClientColumnL(clientName, ta.value);
-    }, true);
+        // 👇 Replace with your actual server-side function that writes Column L
+        .updateClientColumnL(name, newVal);
+    });
+
+    ta.__wired = true;
   });
 }
+
 /* ===== END REPLACEMENT ===== */
 
 /* Tiny helper for a subtle "Saved" badge */
@@ -4020,6 +3813,7 @@ function escapeHtmlForTasks(s) {
 }
 
 
+
 document.addEventListener('DOMContentLoaded', function() {
     showLoadingBar(); // Show the loading bar
     /***** SNIPPET: IMMEDIATELY SHOW DATE & EMAIL SUMMARY BUTTON *****/
@@ -4055,6 +3849,8 @@ document.getElementById('scrollBottomBtn').style.display = 'inline-block';
 
 
   if (typeof fitRecentRowOneLine === 'function') fitRecentRowOneLine();
+
+  ensureChipsUnderAssignees();
 
 
 });
@@ -4745,10 +4541,15 @@ document.getElementById('notesDisplay').style.display = 'block';
 setupColumnDropdowns(data);
 
 // ⭐ Set chip cache FIRST (so displayNotes sees it)
+
 window.__chipForCurrentClient = {
   initials: (data.chipInitials || "").toUpperCase(),
   date: data.chipDate || ""   // already MM/DD/YY per our server plan
 };
+
+// NEW:
+setClientChip(clientName, window.__chipForCurrentClient.initials, window.__chipForCurrentClient.date);
+ensureChipsUnderAssignees();
 
 displayClientDetails(data);
 
@@ -4796,7 +4597,7 @@ function normalizeTopClientsFilter(val) {
   const raw = (val || '').toString().trim();
   // Map emojis/aliases to canonical keys your renderer understands
   const map = {
-    'JB':'JB', 'RB':'RB', 'QC':'QC', 'TEAM':'TEAM', 'BDAY':'BDAY',
+    'JB':'JB', 'RB':'RB', 'QC':'QC', 'TEAM':'TEAM',
     '💼':'BRIEFCASE', '⭐':'STAR', '🎓':'GRADCAP', '📞':'PHONE'
   };
   return map.hasOwnProperty(raw) ? map[raw] : raw.toUpperCase();
@@ -4824,15 +4625,46 @@ function wireCategorySelectChange(){
 }
 
 /* Call this to programmatically set the dropdown value WITHOUT triggering save */
-function updateCategorySelectValue(newValue){
-  const sel = document.getElementById('categorySelect');
+// Canonical: merge all prior behaviors into one place.
+function updateCategorySelectValue(value) {
+  var sel = document.getElementById('categorySelect');
   if (!sel) return;
-  __suppressCategoryChange = true;
-  sel.value = (newValue || '');
-  __currentCategory = (newValue || '');  // keep our local notion in sync
-  // release on next tick so real user changes still work
-  setTimeout(() => { __suppressCategoryChange = false; }, 0);
+
+  var newVal = (value || '').toString();
+
+  // 1) Ensure the option exists (case-insensitive match)
+  if (newVal) {
+    var exists = Array.from(sel.options).some(function (o) {
+      return (o.value || '').toLowerCase() === newVal.toLowerCase();
+    });
+    if (!exists) {
+      var opt = document.createElement('option');
+      opt.value = newVal;
+      opt.textContent = newVal;
+      // Insert before sentinel if present, else append
+      var sentinel = sel.querySelector('option[value="__NEW__"]');
+      if (sentinel) sel.add(opt, sentinel); else sel.add(opt);
+    }
+  }
+
+  // 2) Suppress change event → set value → sync guarded state
+  if (typeof window.__suppressCategoryChange !== 'undefined') {
+    window.__suppressCategoryChange = true;
+  }
+  sel.value = newVal; // '' clears selection as well
+
+  if (typeof window.__currentCategory !== 'undefined') {
+    window.__currentCategory = newVal;
+  }
+
+  // 3) Release suppression next tick
+  setTimeout(function () {
+    if (typeof window.__suppressCategoryChange !== 'undefined') {
+      window.__suppressCategoryChange = false;
+    }
+  }, 0);
 }
+
 
 /* Single, tokened pipeline to update category on the server */
 function requestCategoryChange(newCategory){
@@ -4899,6 +4731,9 @@ function repaintTopClientsWithCurrentFilter(clients) {
   // Re-wire suggestion textareas + keep visibility state
   if (typeof wireToplistSuggestionTextareas === 'function') wireToplistSuggestionTextareas();
   if (typeof applySuggestionsVisibility === 'function') applySuggestionsVisibility();
+
+    ensureChipsUnderAssignees();
+
 }
 
 
@@ -5119,6 +4954,7 @@ function updateCategory() {
 
 google.script.run
   .withSuccessHandler(function(res){
+
     if (typeof hideLoadingBar === 'function') hideLoadingBar();
 
     if (typeof updateCategoryLabel === 'function') updateCategoryLabel();
@@ -5174,26 +5010,7 @@ function loadCategoriesForClientAfterNotes() {
 }
 
 
-function updateCategorySelectValue(currentCategory) {
-  var sel = document.getElementById('categorySelect');
-  if (!sel) return;
 
-  if (currentCategory) {
-    // If the current category isn't yet in the dropdown (e.g., just created),
-    // temporarily insert it before the sentinel so it's selectable.
-    var exists = Array.from(sel.options)
-      .some(function (o) { return o.value.toLowerCase() === String(currentCategory).toLowerCase(); });
-
-    if (!exists) {
-      var opt = document.createElement('option');
-      opt.value = currentCategory;
-      opt.textContent = currentCategory;
-      var sentinel = sel.querySelector('option[value="__NEW__"]');
-      sel.add(opt, sentinel); // insert before NEW CATEGORY…
-    }
-  }
-  sel.value = currentCategory || '';
-}
 
 function sanitizeSuggestionBulbs() {
   document.querySelectorAll('.toplist-suggestion').forEach(card => {
@@ -5295,7 +5112,6 @@ END REPLACEMENT
 /***************************************
 END OF PASTE
 ***************************************/
-<!-- Example of where to paste in your .html or .gs file -->
 
 
 
@@ -5501,15 +5317,15 @@ function displayNotes(notes) {
       highlightedWrap.appendChild(div);
 
       // CHIP only on the newest block (the very last one)
-      if (i === lastIdx) {
-        var chipInfo = window.__chipForCurrentClient || { initials: "", date: "" };
-        var chipEl = createChipElement(
-          document.getElementById('clientSelect').value || "",
-          (chipInfo.initials || "").toUpperCase(),
-          chipInfo.date || ""
-        );
-        div.appendChild(chipEl);
-      }
+if (i === lastIdx) {
+  const clientName = (document.getElementById('clientSelect').value || "");
+  const live = getCurrentChip(clientName);
+  var chipEl = createChipElement(clientName, live.initials, live.date);
+  chipEl.setAttribute('data-chip-client', clientName);
+  styleChipCompact(chipEl);
+  div.appendChild(chipEl);
+}
+
 
     } else {
       // Older blocks → hidden by default; toggled by MORE/LESS
@@ -6061,7 +5877,9 @@ document.getElementById('topClientsTitle').style.display = 'none';
 
 /**********************************************
   (A) The "OLD" function (for updates/reloading)
-**********************************************/function showTopClients(clients, filterKey) {
+**********************************************/
+
+function showTopClients(clients, filterKey) {
   // Keep dropdown visually in sync
   var dd = document.getElementById('topClientsFilterDropdown');
   if (dd && filterKey) dd.value = filterKey;
@@ -6087,7 +5905,7 @@ document.getElementById('topClientsTitle').style.display = 'none';
   }
 
   // OWNER filters (JB/RB/QC/TEAM)
-  var OWNER_KEYS = ['JB','RB','QC','TEAM','BDAY'];
+  var OWNER_KEYS = ['JB','RB','QC','TEAM'];
 
   var filtered = clients.filter(function(c){
     if (OWNER_KEYS.includes(filter)) {
@@ -6120,13 +5938,7 @@ document.getElementById('topClientsTitle').style.display = 'none';
   if (typeof applySuggestionsVisibility === 'function') applySuggestionsVisibility();
 }
 
-/* Helper: push blank/invalid chip dates to the BOTTOM */
-function chipDateToTimeForSort(chipDateStr){
-  // Expecting like "MM/DD/YY" (you can reuse your existing parser if you have one)
-  if (!chipDateStr) return Number.POSITIVE_INFINITY;
-  var d = new Date(chipDateStr);
-  return isNaN(d) ? Number.POSITIVE_INFINITY : d.getTime();
-}
+
 
 
 /**********************************************
@@ -6159,7 +5971,7 @@ function chipDateToTimeForSort(chipDateStr){
   out.innerHTML = '';
 
   // 3) Filtering: owners OR emoji labels only
-  var OWNER_KEYS = ['JB','RB','QC','TEAM','BDAY'];
+  var OWNER_KEYS = ['JB','RB','QC','TEAM'];
   var emojiMap = { BRIEFCASE:'💼', STAR:'⭐', GRADCAP:'🎓', PHONE:'📞' };
 
   function hasEmojiLabel(c, emoji) {
@@ -6437,14 +6249,41 @@ function autocompleteClient() {
                 var suggestion = document.createElement('div');
                 suggestion.innerHTML = client.clientName + (client.category ? ' (' + client.category + ')' : '');
 
-                suggestion.onclick = function() {
-                    inputElement.value = this.innerHTML;
-                    clientSelect.value = client.clientName;
-                    showClientNotes();
-                        scrollToTop(); // Add this line to scroll to the top
+           suggestion.onclick = function () {
+  inputElement.value = this.innerHTML;
+  clientSelect.value = client.clientName;
 
-                    suggestions.innerHTML = ''; // Hide suggestions after selection
-                };
+  // 1) Find chip data for the selected client from clientsData
+  var c = (window.clientsData || []).find(function (x) {
+    // your objects sometimes use name vs clientName
+    var n = (x.clientName || x.name || '').trim();
+    return n === client.clientName;
+  }) || {};
+
+  var initials = ((c.chipInitials || c.initials || '') + '').toUpperCase();
+  var date     = normalizeChipDate(c.chipDate || '');
+
+  // 2) Cache it so details/notes renderer can also use it
+  window.__chipForCurrentClient = {
+    clientName: client.clientName,
+    initials: initials,
+    date: date
+  };
+
+  // 3) Paint the chip under the ASSIGN… inputs immediately
+  if (typeof setClientChip === 'function') {
+    setClientChip(client.clientName, initials, date);
+  }
+  if (typeof ensureChipsUnderAssignees === 'function') {
+    ensureChipsUnderAssignees();
+  }
+
+  // 4) Load notes UI (unchanged)
+  showClientNotes();
+  scrollToTop();
+  suggestions.innerHTML = '';
+};
+
 
                 suggestions.appendChild(suggestion);
             }
@@ -6958,13 +6797,6 @@ function displayTable() {
 
 
 
-
-
-
-
-
-
-
   window.onload = displayData;
 
 function displayBirthdays() {
@@ -7292,6 +7124,7 @@ function addLabelToClient(label) {
 
 
 
+
 function refreshClientDetails(clientName) {
   // Implement the logic to refresh client details here.
   // This could be a call to the function that initially loads the client details.
@@ -7321,6 +7154,7 @@ function displayTodayNotes(notes) {
 
     hideLoadingBar(); // Hide the loading bar after rendering the notes
 }
+
 
 
 // REPLACEMENT: populateCategoryDropdown — fills #categorySelect with unique Column F values (A→Z)
@@ -7674,6 +7508,52 @@ function closeAddClientModal() {
     modal.style.display = 'none';
 }
 
+
+// --- Safety net: define minimal no-ops so rendering never crashes ---
+window.styleChipCompact = window.styleChipCompact || function(el){ /* optional styling */ };
+
+window.createChipElement = window.createChipElement || function(clientName, initials, mmddyy){
+  var span = document.createElement('span');
+  span.className = 'chip';
+  span.textContent = [initials || '', mmddyy || ''].filter(Boolean).join(' · ');
+  // tiny baseline styling so it looks decent even without your real styles
+  span.style.display = 'inline-block';
+  span.style.marginLeft = '6px';
+  span.style.padding = '2px 6px';
+  span.style.border = '1px solid #888';
+  span.style.borderRadius = '10px';
+  span.style.fontSize = '11px';
+  span.style.lineHeight = '1.1';
+  return span;
+};
+
+window.getCurrentChip = window.getCurrentChip || function(clientName){
+  // if you cached chips in window.__chipForCurrentClient, try to reuse
+  var c = window.__chipForCurrentClient || {};
+  if (c.clientName && c.clientName === clientName) {
+    return { initials: c.initials || '', date: c.date || '' };
+  }
+  return { initials: '', date: '' };
+};
+
+window.setClientChip = window.setClientChip || function(){};
+window.ensureChipsUnderAssignees = window.ensureChipsUnderAssignees || function(){};
+window.updateLiveChip = window.updateLiveChip || function(){};
+
+window.attachMentionHandlers = window.attachMentionHandlers || function(){};
+window.formatNoteHTML = window.formatNoteHTML || function(s){
+  return String(s || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+};
+
+window.wireToplistSuggestionTextareas = window.wireToplistSuggestionTextareas || function(){};
+window.applySuggestionsVisibility = window.applySuggestionsVisibility || function(){};
+
+window.updateInProgressDom = window.updateInProgressDom || function(){};
+window.showInlineSavedBadge = window.showInlineSavedBadge || function(){};
+
+
+
 /**********************************************
 REPLACE ENTIRE displayClient FUNCTION WITH THIS
 **********************************************/
@@ -7706,11 +7586,20 @@ function displayClient(client, container) {
   clientButton.style.cssText = "display:inline-flex; align-items:center;";
   clientButton.addEventListener('click', function () {
     // prime chip cache so details view shows same chip
-    window.__chipForCurrentClient = {
-      initials: (client.chipInitials || '').toUpperCase(),
-      date: normalizeChipDate(client.chipDate || '')
-    };
-    selectClientFromButton(client.name);
+   // UPDATED
+window.__chipForCurrentClient = {
+  clientName: client.name, // add this so we know which client it belongs to
+  initials: (client.chipInitials || '').toUpperCase(),
+  date: normalizeChipDate(client.chipDate || '')
+};
+
+// NEW: cache + paint the chip under the Change View inputs right away
+setClientChip(client.name, window.__chipForCurrentClient.initials, window.__chipForCurrentClient.date);
+ensureChipsUnderAssignees();
+
+
+selectClientFromButton(client.name);
+
   });
   topRow.appendChild(clientButton);
 
@@ -7777,12 +7666,24 @@ function displayClient(client, container) {
 
         // Newest line gets chip (read-only edit still opens chip editor if clicked)
         if (i === lastIdx) {
-          var chipEl = createChipElement(
-            client.name,
-            (client.chipInitials || "").toUpperCase(),
-            client.chipDate || ""
-          );
-          div.appendChild(chipEl);
+const liveChip = getCurrentChip(client.name);
+var chipEl = createChipElement(client.name, liveChip.initials || "", liveChip.date || "");
+chipEl.setAttribute('data-chip-client', client.name);
+
+// ↓↓↓ REMOVE these old inline size tweaks ↓↓↓
+// chipEl.style.fontSize = '11px';
+// chipEl.style.lineHeight = '1';
+// chipEl.style.padding = '2px 6px';
+// chipEl.style.borderRadius = '10px';
+// chipEl.style.transform = 'none';
+// chipEl.style.verticalAlign = 'middle';
+
+// ✅ Replace with:
+styleChipCompact(chipEl);
+
+div.appendChild(chipEl);
+
+
         }
       } else {
         // OLDER — stays hidden (no MORE button to reveal)
@@ -7810,12 +7711,23 @@ function displayClient(client, container) {
 
   var ta = document.createElement('textarea');
   ta.className = 'note-textarea';
+
+// ADD these 2 lines so it works with your live DOM-sync function:
+ta.classList.add('inProgressArea');
+ta.setAttribute('data-client', client.name);
+
+
   ta.style.minHeight = '60px';
   ta.value = client.columnLContent || '';
-  ta.addEventListener('blur', function(){
-    onToplistSuggestionBlur(client.name, ta.value); // saves Column L then reloads (your code)
-  });
-  sugWrap.appendChild(ta);
+
+  // store last-saved to avoid useless writes
+ta.setAttribute('data-last-saved', ta.value);
+
+// save-on-blur
+ta.addEventListener('blur', function(){
+  onToplistSuggestionBlur(client.name, ta.value, ta);   // ← implement below
+});
+sugWrap.appendChild(ta);
 
   clientDiv.appendChild(sugWrap);
 
@@ -7830,30 +7742,43 @@ function displayClient(client, container) {
   if (typeof applySuggestionsVisibility === 'function') applySuggestionsVisibility();
 }
 
+function onToplistSuggestionBlur(clientName, newValue, textareaEl) {
+  // safety
+  if (!clientName) return;
 
+  var el = textareaEl || document.querySelector('.inProgressArea[data-client="'+clientName+'"]');
+  var last = el ? String(el.getAttribute('data-last-saved') || '') : '';
 
-function updateCategorySelectValue(clientCategory) {
-    var categorySelect = document.getElementById('categorySelect');
-    if (clientCategory) {
-        // Ensure the category exists in the dropdown
-        var optionExists = Array.from(categorySelect.options).some(function(option) {
-            return option.value === clientCategory;
-        });
+  // don’t write if nothing changed (trim to avoid whitespace churn)
+  if (String(newValue || '').trim() === last.trim()) return;
 
-        // If not, add it to the dropdown
-        if (!optionExists) {
-            var newOption = document.createElement('option');
-            newOption.value = clientCategory;
-            newOption.textContent = clientCategory;
-            categorySelect.appendChild(newOption);
-        }
+  if (typeof showLoadingBar === 'function') showLoadingBar();
 
-        // Set the dropdown's value to the client's category
-        categorySelect.value = clientCategory;
-    } else {
-        categorySelect.value = '';
-    }
+  google.script.run
+    .withSuccessHandler(function () {
+      if (el) {
+        el.setAttribute('data-last-saved', newValue || '');
+        if (typeof showInlineSavedBadge === 'function') showInlineSavedBadge(el);
+      }
+      // keep the rest of the UI in sync without a full reload
+      if (typeof updateInProgressDom === 'function') {
+        updateInProgressDom(clientName, newValue || '');
+      }
+      if (typeof hideLoadingBar === 'function') hideLoadingBar();
+
+      // optional: keep your filter view fresh (you already use this elsewhere)
+      if (typeof retriggerTopClientsFilter === 'function') retriggerTopClientsFilter();
+    })
+    .withFailureHandler(function (err) {
+      if (typeof hideLoadingBar === 'function') hideLoadingBar();
+      alert('Error saving In Progress: ' + (err && err.message ? err.message : err));
+      // revert UI if you want:
+      if (el) el.value = last;
+    })
+    .updateInProgress(clientName, newValue || '');
 }
+
+
 
 
 function displayTopClientsByCategory() {
@@ -7953,6 +7878,7 @@ function triggerTopClientsEmail() {
 
 // This function creates a big star overlay, shows it for ~5s, then removes it
 function showStarAnimation() {
+
   // Create the DIV
   var starDiv = document.createElement('div');
   starDiv.className = 'star-animation';
@@ -7972,69 +7898,51 @@ function showStarAnimation() {
 /*******************************************************
  SNIPPET #3: Real-time “In Progress” sync & save (UPDATED)
 *******************************************************/
-
 function onInProgressChange(clientName, newValue) {
-  // Show the loading bar BEFORE calling the server
-  showLoadingBar();
-
-  // 1) Immediately call Apps Script to store in Column L
-  google.script.run
-    .withSuccessHandler(function() {
-      // Hide the loading bar AFTER success
-      hideLoadingBar();
-
-      // 2) If successful, mirror that newValue into the loaded client area (if it’s the same client)
-      updateInProgressDom(clientName, newValue);
-    })
-    .withFailureHandler(function(err) {
-      // Hide the loading bar even if it fails
-      hideLoadingBar();
-      console.error("Failed to update column L:", err);
-    })
-    .updateClientData(clientName, newValue); // Reuses your existing updateClientData() in Code.gs
-}
-
-/* ===== REPLACEMENT: onInProgressLoadedBlur (no full refresh) ===== */
-function onInProgressLoadedBlur(valueFromUI) {
-  // Find current client name from the picker
-  var clientName = (document.getElementById('clientSelect') || {}).value || '';
-  if (!clientName) return; // nothing to save against
-
-  var ta = document.getElementById('loadedInProgressArea');
-  if (!ta) return;
-
-  // Don’t do anything if text hasn't changed
-  var newVal = String(valueFromUI || '');
-  var oldVal = String(ta.getAttribute('data-last-saved') || '');
-  if (newVal.trim() === oldVal.trim()) return;
-
-  // Optional: tiny spinner cue at field level (keep your global bar too if you like)
   if (typeof showLoadingBar === 'function') showLoadingBar();
 
   google.script.run
     .withSuccessHandler(function () {
-      // Lock in the new value locally, NO full re-render
-      ta.setAttribute('data-last-saved', newVal);
-
-      // Small inline “Saved” badge (reuse the helper you already have)
-      if (typeof showInlineSavedBadge === 'function') showInlineSavedBadge(ta);
-
       if (typeof hideLoadingBar === 'function') hideLoadingBar();
-
-      // ✅ DO NOT call displayTopClients(), showTopClients(), getTopClients(), etc. here
-      reloadPreservingState();
-
+      updateInProgressDom(clientName, newValue);
     })
     .withFailureHandler(function (err) {
-      alert('Error saving In Progress: ' + (err && err.message ? err.message : err));
-      // Revert UI to the last saved text
-      ta.value = oldVal;
       if (typeof hideLoadingBar === 'function') hideLoadingBar();
+      console.error("Failed to update column L:", err);
+      alert('Error saving In Progress: ' + (err && err.message ? err.message : err));
     })
-    // ⬇️ change to your server function name if different
-    .updateClientColumnL(clientName, newVal);
+    .updateInProgress(clientName, newValue);   // <-- use THIS
 }
-/* ===== END REPLACEMENT ===== */
+
+function onInProgressLoadedBlur(valueFromUI) {
+  var clientName = (document.getElementById('clientSelect') || {}).value || '';
+  if (!clientName) return;
+
+  var ta = document.getElementById('loadedInProgressArea');
+  if (!ta) return;
+
+  var newVal = String(valueFromUI || '');
+  var oldVal = String(ta.getAttribute('data-last-saved') || '');
+  if (newVal.trim() === oldVal.trim()) return;
+
+  if (typeof showLoadingBar === 'function') showLoadingBar();
+
+  google.script.run
+    .withSuccessHandler(function () {
+      ta.setAttribute('data-last-saved', newVal);
+      if (typeof showInlineSavedBadge === 'function') showInlineSavedBadge(ta);
+      if (typeof hideLoadingBar === 'function') hideLoadingBar();
+
+      // Keep it snappy: update DOM in place, no full refresh
+      updateInProgressDom(clientName, newVal);
+    })
+    .withFailureHandler(function (err) {
+      if (typeof hideLoadingBar === 'function') hideLoadingBar();
+      alert('Error saving In Progress: ' + (err && err.message ? err.message : err));
+      ta.value = oldVal;
+    })
+    .updateInProgress(clientName, newVal);     // <-- use THIS
+}
 
 
 
@@ -8067,7 +7975,7 @@ function handleTopClientsFilterChange(selectedFilter) {
   var val = normalizeFilterValue(selectedFilter);
 
   // Title updates (owners & ALL only)
-  if (['JB','RB','QC','TEAM','BDAY'].includes(val)) {
+  if (['JB','RB','QC','TEAM'].includes(val)) {
     titleEl.innerText = val;
   } else if (val === 'ALL') {
     titleEl.innerText = 'TOP CLIENTS';
@@ -8640,6 +8548,109 @@ function createChipElement(clientName, initials, mmddyy) {
   return chip;
 }
 
+/* Compact styling for chips created anywhere */
+function styleChipCompact(el) {
+  if (!el) return;
+  el.style.fontSize = '11px';
+  el.style.lineHeight = '1';
+  el.style.padding = '2px 6px';
+  el.style.borderRadius = '10px';
+  el.style.transform = 'none';
+  el.style.verticalAlign = 'middle';
+}
+
+
+/* ===== Chips under each assigned client in MAIN view ===== */
+
+function mountAssignedClientChips() {
+  // Update this list to match your DOM for the assigned client “pills/boxes”
+  const SELECTORS = [
+    '.assigned-client-box',              // preferred if you have it
+    '[data-role="assigned-client"]',    // alt
+    '.label-box.assigned'               // alt
+  ];
+
+  // Find the first selector that actually exists
+  let boxes = [];
+  for (const sel of SELECTORS) {
+    boxes = Array.from(document.querySelectorAll(sel));
+    if (boxes.length) break;
+  }
+  if (!boxes.length) return;
+
+  boxes.forEach(box => {
+    const clientName = readAssignedClientName(box);
+    if (!clientName) return;
+
+    // Ensure a slot directly UNDER the box (1 per box)
+    let slot = box._chipSlot || box.nextElementSibling?.classList?.contains('assigned-chip-slot')
+      ? box.nextElementSibling
+      : null;
+
+    if (!slot) {
+      slot = document.createElement('div');
+      slot.className = 'assigned-chip-slot';
+      slot.style.marginTop = '6px';
+      slot.style.display = 'flex';
+      slot.style.flexWrap = 'wrap';
+      slot.style.gap = '6px';
+      box.insertAdjacentElement('afterend', slot);
+      box._chipSlot = slot;
+    }
+
+    // (Re)render
+    slot.innerHTML = '';
+    const meta = getChipMetaForAssignedClient(clientName); // {initials,date}
+    const chip = createChipElement(
+      clientName,
+      (meta.initials || '').toUpperCase(),
+      normalizeChipDate(meta.date || '')
+    );
+    slot.appendChild(chip);
+  });
+}
+
+// Pull the client name out of the assigned “pill”
+function readAssignedClientName(boxEl) {
+  // Prefer explicit attribute if you have it
+  const d = boxEl.getAttribute('data-client') || boxEl.dataset?.client;
+  if (d) return d.trim();
+
+  // Fallback: visible text (strip " (⭐⭐⭐)" etc)
+  const raw = (boxEl.textContent || '').trim();
+  return raw.split(' (')[0].trim();
+}
+
+// Get the initials/date for a client from your in-memory data
+function getChipMetaForAssignedClient(name) {
+  // 1) Try your main cache
+  if (Array.isArray(window.clientsData)) {
+    const c = window.clientsData.find(x =>
+      (x.name || x.clientName || '').toLowerCase() === String(name).toLowerCase()
+    );
+    if (c) {
+      return {
+        initials: (c.chipInitials || c.initials || ''),
+        date: (c.chipDate || '')
+      };
+    }
+  }
+
+  // 2) Try your recent bar cache (optional)
+  if (Array.isArray(window.__recentClients)) {
+    const r = window.__recentClients.find(x =>
+      (x.name || '').toLowerCase() === String(name).toLowerCase()
+    );
+    if (r) {
+      return { initials: (r.chipInitials || ''), date: (r.chipDate || '') };
+    }
+  }
+
+  // 3) Empty chip fallback; still renders nicely
+  return { initials: '', date: '' };
+}
+
+
 // READ-ONLY chip for the Top Clients list (no click-to-edit)
 function createChipElementReadOnly(clientName, initials, mmddyy) {
   var safeInitials = (initials || "").toUpperCase().trim();
@@ -8700,7 +8711,7 @@ function openChipEditor(anchorEl, clientName, initials, mmddyy) {
 
   // initials dropdown
   var sel = document.createElement('select');
-  ['','RB','JB','QC','TEAM','BDAY'].forEach(function(opt){
+  ['','RB','JB','TEAM','QC'].forEach(function(opt){
     var o = document.createElement('option');
     o.value = opt; o.textContent = opt || '(none)';
     if (opt === (initials || '')) o.selected = true;
@@ -8729,51 +8740,89 @@ function openChipEditor(anchorEl, clientName, initials, mmddyy) {
   var rect = anchorEl.getBoundingClientRect();
   editor.style.top = (window.scrollY + rect.bottom + 6) + 'px';
   editor.style.left = (window.scrollX + rect.left) + 'px';
+function saveChipAndClose() {
+  var newInitials = sel.value;              // e.g., "JB"
+  var newIso = dateInput.value || '';       // ISO yyyy-mm-dd or ''
 
-  // helper: run save with current select + date values
-  function saveChipAndClose() {
-    var newInitials = sel.value;
-    var newIso = dateInput.value || ''; // '' allowed
-
-    // Show loading, save, update chip, close editor
-    showLoadingBar();
-    google.script.run.withSuccessHandler(function(){
+  showLoadingBar();
+  google.script.run
+    .withSuccessHandler(function () {
       hideLoadingBar();
 
-      // Convert ISO → MM/DD/YY for chip display
+      // Normalize for display: initials → UPPER, date → MM/DD/YY (or '')
+      var upInitials = (newInitials || '').toUpperCase();
       var newMmddyy = '';
       if (newIso) {
         var d = new Date(newIso);
-        newMmddyy = (d.getMonth()+1).toString().padStart(2,'0') + '/' +
-                    d.getDate().toString().padStart(2,'0') + '/' +
-                    (d.getFullYear()%100).toString().padStart(2,'0');
+        var mm = String(d.getMonth() + 1).padStart(2, '0');
+        var dd = String(d.getDate()).padStart(2, '0');
+        var yy = String(d.getFullYear() % 100).padStart(2, '0');
+        newMmddyy = mm + '/' + dd + '/' + yy;
       }
 
-      renderChipInto(anchorEl, clientName, newInitials, newMmddyy);
+      // Update the chip UI at the edit anchor immediately (snappy UX)
+      renderChipInto(anchorEl, clientName, upInitials, newMmddyy);
+
+      // Maintain legacy cache (not relied on for repaint, but harmless)
+      window.__chipForCurrentClient = {
+        clientName: clientName,
+        initials: upInitials,
+        date: newMmddyy
+      };
+
+      // Mirror chip under any assigned autocomplete boxes right away
+      try {
+        if (typeof setClientChip === 'function') {
+          setClientChip(clientName, upInitials, newMmddyy);
+        }
+        if (typeof ensureChipsUnderAssignees === 'function') {
+          ensureChipsUnderAssignees();
+        }
+      } catch (e) {
+        console.warn('Assignee chip sync warning:', e);
+      }
+
+      // Close the editor UI
       closeAnyChipEditor();
-      // ---- NEW: ensure BOTH chip instances refresh ----
-try {
-  // Refresh the Top Clients list (updates chips inside More/Less cards)
 
-retriggerTopClientsFilter();
+      // Keep the rest of the UI fresh
+      try {
+        // Refresh the Top Clients list (chips in cards)
+        if (typeof retriggerTopClientsFilter === 'function') {
+          retriggerTopClientsFilter();
+        }
 
+        // If this client is currently open in notes, refresh it too
+        var selEl = document.getElementById('clientSelect');
+        if (selEl && selEl.value && selEl.value.trim() === clientName.trim()) {
+          if (typeof showClientNotes === 'function') showClientNotes();
+        }
+      } catch (e) {
+        console.warn('Post-save refresh warning:', e);
+      }
 
-  // If the currently loaded notes belong to this client, refresh them too
-  var sel = document.getElementById('clientSelect');
-  if (sel && sel.value && sel.value.trim() === clientName.trim()) {
-    if (typeof showClientNotes === 'function') {
-      showClientNotes();
-    }
-  }
-} catch (e) {
-  console.warn('Post-save refresh warning:', e);
+      // === NEW: Pull canonical P/Q from the sheet and repaint all visible chips ===
+      // Requires the helper functions added earlier:
+      //   refreshChipStateFromSheet([...]) and repaintAllAssignedChips()
+      try {
+// === Sync from sheet truth and repaint (fetch ALL to avoid truncating the map) ===
+refreshChipStateFromSheet(null, function(){
+  repaintAllAssignedChips();
+});
+
+      } catch (e) {
+        console.warn('Chip state refresh warning:', e);
+      }
+
+    })
+    .withFailureHandler(function (err) {
+      hideLoadingBar();
+      alert('Failed to update chip: ' + (err && err.message ? err.message : err));
+    })
+    .updateClientChip(clientName, newInitials, newIso || null);
 }
 
-    }).withFailureHandler(function(err){
-      hideLoadingBar();
-      alert('Failed to update chip: ' + err.message);
-    }).updateClientChip(clientName, newInitials, newIso || null);
-  }
+
 
   // AUTO-SAVE behaviors:
   // 1) Change initials → save immediately
@@ -8836,21 +8885,21 @@ function chipDateToTime(raw) {
   return isNaN(d3.getTime()) ? Number.NEGATIVE_INFINITY : d3.getTime();
 }
 
-function onToplistSuggestionBlur(clientName, newValue) {
-  if (!clientName) return;
+function onToplistSuggestionBlur(clientName, newVal){
   showLoadingBar();
   google.script.run
-    .withSuccessHandler(function() {
+    .withSuccessHandler(function(){
       hideLoadingBar();
-      // FULL refresh so ShowClientNotes + Top Clients match exactly
-      location.reload();
+      // ✅ Do NOT call retriggerTopClientsFilter() or reload here.
+      // Optionally show a tiny “Saved” badge near the textarea.
     })
-    .withFailureHandler(function(err) {
+    .withFailureHandler(function(err){
       hideLoadingBar();
-      alert('Error saving Ricky\'s Suggestion: ' + (err && err.message ? err.message : err));
+      alert('Failed to save: ' + (err?.message || err));
     })
-    .updateInProgress(clientName, newValue); // Apps Script: writes Column L for that client
+    .updateClientColumnL(clientName, newVal); // your server-side function
 }
+
 
 
 function ensureSuggestionsButtonInToolbar() {
@@ -9066,8 +9115,42 @@ function retriggerTopClientsFilter() {
   document.addEventListener('DOMContentLoaded', refreshRecentBar);
 
 // --- helpers for the unified dropdown behavior ---
+
+// Live chip store (populated by setClientChip or from clientsData fallback)
+window.__liveChips = window.__liveChips || {};
+
+// Normalize and read the current chip for a client (initials & date)
+function getCurrentChip(clientName) {
+  const fromLive = window.__liveChips[clientName];
+  if (fromLive) {
+    return {
+      initials: String(fromLive.initials || '').toUpperCase(),
+      date: normalizeChipDate(fromLive.date || '')
+    };
+  }
+  // Fallback to clientsData (what MAIN view previously used)
+  const c = (window.clientsData || []).find(x => (x.clientName || x.name || '') === clientName) || {};
+  return {
+    initials: String(c.chipInitials || c.initials || '').toUpperCase(),
+    date: normalizeChipDate(c.chipDate || '')
+  };
+}
+
+// Whenever the chip is set/changed anywhere, keep __liveChips in sync and repaint on the page.
+function updateLiveChip(clientName, initials, date) {
+  window.__liveChips[clientName] = {
+    initials: String(initials || '').toUpperCase(),
+    date: normalizeChipDate(date || '')
+  };
+  // Update any existing chip elements in the DOM for this client
+  document.querySelectorAll(`[data-chip-client="${clientName}"]`).forEach(function(el){
+    const s = window.__liveChips[clientName];
+    el.textContent = s.initials + (s.date ? ' · ' + s.date : '');
+  });
+}
+
 function isOwnerKey(v) {
-  return ['JB','RB','QC','TEAM','BDAY'].includes(String(v || '').toUpperCase());
+  return ['JB','RB','QC','TEAM'].includes(String(v || '').toUpperCase());
 }
 
 function normalizeFilterValue(v) {
@@ -9099,897 +9182,93 @@ function suggestionsContainEmoji(client, emoji) {
   return String(L).includes(emoji);
 }
 
+/* === GLOBAL CLICK GUARD (prevents 💡/green boxes from clearing UI) === */
+document.addEventListener('click', function(e){
+  // If the click is inside a green suggestion box or the In-Progress textarea, ignore it.
+  if (e.target.closest('.toplist-suggestion') || e.target.closest('#loadedInProgressArea')) return;
 
-(() => {
-  // === STATE ===
-  let currentClient = null;
-  let currentCategory = null;
-  let categories = []; // from getUniqueCategories()
-  let saving = false;
+  // If you previously had code here that hides/clears notes on any background click,
+  // leave it out. This guard turns "background click to clear" OFF by default.
+}, true); // capture=true so we intercept early
 
-  // === ELEMENTS ===
-  const catCalWrap   = () => document.getElementById('catCalWrap');
-  const catInput     = () => document.getElementById('categoryCombo');
-  const catList      = () => document.getElementById('categoryList');
-  const calendarBtn  = () => document.getElementById('calendarBtn');
-
-  const apptModal    = () => document.getElementById('apptModal');
-  const apptClose    = () => document.getElementById('apptClose');
-  const apptCancel   = () => document.getElementById('apptCancel');
-  const apptSave     = () => document.getElementById('apptSave');
-  const apptDate     = () => document.getElementById('apptDate');
-  const apptTime     = () => document.getElementById('apptTime');
-  const apptTitle    = () => document.getElementById('apptTitle');
-
-  // === UTIL ===
-  function setTooltip(el, text) {
-    if (!el) return;
-    el.title = text || '';
+// After the main view finishes building
+(function hookShowClientNotesForMainChips(){
+  const orig = window.showClientNotes;
+  if (typeof orig === 'function' && !orig.__chipsHooked) {
+    window.showClientNotes = function() {
+      const r = orig.apply(this, arguments);
+      setTimeout(mountAssignedClientChips, 0);
+      return r;
+    };
+    window.showClientNotes.__chipsHooked = true;
   }
-  function setDisabled(disabled) {
-    catInput().disabled = disabled;
-    calendarBtn().disabled = disabled;
+})();
+
+// Whenever you assign a client to a note (your Add button handler)
+function onClientAssignedToNote(/* your args */) {
+  // ...your existing assign logic...
+  setTimeout(mountAssignedClientChips, 0);
+}
+
+// If you support unassign / replace, refresh after that too
+function onClientUnassignedFromNote(/* your args */) {
+  // ...your existing unassign logic...
+  setTimeout(mountAssignedClientChips, 0);
+}
+
+// Also safe to run once on page load
+document.addEventListener('DOMContentLoaded', () => setTimeout(mountAssignedClientChips, 0));
+
+
+/**
+ * Find every assignment/autocomplete box and ensure the chip is shown right under it.
+ * It looks for:
+ *   - any element with class ".assigned-autocomplete"  (preferred, add this class)
+ *   - or inputs under a container with ".assignee-slot"
+ *   - or fall back to any input[data-client], input[data-name], or input[data-assignee]
+ */
+function ensureChipsUnderAssignees(){
+  // Preferred: explicit class
+  let nodes = Array.from(document.querySelectorAll('.assigned-autocomplete'));
+
+  // Common fallbacks (don’t duplicate)
+  if (!nodes.length) {
+    nodes = nodes.concat(Array.from(document.querySelectorAll('.assignee-slot input[type="text"]')));
   }
-  function toast(msg) {
-    if (window.showToast) { showToast(msg); } else { alert(msg); }
-  }
-  function populateDatalist(list) {
-    categories = list || [];
-    catList().innerHTML = '';
-    categories.forEach(c => {
-      const opt = document.createElement('option');
-      opt.value = c;
-      catList().appendChild(opt);
-    });
-  }
-  function refreshCategoryUI(cat) {
-    currentCategory = cat || '';
-    catInput().value = currentCategory || '';
-    catInput().placeholder = currentCategory ? currentCategory : 'Select category';
-    setTooltip(catInput(), currentCategory || 'Select category');
-  }
-  function showCatUI(show) {
-    catCalWrap().style.display = show ? 'inline-flex' : 'none';
-  }
+  nodes = nodes.concat(Array.from(document.querySelectorAll('input[data-client],input[data-name],input[data-assignee]')));
+  // de-dup
+  nodes = Array.from(new Set(nodes));
 
-  // Debounce helper ~200ms
-  function debounce(fn, wait=200) {
-    let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); };
-  }
+  nodes.forEach(inp => {
+    // Resolve client name (strip trailing " (Category)")
+    const raw = (inp.value || inp.getAttribute('data-client') || inp.getAttribute('data-name') || inp.getAttribute('data-assignee') || '').trim();
+    if (!raw) return;
+    const clientName = raw.split(' (')[0];
 
-  // === PUBLIC HOOK from your autocomplete selection ===
-  // Call this when user selects a client in your existing autocomplete.
-  window.onClientSelectedForBar = function(clientName, displayText) {
-    currentClient = clientName;
-    showCatUI(!!currentClient);
-
-    // keep the full bar’s tooltip showing the full text that might overflow
-    const barEl = document.querySelector('.your-autocomplete-input-selector'); // update if you want
-    if (barEl) setTooltip(barEl, displayText || clientName);
-
-    // get list of categories + current category
-    showLoadingBar && showLoadingBar();
-    setDisabled(true);
-
-    google.script.run
-      .withSuccessHandler(list => {
-        populateDatalist(list);
-        // pull current category quickly (cheapest reliable path)
-        google.script.run.withSuccessHandler(det => {
-          const cat = (det && det.notes && det.notes.length) ? (det.notes[0].category || '') : '';
-          refreshCategoryUI(cat);
-          hideLoadingBar && hideLoadingBar();
-          setDisabled(false);
-        }).withFailureHandler(() => {
-          refreshCategoryUI(''); // unknown
-          hideLoadingBar && hideLoadingBar();
-          setDisabled(false);
-        }).getClientDetails(currentClient);
-      })
-      .withFailureHandler(() => {
-        populateDatalist([]);
-        refreshCategoryUI('');
-        hideLoadingBar && hideLoadingBar();
-        setDisabled(false);
-      })
-      .getUniqueCategories();
-  };
-
-  // === SAVE CATEGORY (enter/change) ===
-  function saveCategory(newVal) {
-    if (!currentClient) return;
-    const newCategory = (newVal || '').trim();
-    const prev = currentCategory;
-
-    if (!newCategory || newCategory === prev) {
-      // no change
-      refreshCategoryUI(prev);
-      return;
+    // Find or create a holder right after the input
+    let holder = inp.parentNode.querySelector('.chip-holder');
+    if (!holder) {
+      holder = document.createElement('div');
+      holder.className = 'chip-holder';
+      holder.style.marginTop = '4px';
+      holder.style.display = 'block';
+      inp.parentNode.appendChild(holder);
+    } else {
+      holder.innerHTML = '';
     }
 
-    if (saving) return;
-    saving = true;
-
-    showLoadingBar && showLoadingBar();
-    setDisabled(true);
-    catInput().setAttribute('aria-busy', 'true');
-
-    google.script.run
-      .withSuccessHandler(res => {
-        saving = false;
-        catInput().removeAttribute('aria-busy');
-        hideLoadingBar && hideLoadingBar();
-        setDisabled(false);
-
-        if (res && res.ok) {
-          refreshCategoryUI(newCategory);
-          // Update any dependents you show under today's date etc.
-          if (window.fetchAndRenderTopClientsFromDropdown) {
-            try { fetchAndRenderTopClientsFromDropdown(); } catch(e){}
-          }
-        } else {
-          refreshCategoryUI(prev);
-          toast('Category change fail');
-        }
-      })
-      .withFailureHandler(() => {
-        saving = false;
-        catInput().removeAttribute('aria-busy');
-        hideLoadingBar && hideLoadingBar();
-        setDisabled(false);
-        refreshCategoryUI(prev);
-        toast('Category change fail');
-      })
-      .updateClientCategory(currentClient, newCategory);
-  }
-
-  // Input events: Enter = save (type-to-create supported), change = save
-  catInput().addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      saveCategory(catInput().value);
-    }
+    // Pull latest chip info and render
+    const chip = getClientChip(clientName);
+    const chipEl = makeChipEl(clientName, chip.initials, chip.date);
+    holder.appendChild(chipEl);
   });
-  catInput().addEventListener('change', () => saveCategory(catInput().value));
-  // Optional debounced “preview” (not saving): keep tooltip updated
-  catInput().addEventListener('input', debounce(() => {
-    setTooltip(catInput(), catInput().value || currentCategory || 'Select category');
-  }, 200));
-
-  // === CALENDAR MODAL ===
-  function openApptModal() {
-    if (!currentClient) return;
-    apptTitle().textContent = `Schedule appointment — ${currentClient}`;
-    apptDate().value = ''; apptTime().value = '';
-    apptModal().style.display = 'flex';
-  }
-  function closeApptModal() {
-    apptModal().style.display = 'none';
-  }
-
-  calendarBtn().addEventListener('click', openApptModal);
-  apptClose().addEventListener('click', closeApptModal);
-  apptCancel().addEventListener('click', closeApptModal);
-
-  apptSave().addEventListener('click', () => {
-    const d = apptDate().value; // 'yyyy-mm-dd'
-    const t = apptTime().value; // 'HH:mm'
-    if (!d || !t) { toast('Please choose date and time'); return; }
-
-    showLoadingBar && showLoadingBar();
-    setDisabled(true);
-
-    google.script.run
-      .withSuccessHandler(msg => {
-        hideLoadingBar && hideLoadingBar();
-        setDisabled(false);
-        closeApptModal();
-        toast(msg || 'Appointment scheduled');
-        // also append to follow-up UI if you do that elsewhere
-      })
-      .withFailureHandler(err => {
-        hideLoadingBar && hideLoadingBar();
-        setDisabled(false);
-        toast('Failed to add appointment.');
-      })
-      .addAppointmentToCalendar(currentClient, d, t);
-  });
-
-  // OPTIONAL: If your autocomplete already has a “selection” handler,
-  // just call window.onClientSelectedForBar(name, label) from there.
-})();
-
-
-// ================== NOTES CAROUSEL (Popup) ==================
-(function(){
-  // ---- internal state ----
-  const S = {
-    overlay: null, bar: null, nameEl: null, remEl: null, minsEl: null,
-    btnPrev: null, btnPlay: null, btnNext: null, closeEl: null,
-    queue: [], index: 0, paused: false, msPerClient: 2*60*1000,
-    t0: 0, msRemaining: 0, raf: 0, pollingTimer: 0
-  };
-
-  // ---- storage helpers ----
-  function persistLastDuration(min){ try{ localStorage.setItem('notesCarousel.minutes', String(min)); }catch(_){} }
-  function restoreLastDuration(){ try{ return parseFloat(localStorage.getItem('notesCarousel.minutes')) || 2; }catch(_){ return 2; } }
-
-  // ---- dates ----
-  function todayMidnight(){
-    const d=new Date(); d.setHours(0,0,0,0); return d;
-  }
-  function parseISO(d){ return d ? new Date(d) : null; }
-  function eligible(chipISO){ const d=parseISO(chipISO); return d && d.getTime() <= todayMidnight().getTime(); }
-
-  // ---- queue building (JB + chipDate ≤ today, oldest first) ----
-  function fetchJBQueue(){
-    return new Promise(function(resolve,reject){
-      if (!(window.google && google.script && google.script.run)){
-        reject('Apps Script runtime unavailable'); return;
-      }
-      google.script.run
-        .withSuccessHandler(function(rows){
-          const q=(rows||[])
-            .filter(r => (r && r.name && r.category==='JB' && eligible(r.chipDateISO)))
-            .sort((a,b)=> new Date(a.chipDateISO) - new Date(b.chipDateISO));
-          resolve(q);
-        })
-        .withFailureHandler(reject)
-        .getClientsForCarouselWithChipDates(); // provided in Section 3
-    });
-  }
-
-  // ---- popup DOM ----
-  function buildOverlay(){
-    const wrap=document.createElement('div');
-    wrap.id='notesCarouselOverlay';
-    wrap.style.cssText = [
-      'position:fixed','inset:0','z-index:100000',
-      'background:#0b1320','display:flex','flex-direction:column','color:#fff'
-    ].join(';');
-
-    // top bar (reverse progress)
-    const bar=document.createElement('div');
-    bar.id='notesCarouselBar';
-    bar.style.cssText='height:6px;background:linear-gradient(90deg,#22c55e,#eab308,#ef4444);margin:0;width:100%';
-    wrap.appendChild(bar);
-
-    // header controls
-    const hdr=document.createElement('div');
-    hdr.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.1)';
-
-    const nameEl=document.createElement('div');
-    nameEl.id='notesCarouselClient';
-    nameEl.style.cssText='font-size:28px;font-weight:800;flex:1 1 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
-
-    const rem=document.createElement('div');
-    rem.id='notesCarouselRemaining';
-    rem.style.cssText='opacity:.8;font-weight:700';
-
-    const minsInput=document.createElement('input');
-    minsInput.type='number';
-    minsInput.min='0.25';
-    minsInput.step='0.25';
-    minsInput.id='notesCarouselMinutes';
-    minsInput.title='Minutes per client';
-    minsInput.style.cssText='width:90px;padding:6px;border-radius:8px;border:0;font-weight:700';
-
-    const prev=document.createElement('button');
-    prev.textContent='⟨';
-    const play=document.createElement('button');
-    play.textContent='⏸';
-    const next=document.createElement('button');
-    next.textContent='⟩';
-    [prev,play,next].forEach(b=>{
-      b.style.cssText='border:0;border-radius:10px;padding:8px 12px;font-weight:800;cursor:pointer';
-    });
-
-    const close=document.createElement('button');
-    close.textContent='✕';
-    close.style.cssText='margin-left:8px;border:0;border-radius:10px;padding:6px 10px;font-weight:800;cursor:pointer;background:#ef4444;color:#fff';
-
-    hdr.appendChild(nameEl);
-    hdr.appendChild(rem);
-    hdr.appendChild(document.createTextNode(' • '));
-    hdr.appendChild(minsInput);
-    hdr.appendChild(prev);
-    hdr.appendChild(play);
-    hdr.appendChild(next);
-    hdr.appendChild(close);
-
-    wrap.appendChild(hdr);
-
-    // body is your existing client view; we just keep it visible beneath
-
-    document.body.appendChild(wrap);
-
-    // wire
-    close.addEventListener('click', closeNotesCarouselPopup);
-    prev.addEventListener('click', ()=>prevClient(true));
-    next.addEventListener('click', ()=>nextClient(true));
-    play.addEventListener('click', togglePause);
-    minsInput.addEventListener('change', ()=> {
-      const v=Math.max(0.25, parseFloat(minsInput.value)||2);
-      setDurationPerClient(v);
-    });
-
-    // save refs
-    S.overlay=wrap; S.bar=bar; S.nameEl=nameEl; S.remEl=rem; S.minsEl=minsInput;
-    S.btnPrev=prev; S.btnPlay=play; S.btnNext=next; S.closeEl=close;
-  }
-
-  function destroyOverlay(){
-    try{ if (S.overlay && S.overlay.parentNode) S.overlay.parentNode.removeChild(S.overlay); }catch(_){}
-    S.overlay=S.bar=S.nameEl=S.remEl=S.minsEl=S.btnPrev=S.btnPlay=S.btnNext=S.closeEl=null;
-  }
-
-  function renderHUD(){
-    if (!S.overlay) return;
-    const left = Math.max(0, (S.queue.length - (S.index+1)));
-    S.remEl.textContent = `${left} remaining`;
-    const cur = S.queue[S.index];
-    S.nameEl.textContent = cur ? cur.name : '—';
-    S.minsEl.value = (S.msPerClient/60000).toFixed(2);
-    S.btnPlay.textContent = S.paused ? '▶︎' : '⏸';
-  }
-
-  // ---- progress bar + timer ----
-  function colorByFrac(fr){
-    if (fr > 0.5) return 'linear-gradient(90deg,#22c55e,#22c55e)';      // green
-    if (fr > 0.2) return 'linear-gradient(90deg,#eab308,#eab308)';      // yellow
-    return 'linear-gradient(90deg,#ef4444,#ef4444)';                     // red
-  }
-
-  function setBar(fr){
-    if (!S.bar) return;
-    // reverse fill (remaining)
-    const pct = Math.max(0, Math.min(1, fr))*100;
-    S.bar.style.width='100%';
-    S.bar.style.backgroundImage = colorByFrac(fr);
-    S.bar.style.backgroundSize = '100% 100%';
-    // simulate reverse by using a gradient mask via transform
-    S.bar.style.transformOrigin='right center';
-    S.bar.style.transform = `scaleX(${pct/100})`;
-  }
-
-  function tick(){
-    S.raf = 0;
-    if (S.paused) return;
-    const now = performance.now();
-    const elapsed = now - S.t0;
-    S.msRemaining = Math.max(0, S.msPerClient - elapsed);
-    const fr = S.msRemaining / S.msPerClient;
-    setBar(fr);
-    if (S.nameEl){
-      const mm = Math.floor(S.msRemaining/60000);
-      const ss = Math.floor((S.msRemaining%60000)/1000).toString().padStart(2,'0');
-      S.nameEl.title = `${mm}:${ss}`;
-    }
-    if (S.msRemaining <= 0) {
-      nextClient(false);
-      return;
-    }
-    S.raf = requestAnimationFrame(tick);
-  }
-
-  function startCountdown(){
-    cancelCountdown();
-    S.t0 = performance.now();
-    S.msRemaining = S.msPerClient;
-    S.paused = false;
-    renderHUD();
-    setBar(1);
-    S.raf = requestAnimationFrame(tick);
-  }
-  function cancelCountdown(){
-    if (S.raf){ cancelAnimationFrame(S.raf); S.raf=0; }
-  }
-
-  // ---- controls ----
-  function setDurationPerClient(minutes){
-    S.msPerClient = Math.max(15000, minutes*60000); // minimum 15s hard floor
-    persistLastDuration(minutes);
-    // apply on next client unless paused; if paused apply immediately on resume
-  }
-  function togglePause(){
-    S.paused = !S.paused;
-    if (!S.paused){
-      // resume: continue with leftover
-      S.t0 = performance.now() - (S.msPerClient - S.msRemaining);
-      S.raf = requestAnimationFrame(tick);
-    } else {
-      cancelCountdown();
-    }
-    renderHUD();
-  }
-
-  function goTo(index){
-    if (!S.queue.length) return;
-    // wrap only for manual prev/next; start/auto uses non-wrap
-    if (index < 0) index = S.queue.length-1;
-    if (index >= S.queue.length) index = 0;
-    S.index = index;
-
-    const cur = S.queue[S.index];
-    // Load client without using autocomplete
-    try{
-      const sel = document.getElementById('clientSelect');
-      if (sel){ sel.value = cur.name; }
-      if (typeof showClientNotes === 'function') showClientNotes();
-    }catch(_){}
-
-    renderHUD();
-    startCountdown();
-  }
-
-  function nextClient(manual){
-    if (!S.queue.length) return;
-    if (manual){
-      goTo(S.index+1);
-      return;
-    }
-    // auto: no wrap; stop when exhausted
-    if (S.index+1 < S.queue.length){
-      goTo(S.index+1);
-    } else {
-      // done
-      cancelCountdown();
-      setBar(0);
-      S.nameEl && (S.nameEl.textContent='All done');
-      S.remEl && (S.remEl.textContent='0 remaining');
-    }
-  }
-  function prevClient(manual){
-    if (!S.queue.length) return;
-    // prev is always manual => wrap allowed
-    goTo(S.index-1);
-  }
-
-  function removeByName(name){
-    const i = S.queue.findIndex(q=>q.name===name);
-    if (i<0) return;
-    const removingCurrent = (i===S.index);
-    S.queue.splice(i,1);
-    if (!S.queue.length){
-      renderHUD();
-      cancelCountdown();
-      setBar(0);
-      return;
-    }
-    if (removingCurrent){
-      if (S.index >= S.queue.length) S.index = S.queue.length-1;
-      goTo(S.index); // load the new current
-    } else {
-      if (i < S.index) S.index--; // keep current item fixed visually
-      renderHUD();
-    }
-  }
-
-  // ---- live pruning: if chip date moves forward, drop them ----
-  function pruneQueueOnDateChange(){
-    if (!(window.google && google.script && google.script.run)) return;
-    // fetch fresh chip dates for names currently in queue
-    const names = S.queue.map(x=>x.name);
-    if (!names.length) return;
-
-    google.script.run
-      .withSuccessHandler(function(rows){
-        const map = Object.create(null);
-        (rows||[]).forEach(r => { map[r.name]=r.chipDateISO; });
-        // remove any that are now > today
-        const toDrop = S.queue.filter(q => !eligible(map[q.name]));
-        toDrop.forEach(q => removeByName(q.name));
-      })
-      .getChipDatesForNames(names); // provided in Section 3
-  }
-
-  function startPolling(){
-    stopPolling();
-    S.pollingTimer = setInterval(pruneQueueOnDateChange, 25000); // ~25s
-  }
-  function stopPolling(){
-    if (S.pollingTimer){ clearInterval(S.pollingTimer); S.pollingTimer=0; }
-  }
-
-  // ---- public API ----
-  window.openNotesCarouselPopup = function(){
-    if (!S.overlay) buildOverlay();
-    const last = restoreLastDuration();
-    setDurationPerClient(last);
-
-    fetchJBQueue().then(queue=>{
-      S.queue = queue.slice();
-      S.index = 0;
-      S.paused = false;
-      renderHUD();
-      if (!S.queue.length){
-        S.nameEl && (S.nameEl.textContent='No JB clients due (today or earlier).');
-        setBar(0);
-        return;
-      }
-      goTo(0);
-      startPolling();
-    }).catch(err=>{
-      console.error('fetchJBQueue failed:', err);
-      if (S.nameEl) S.nameEl.textContent = 'Could not load queue';
-      setBar(0);
-    });
-  };
-
-  window.closeNotesCarouselPopup = function(){
-    stopPolling();
-    cancelCountdown();
-    destroyOverlay();
-    if (typeof hideClientNotes === 'function') try{ hideClientNotes(); }catch(_){}
-  };
-
-  // expose manual controls (if you ever want to call from elsewhere)
-  window.notesCarousel = {
-    next: ()=>nextClient(true),
-    prev: ()=>prevClient(true),
-    togglePause,
-    setMinutes: setDurationPerClient,
-    removeByName
-  };
-})();
-
- function insertFocusButtonNextToChangeView() {
-    const btn = document.createElement('button');
-    btn.id = 'jbCycleBtn';
-    btn.textContent = 'FOCUS: Cycle JB Notes';
-    btn.className = 'primary-button';
-    btn.style.marginLeft = '8px';
-btn.onclick = fmOpenFocus;
-
-    // Try to find the green bar label/button that says "CHANGE VIEW"
-    const all = document.querySelectorAll('button, a, span, div');
-    let anchor = null;
-    for (const el of all) {
-      if (!el || !el.textContent) continue;
-      if (el.textContent.trim().toUpperCase() === 'CHANGE VIEW') { anchor = el; break; }
-    }
-    if (anchor && anchor.parentElement) {
-      anchor.parentElement.insertBefore(btn, anchor.nextSibling);
-      return;
-    }
-    // Fallback: titleButtonContainer
-    const fallback = document.getElementById('titleButtonContainer');
-    if (fallback) fallback.appendChild(btn);
-  }
-  document.addEventListener('DOMContentLoaded', insertFocusButtonNextToChangeView);
-
- // Insert FOCUS button next to "CHANGE VIEW" in the green bar
-  (function insertFocusButtonNextToChangeView(){
-    function byText(el, text){ return el && el.textContent && el.textContent.trim().toUpperCase() === text; }
-    function placeButton(anchor){
-      if (!anchor) return;
-      if (document.getElementById('jbFocusBtn')) return; // avoid dupes
-      const btn = document.createElement('button');
-      btn.id = 'jbFocusBtn';
-      btn.textContent = 'FOCUS: Cycle JB Notes';
-      btn.className = 'primary-button';
-      btn.style.marginLeft = '8px';
-btn.addEventListener('click', openNotesCarouselPopup);
-      anchor.insertAdjacentElement('afterend', btn);
-    }
-
-    function tryPlace(){
-      // 1) Try a known id near your green bar controls (adjust if needed)
-      let anchor = document.querySelector('#titleButtonContainer button, #dateCategoryRow button');
-      // 2) If unknown, scan all buttons for exact label "CHANGE VIEW"
-      if (!anchor) {
-        const btns = document.querySelectorAll('button');
-        for (const b of btns){
-          if (byText(b, 'CHANGE VIEW')) { anchor = b; break; }
-        }
-      }
-      if (anchor) placeButton(anchor);
-    }
-
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', tryPlace);
-    } else {
-      tryPlace();
-    }
-  })();
-
-  /* ===== Timer / Progress for auto-advance ===== */
-FM.timer = {
-  intervalId: null,
-  endTs: 0,
-  durationMs: 0
-};
-
-function fmSetDurationFromInput(){
-  const mins = Math.max(0.5, parseFloat(document.getElementById('focusMinutes')?.value || '2'));
-  FM.timer.durationMs = mins * 60 * 1000;
 }
 
-function fmStopTimer(){
-  if (FM.timer.intervalId){
-    clearInterval(FM.timer.intervalId);
-    FM.timer.intervalId = null;
-  }
-  const prog = document.getElementById('focusProg');
-  const cd   = document.getElementById('focusCountdown');
-  if (prog) prog.style.width = '0%';
-  if (cd)   cd.textContent = '—';
-}
+// example success handler after saving chip to sheet:
+setClientChip(clientName, newInitials, newDate);
+ensureChipsUnderAssignees();          // <— paint under Change View inputs
+retriggerTopClientsFilter();          // you already call this elsewhere
 
-function fmStartTimer(){
-  fmStopTimer();
-  fmSetDurationFromInput();
-  FM.timer.endTs = Date.now() + FM.timer.durationMs;
-
-  const prog = document.getElementById('focusProg');
-  const cd   = document.getElementById('focusCountdown');
-
-  function tick(){
-    const now = Date.now();
-    const rem = Math.max(0, FM.timer.endTs - now);
-    const pct = Math.min(100, 100 - (rem / FM.timer.durationMs) * 100);
-    if (prog) prog.style.width = pct.toFixed(1) + '%';
-    if (cd){
-      const s = Math.ceil(rem/1000);
-      cd.textContent = s + 's';
-    }
-    if (rem <= 0){
-      // Auto-advance when full
-      focusAdvance(+1);
-    }
-  }
-  tick();
-  FM.timer.intervalId = setInterval(tick, 200);
-}
-
-
-function focusAdvance(delta){
-  const catSel = document.getElementById('focusCategory');
-  const currentCat = catSel ? catSel.value : 'JB';
-  const curName = (FM.list[FM.idx] && FM.list[FM.idx].name) || null;
-
-  google.script.run.withSuccessHandler(function(rows){
-    const newList = rows || [];
-    let baseIdx = -1;
-    if (curName){
-      baseIdx = newList.findIndex(x => x.name === curName);
-    }
-    FM.list = newList;
-
-    if (!FM.list.length){
-      const host = document.getElementById('focusNotesHost');
-      if (host){
-        host.innerHTML = `<div style="padding:16px;">No ${currentCat} clients with chip ≤ today. Try a different category.</div>`;
-      }
-      document.getElementById('focusClientName').textContent = '—';
-      fmStopTimer();
-      return;
-    }
-
-    if (baseIdx === -1){
-      FM.idx = (delta >= 0) ? 0 : (FM.list.length - 1);
-    } else {
-      FM.idx = (baseIdx + delta + FM.list.length) % FM.list.length;
-    }
-
-    showFocusClient();   // render the new client
-    fmStartTimer();      // restart timer for the new client
-  }).listDueClientsByCategory(currentCat);
-}
-
-// Rewire buttons and category change to restart timer / refresh list
-(function(){
-  const nextBtn = document.getElementById('focusNextBtn');
-  const backBtn = document.getElementById('focusBackBtn');
-  const catSel  = document.getElementById('focusCategory');
-  const minsInp = document.getElementById('focusMinutes');
-
-  if (nextBtn && !nextBtn._rf){
-    nextBtn.addEventListener('click', function(){ focusAdvance(+1); });
-    nextBtn._rf = true;
-  }
-  if (backBtn && !backBtn._rf){
-    backBtn.addEventListener('click', function(){ focusAdvance(-1); });
-    backBtn._rf = true;
-  }
-  if (catSel && !catSel._rf){
-    catSel.addEventListener('change', function(){
-      refreshFocusList(catSel.value, /*andShow=*/true);
-      // showFocusClient() will run via refresh; start/restart timer afterward
-      setTimeout(fmStartTimer, 50);
-    });
-    catSel._rf = true;
-  }
-  if (minsInp && !minsInp._rf){
-    minsInp.addEventListener('change', function(){
-      // Apply new minutes immediately (restart for current client)
-      fmStartTimer();
-    });
-    minsInp._rf = true;
-  }
-})();
-
-// === FOCUS OVERLAY LOGIC (self-contained) ===
-(function(){
-  // DOM ids we already have in your file:
-  // - #focusOverlay, #focusPanel, #focusHeader
-  // - #focusCategory (JB/RB/TEAM/QC/BDAY)
-  // - #focusMinutes (number), #focusCountdown (span), #focusProgWrap/#focusProg
-  // - #focusBackBtn, #focusNextBtn, #focusCloseBtn
-  // - #focusClientName
-  // - #focusNotesHost (the popup body where we will reparent your real notes)
-  // - #workSectionsContainer (your existing visible notes area)
-  // - #clientSelect (your existing select used by showClientNotes)
-
-  // Keep track of list + where the notes DOM came from so we can put it back.
-  const FOCUS = {
-    list: [],        // [{name, chipDateISO}]
-    idx: -1,         // current index in list
-    homeParent: null,
-    homeNext: null,
-    timerId: null,
-    endTs: 0
-  };
-
-  function $(id){ return document.getElementById(id); }
-
-  function moveNotesIntoPopup(){
-    const notes = $('workSectionsContainer');
-    const host  = $('focusNotesHost');
-    if (!notes || !host) return;
-    if (!FOCUS.homeParent){
-      FOCUS.homeParent = notes.parentNode;
-      FOCUS.homeNext   = notes.nextSibling; // may be null
-    }
-    host.innerHTML = '';
-    host.appendChild(notes);
-    notes.style.display = 'flex'; // make sure it's visible in popup
-  }
-
-  function moveNotesBack(){
-    const notes = $('workSectionsContainer');
-    if (!notes || !FOCUS.homeParent) return;
-    if (FOCUS.homeNext) {
-      FOCUS.homeParent.insertBefore(notes, FOCUS.homeNext);
-    } else {
-      FOCUS.homeParent.appendChild(notes);
-    }
-  }
-
-  function setCountdownUI(msLeft, totalMs){
-    const cd  = $('focusCountdown');
-    const bar = $('focusProg');
-    if (cd){
-      const s = Math.max(0, Math.ceil(msLeft/1000));
-      const m = Math.floor(s/60);
-      const r = s % 60;
-      cd.textContent = (m>0 ? (m + 'm ') : '') + r + 's';
-    }
-    if (bar && totalMs > 0){
-      const frac = Math.max(0, Math.min(1, 1 - (msLeft/totalMs)));
-      bar.style.width = (frac*100).toFixed(1) + '%';
-    }
-  }
-
-  function stopTimer(){
-    if (FOCUS.timerId){ clearInterval(FOCUS.timerId); FOCUS.timerId = null; }
-    $('focusProg') && ($('focusProg').style.width = '0%');
-    $('focusCountdown') && ($('focusCountdown').textContent = '—');
-  }
-
-  function startTimer(){
-    stopTimer();
-    const mins = Math.max(0.5, parseFloat(($('focusMinutes')?.value)||'2'));
-    const total = mins * 60 * 1000;
-    FOCUS.endTs = Date.now() + total;
-    FOCUS.timerId = setInterval(function(){
-      const left = FOCUS.endTs - Date.now();
-      if (left <= 0){
-        setCountdownUI(0, total);
-        focusAdvance(+1); // auto-advance
-        return;
-      }
-      setCountdownUI(left, total);
-    }, 200);
-  }
-
-  function showFocusClient(){
-    if (!FOCUS.list.length){ return; }
-    const cur = FOCUS.list[FOCUS.idx];
-    $('focusClientName').textContent = cur.name;
-
-    // Tell your normal UI to load that client, then reparent the same notes DOM into popup
-    const sel = $('clientSelect');
-    if (sel) sel.value = cur.name;
-    if (typeof showClientNotes === 'function') showClientNotes();
-
-    moveNotesIntoPopup();
-  }
-
-  function focusAdvance(delta){
-    if (!FOCUS.list.length) return;
-    FOCUS.idx = (FOCUS.idx + delta + FOCUS.list.length) % FOCUS.list.length;
-    showFocusClient();
-    startTimer();
-  }
-
-  function refreshList(cat, andShow){
-    if (!(window.google && google.script && google.script.run)){
-      // fallback: empty
-      FOCUS.list = [];
-      $('focusNotesHost').innerHTML = '<div style="padding:16px;">Apps Script runtime unavailable.</div>';
-      return;
-    }
-    google.script.run.withSuccessHandler(function(rows){
-      FOCUS.list = Array.isArray(rows) ? rows : [];
-      if (!FOCUS.list.length){
-        $('focusClientName').textContent = '—';
-        $('focusNotesHost').innerHTML =
-          '<div style="padding:16px;">No ' + cat + ' clients with chip ≤ today. Try a different category.</div>';
-        stopTimer();
-        return;
-      }
-      if (andShow){
-        FOCUS.idx = 0;
-        showFocusClient();
-        startTimer();
-      }
-    }).listDueClientsByCategory(cat);
-  }
-
-  // === public open/close ===
-  window.fmOpenFocus = function(){
-    const ov = $('focusOverlay');
-    if (!ov) return;
-    ov.style.display = 'block';
-    const catSel = $('focusCategory');
-    const cat = catSel ? catSel.value : 'JB';
-    refreshList(cat, /*andShow=*/true);
-  };
-
-  window.fmCloseFocus = function(){
-    stopTimer();
-    moveNotesBack();
-    const ov = $('focusOverlay');
-    if (ov) ov.style.display = 'none';
-  };
-
-  // === wire header controls ===
-  (function wire(){
-    const nextBtn = $('focusNextBtn');
-    const backBtn = $('focusBackBtn');
-    const closeBtn = $('focusCloseBtn');
-    const catSel = $('focusCategory');
-    const minsInp = $('focusMinutes');
-
-    nextBtn && nextBtn.addEventListener('click', function(){ focusAdvance(+1); });
-    backBtn && backBtn.addEventListener('click', function(){ focusAdvance(-1); });
-    closeBtn && closeBtn.addEventListener('click', fmCloseFocus);
-    catSel && catSel.addEventListener('change', function(){ refreshList(catSel.value, /*andShow=*/true); });
-    minsInp && minsInp.addEventListener('change', function(){ startTimer(); });
-  })();
-})();
-
-
-// Wire the in-markup FOCUS button to the popup open function
-(function(){
-  function wireFocusBtn(){
-    const btn = document.getElementById('focusBtn');
-    if (!btn) return;
-    btn.addEventListener('click', function(){
-      if (typeof fmOpenFocus === 'function') {
-        fmOpenFocus();
-      } else {
-        console.warn('fmOpenFocus() is not defined yet.');
-      }
-    });
-  }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', wireFocusBtn);
-  } else {
-    wireFocusBtn();
-  }
-})();
 
 
 </script>
@@ -9999,3 +9278,4 @@ function focusAdvance(delta){
 
 </body>
 </html>
+
