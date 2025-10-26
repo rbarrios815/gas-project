@@ -6151,7 +6151,38 @@ document.getElementById('topClientsTitle').style.display = 'none';
   });
 
   // Paint
-  filtered.forEach(function(c){ displayClient(c, out); });
+filtered.forEach(function(c){
+  // 1) Render the row as before
+  displayClient(c, out);
+
+  // 2) Grab the row that was just appended
+  var row = out.lastElementChild;
+  if (!row) return;
+
+  // 3) Ensure we have a slot for the chip
+  var chipSlot = row.querySelector('.chip-slot');
+  if (!chipSlot) {
+    chipSlot = document.createElement('span');
+    chipSlot.className = 'chip-slot';
+    // Position: at the end of the row (move earlier if you want it near the name)
+    row.appendChild(chipSlot);
+  }
+
+  // 4) Clear any existing chip, then render the chip
+  chipSlot.innerHTML = '';
+
+  // Use your existing field names; fallbacks included
+  var initials = String((c.chipInitials || c.initials || '')).toUpperCase();
+  var dateLike = c.chipDate || c.mmddyy || c.date || '';
+
+  chipSlot.appendChild(
+    createChipElementReadOnly(
+      (c.clientName || c.name || ''),
+      initials,
+      dateLike
+    )
+  );
+});
 
   // Re-wire suggestion textareas + visibility
   if (typeof wireToplistSuggestionTextareas === 'function') wireToplistSuggestionTextareas();
@@ -6229,7 +6260,36 @@ function chipDateToTimeForSort(chipDateStr){
   });
 
   // 5) Paint
-  filtered.forEach(function(c){ displayClient(c, out); });
+filtered.forEach(function(c){
+  // 1) Render the row as before
+  displayClient(c, out);
+
+  // 2) Grab the row that was just appended
+  var row = out.lastElementChild;
+  if (!row) return;
+
+  // 3) Ensure we have a slot for the chip
+  var chipSlot = row.querySelector('.chip-slot');
+  if (!chipSlot) {
+    chipSlot = document.createElement('span');
+    chipSlot.className = 'chip-slot';
+    row.appendChild(chipSlot);
+  }
+
+  // 4) Clear any existing chip, then render the chip
+  chipSlot.innerHTML = '';
+
+  var initials = String((c.chipInitials || c.initials || '')).toUpperCase();
+  var dateLike = c.chipDate || c.mmddyy || c.date || '';
+
+  chipSlot.appendChild(
+    createChipElementReadOnly(
+      (c.clientName || c.name || ''),
+      initials,
+      dateLike
+    )
+  );
+});
 
   // 6) Wire suggestion areas & visibility
   if (typeof wireToplistSuggestionTextareas === 'function') wireToplistSuggestionTextareas();
