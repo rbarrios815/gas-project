@@ -2680,6 +2680,44 @@ input#clientAutocomplete, select#clientSelect {
 
 </style>
 
+<style>
+  /* === Chips (brought over from v393) === */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+    border: 1px solid #d0d0d0;
+    background: #fff;
+    white-space: nowrap;
+  }
+  .chip-initials {
+    letter-spacing: 0.4px;
+  }
+  .chip-sep {
+    opacity: 0.6;
+  }
+  .chip-date {
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+  .chip-assign {
+    opacity: 0.65;
+    font-style: italic;
+  }
+
+  /* Optional: sizes similar to your 393 look */
+  .chip .chip-date { font-size: 0.95rem; }
+  .chip .chip-initials { font-size: 0.9rem; }
+
+  /* You can theme per-initials class if you used this in 393:
+     .chip.JB { background:#f6ffed; border-color:#b7eb8f; }
+     .chip.RB { background:#e6f7ff; border-color:#91d5ff; }
+     etc.
+  */
+</style>
 
 </head>
 <div id="focusOverlay" role="dialog" aria-modal="true">
@@ -9996,6 +10034,85 @@ function focusAdvance(delta){
 
 
 
+<script>
+  // === Chips helpers (from v393, neutralized & portable) ===
+
+  function normalizeChipDate(input) {
+    if (!input) return '';
+    let s = String(input).trim();
+
+    // mmddyy (e.g., 102625) -> 10/26/25
+    if (/^\d{6}$/.test(s)) {
+      const mm = s.slice(0, 2), dd = s.slice(2, 4), yy = s.slice(4, 6);
+      return `${mm}/${dd}/${yy}`;
+    }
+
+    // yyyy-mm-dd -> mm/dd/yy
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+      const [Y, M, D] = s.split('-');
+      return `${M}/${D}/${String(Y).slice(-2)}`;
+    }
+
+    // Try Date() for other human formats
+    const d = new Date(s);
+    if (!Number.isNaN(d.getTime())) {
+      const M = String(d.getMonth() + 1).padStart(2, '0');
+      const D = String(d.getDate()).padStart(2, '0');
+      const Y = String(d.getFullYear()).slice(-2);
+      return `${M}/${D}/${Y}`;
+    }
+    return s; // fallback unchanged
+  }
+
+  // READ-ONLY chip element
+  function createChipElementReadOnly(clientName, initials, dateLike) {
+    const safeInitials = (initials || '').toUpperCase().trim();
+    const safeDate = normalizeChipDate(dateLike || '');
+
+    const chip = document.createElement('span');
+    chip.className = 'chip ' + (safeInitials ? safeInitials : 'EMPTY');
+
+    if (!safeInitials && !safeDate) {
+      const ph = document.createElement('span');
+      ph.className = 'chip-assign';
+      ph.textContent = '(ASSIGN)';
+      chip.appendChild(ph);
+      return chip;
+    }
+
+    if (safeInitials) {
+      const initEl = document.createElement('span');
+      initEl.className = 'chip-initials';
+      initEl.textContent = safeInitials;
+      chip.appendChild(initEl);
+    }
+
+    if (safeInitials && safeDate) {
+      const sepEl = document.createElement('span');
+      sepEl.className = 'chip-sep';
+      sepEl.textContent = ' | ';
+      chip.appendChild(sepEl);
+    }
+
+    if (safeDate) {
+      const dateEl = document.createElement('span');
+      dateEl.className = 'chip-date';
+      dateEl.textContent = safeDate;
+      chip.appendChild(dateEl);
+    }
+
+    return chip;
+  }
+
+  // Convenience: attach a chip to a container
+  function attachChip(container, initials, dateLike) {
+    const el = (typeof container === 'string') ? document.querySelector(container) : container;
+    if (!el) return null;
+    const chip = createChipElementReadOnly('', initials, dateLike);
+    el.appendChild(chip);
+    return chip;
+  }
+</script>
 
 </body>
 </html>
