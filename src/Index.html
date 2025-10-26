@@ -9298,6 +9298,109 @@ retriggerTopClientsFilter();          // you already call this elsewhere
 
 </script>
 
+<script>
+/* === v393 → v400 CHIP SHIM (CLIENT-SIDE; ADD-ONLY) ==========================
+   Defines helpers if missing and runs a gentle scan to assemble chips.
+   NO removals of existing features. Debug marker for verification included.
+   ========================================================================== */
+(function(){
+  try {
+    // Debug marker so we can verify in Console later
+    console.log("chip-shim: client script loaded");
+
+    function def(name, fn){
+      if (typeof window[name] !== 'function') { window[name] = fn; }
+    }
+
+    // v393: normalizeChipDate (safe fallback)
+    def('normalizeChipDate', function(mmddyy){
+      try {
+        var s = (mmddyy||'').toString().trim();
+        if (!s) return '';
+        var m = s.match(/(\d{1,2})[/-]?(\d{1,2})[/-]?(\d{2,4})/);
+        if (!m) return s;
+        var mm = ('0' + m[1]).slice(-2);
+        var dd = ('0' + m[2]).slice(-2);
+        var yy = m[3].length === 4 ? m[3].slice(-2) : m[3];
+        return mm + '/' + dd + '/' + yy;
+      } catch(e){ return mmddyy||''; }
+    });
+
+    // v393: createChipElementReadOnly (safe fallback)
+    def('createChipElementReadOnly', function(clientName, initials, mmddyy){
+      var safeInitials = (initials || '').toUpperCase().trim();
+      var safeDate = (typeof normalizeChipDate === 'function')
+        ? normalizeChipDate(mmddyy || '')
+        : (mmddyy || '');
+
+      var chip = document.createElement('span');
+      chip.className = 'chip ' + (safeInitials ? safeInitials : 'EMPTY');
+
+      if (!safeInitials && !safeDate) {
+        var ph = document.createElement('span');
+        ph.className = 'chip-assign';
+        ph.textContent = '(ASSIGN)';
+        chip.appendChild(ph);
+        return chip;
+      }
+
+      if (safeInitials) {
+        var initEl = document.createElement('span');
+        initEl.className = 'chip-initials';
+        initEl.textContent = safeInitials;
+        chip.appendChild(initEl);
+      }
+
+      if (safeInitials && safeDate) {
+        var sepEl = document.createElement('span');
+        sepEl.className = 'chip-sep';
+        sepEl.textContent = ' | ';
+        chip.appendChild(sepEl);
+      }
+
+      if (safeDate) {
+        var dateEl = document.createElement('span');
+        dateEl.className = 'chip-date';
+        dateEl.textContent = safeDate;
+        chip.appendChild(dateEl);
+      }
+      return chip;
+    });
+
+    // Gentle post-render pass to construct chips where data-* is present
+    function _v393_chip_pass(){
+      try {
+        var nodes = document.querySelectorAll('[data-chip-initials],[data-chip-date]');
+        nodes.forEach(function(node){
+          if (node.querySelector('.chip')) return; // don’t duplicate
+          var initials = node.getAttribute('data-chip-initials') || '';
+          var mmddyy   = node.getAttribute('data-chip-date') || '';
+          if (!initials && !mmddyy) return;
+
+          if (typeof createChipElementReadOnly === 'function') {
+            var chip = createChipElementReadOnly('', initials, mmddyy);
+            if (!node.firstChild || node.getAttribute('data-chip-host') === '1') {
+              node.appendChild(chip);
+            } else {
+              node.parentNode && node.parentNode.insertBefore(chip, node.nextSibling);
+            }
+          }
+        });
+      } catch(e){
+        console.warn('chip shim pass failed', e);
+      }
+    }
+
+    window.addEventListener('load', function(){
+      _v393_chip_pass();
+      setTimeout(_v393_chip_pass, 300);
+      setTimeout(_v393_chip_pass, 1000);
+    });
+  } catch (e) {
+    console.warn("chip-shim load error", e);
+  }
+})();
+</script>
 
 
 
