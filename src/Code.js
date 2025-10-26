@@ -1,3 +1,110 @@
+/* === v393 → v400 CHIP SHIM (ADD-ONLY; NO REMOVALS) ==========================
+   Goal: Restore visible/working chips in the default (green-bar) view even if
+   v400’s code path skipped the chip helpers. This defines helpers ONLY if they
+   do not already exist, and performs a gentle post-render scan to build chips.
+   ========================================================================== */
+
+(function(){
+  // Helper: define a function only if it doesn't already exist
+  function def(name, fn){
+    if (typeof globalThis[name] !== 'function') { globalThis[name] = fn; }
+  }
+
+  // v393: normalizeChipDate (safe fallback)
+  def('normalizeChipDate', function(mmddyy){
+    try {
+      var s = (mmddyy||'').toString().trim();
+      if (!s) return '';
+      // Accept MM/DD/YY or MM-DD-YY or compact forms; keep v393 visual
+      var m = s.match(/(\d{1,2})[/-]?(\d{1,2})[/-]?(\d{2,4})/);
+      if (!m) return s;
+      var mm = ('0' + m[1]).slice(-2);
+      var dd = ('0' + m[2]).slice(-2);
+      var yy = m[3].length === 4 ? m[3].slice(-2) : m[3];
+      return mm + '/' + dd + '/' + yy;
+    } catch(e){ return mmddyy||''; }
+  });
+
+  // v393: createChipElementReadOnly (safe fallback)
+  def('createChipElementReadOnly', function(clientName, initials, mmddyy){
+    var safeInitials = (initials || '').toUpperCase().trim();
+    var safeDate = (typeof normalizeChipDate === 'function')
+      ? normalizeChipDate(mmddyy || '')
+      : (mmddyy || '');
+
+    var chip = document.createElement('span');
+    chip.className = 'chip ' + (safeInitials ? safeInitials : 'EMPTY');
+
+    if (!safeInitials && !safeDate) {
+      var ph = document.createElement('span');
+      ph.className = 'chip-assign';
+      ph.textContent = '(ASSIGN)';
+      chip.appendChild(ph);
+      return chip;
+    }
+
+    if (safeInitials) {
+      var initEl = document.createElement('span');
+      initEl.className = 'chip-initials';
+      initEl.textContent = safeInitials;
+      chip.appendChild(initEl);
+    }
+
+    if (safeInitials && safeDate) {
+      var sepEl = document.createElement('span');
+      sepEl.className = 'chip-sep';
+      sepEl.textContent = ' | ';
+      chip.appendChild(sepEl);
+    }
+
+    if (safeDate) {
+      var dateEl = document.createElement('span');
+      dateEl.className = 'chip-date';
+      dateEl.textContent = safeDate;
+      chip.appendChild(dateEl);
+    }
+    return chip;
+  });
+
+  // Gentle post-render pass: if a row exposes data-* for chip, build it.
+  // This DOES NOT overwrite existing chips and avoids side-effects.
+  function _v393_chip_pass(){
+    try {
+      var nodes = document.querySelectorAll('[data-chip-initials],[data-chip-date]');
+      nodes.forEach(function(node){
+        // Skip if a .chip already exists inside this node
+        if (node.querySelector('.chip')) return;
+
+        var initials = node.getAttribute('data-chip-initials') || '';
+        var mmddyy   = node.getAttribute('data-chip-date') || '';
+
+        if (initials || mmddyy) {
+          if (typeof createChipElementReadOnly === 'function') {
+            var chip = createChipElementReadOnly('', initials, mmddyy);
+            // If node is empty or meant to host the chip, append. Otherwise insert after.
+            if (!node.firstChild || node.getAttribute('data-chip-host') === '1') {
+              node.appendChild(chip);
+            } else {
+              node.parentNode && node.parentNode.insertBefore(chip, node.nextSibling);
+            }
+          }
+        }
+      });
+    } catch(e){
+      console && console.warn && console.warn('chip shim pass failed', e);
+    }
+  }
+
+  // Run after load and on small delay to catch async renders
+  if (typeof window !== 'undefined') {
+    window.addEventListener('load', function(){
+      _v393_chip_pass();
+      setTimeout(_v393_chip_pass, 300);
+      setTimeout(_v393_chip_pass, 1000);
+    });
+  }
+})();
+
 function doGet(e) {
   var userEmail = Session.getActiveUser().getEmail(); // Ensure it gets the active user
   Logger.log("Detected User Email: " + userEmail); // Debugging - logs detected email
