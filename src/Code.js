@@ -663,6 +663,43 @@ function getTopClients() {
 
 
 
+// === getClientMetaByName(name): returns { initials, chipDate } from "DASHBOARD 8.0" ===
+// Adjust these if your layout differs: NAME in Col A (1), INITIALS in Col B (2), CHIP DATE in Col Q (17).
+function getClientMetaByName(name) {
+  if (!name) return { initials: "", chipDate: "" };
+  var ss = SpreadsheetApp.getActive();
+  var sh = ss.getSheetByName("DASHBOARD 8.0");
+  if (!sh) return { initials: "", chipDate: "" };
+
+  // Pull whole name-col (A) to find row (simple scan; your dataset is modest)
+  var last = sh.getLastRow();
+  if (last < 2) return { initials: "", chipDate: "" };
+
+  var values = sh.getRange(2, 1, last - 1, 17).getValues(); // A..Q
+  var rowIdx = -1;
+  var nameLower = String(name).trim().toLowerCase();
+
+  for (var i = 0; i < values.length; i++) {
+    var nm = String(values[i][0] || "").trim().toLowerCase(); // Col A
+    if (nm === nameLower) { rowIdx = i; break; }
+  }
+  if (rowIdx < 0) return { initials: "", chipDate: "" };
+
+  // INITIALS = Col B (index 1), DATE = Col Q (index 16 in this 0-based slice)
+  var row = values[rowIdx];
+  var initials = String(row[1] || "").trim().toUpperCase();
+  var rawDate  = row[16]; // Q
+  var chipDate = "";
+
+  if (rawDate) {
+    try {
+      var tz = Session.getScriptTimeZone();
+      chipDate = Utilities.formatDate(new Date(rawDate), tz, "MM/dd/yy");
+    } catch (e) {}
+  }
+
+  return { initials: initials, chipDate: chipDate };
+}
 
 
 
@@ -2680,36 +2717,35 @@ function inboxGetRecent(limit) {
   const last = sh.getLastRow();
   if (last < 2) return { recent: [], raw: [] };
 
-  const all = sh.getRange(2,1,last-1,3).getValues().map((r,i)=>({
-    row: i+2, note: String(r[0]||'').trim(),
-    assigned: String(r[1]||'').trim(),
+  // A: note, B: assigned, C: timestamp
+  const all = sh.getRange(2, 1, last - 1, 3).getValues().map((r, i) => ({
+    row: i + 2,
+    note: String(r[0] || "").trim(),
+    assigned: String(r[1] || "").trim(),
     ts: r[2] ? new Date(r[2]).getTime() : 0
   }));
 
+  // Attach chip meta for any assigned name
   const tz = Session.getScriptTimeZone();
-  const sorted = [...all].sort((a,b)=>b.ts-a.ts).slice(0, limit||5).map(x=>({
-    row: x.row,
-    note: x.note,
-    assigned: x.assigned,
-    timestamp: x.ts ? Utilities.formatDate(new Date(x.ts), tz, 'MM/dd/yy h:mma') : ''
-  }));
-  return { recent: sorted, raw: all };
+  const limited = [...all].sort((a, b) => b.ts - a.ts).slice(0, limit || 5).map(x => {
+    var stamp = x.ts ? Utilities.formatDate(new Date(x.ts), tz, 'MM/dd/yy h:mma') : '';
+    var meta = { initials: "", chipDate: "" };
+    if (x.assigned) {
+      meta = getClientMetaByName(x.assigned);
+    }
+    return {
+      row: x.row,
+      note: x.note,
+      assigned: x.assigned,
+      timestamp: stamp,
+      assignedInitials: meta.initials || "",
+      assignedChipDate: meta.chipDate || ""
+    };
+  });
+
+  return { recent: limited, raw: all };
 }
 
-function getCanonicalClientName_(typed) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
-  const last = sheet.getLastRow();
-  if (last < 2) return null;
-  const vals = sheet.getRange(2,1,last-1,1).getValues().flat();
-  const needle = String(typed||'').replace(/\d+$/,'').trim().toLowerCase();
-  for (const v of vals) {
-    const raw = String(v||'').trim();
-    const base = raw.replace(/\d+$/,'').trim();
-    if (base.toLowerCase() === needle) return base;
-    if (raw.toLowerCase()  === needle) return raw;
-  }
-  return null;
-}
 
 function inboxAssignToClient(row, clientTypedName) {
   const sh = ensureNotesInbox_();
@@ -2780,255 +2816,3 @@ function getChipStateForClients(clientNames) {
   }
   return map;
 }
-
-/** DASHBOARD 8.0 backend for the Notes Carousel **/
-
-/** Returns [{name, category, chipDateISO}] for all rows (filter client-side). */
-function getClientsForCarouselWithChipDates(){
-  const ss = SpreadsheetApp.getActive();
-  const sh = ss.getSheetByName('DASHBOARD 8.0');   // <-- your sheet
-  const NAME_COL = 1;                               // A (name)
-  const CAT_COL  = 6;                               // F (category: JB/RB/QC/…)
-  const CHIP_COL = 17;                              // Q (chip date)  <-- updated
-  if (!sh) return [];
-
-  const last = sh.getLastRow();
-  if (last < 2) return [];
-
-  const maxCol = Math.max(NAME_COL, CAT_COL, CHIP_COL);
-  const rng = sh.getRange(2, 1, last - 1, maxCol);
-  const values = rng.getValues();
-
-  const out = [];
-  for (let i = 0; i < values.length; i++){
-    const row = values[i];
-    const name = String(row[NAME_COL-1] || '').trim();
-    const category = String(row[CAT_COL-1] || '').trim();
-    const chip = row[CHIP_COL-1];
-    if (!name) continue;
-    out.push({ name, category, chipDateISO: toISO(chip) });
-  }
-  return out;
-}
-
-/** For live pruning: return fresh chip dates only for specific names. */
-function getChipDatesForNames(names){
-  names = (names || []).map(String);
-  const want = {};
-  names.forEach(n => want[n.toLowerCase()] = true);
-
-  const ss = SpreadsheetApp.getActive();
-  const sh = ss.getSheetByName('DASHBOARD 8.0');   // <-- your sheet
-  const NAME_COL = 1;                               // A
-  const CHIP_COL = 17;                              // Q  <-- updated
-  if (!sh) return [];
-
-  const last = sh.getLastRow();
-  if (last < 2) return [];
-
-  const maxCol = Math.max(NAME_COL, CHIP_COL);
-  const rng = sh.getRange(2, 1, last - 1, maxCol);
-  const values = rng.getValues();
-
-  const out = [];
-  for (let i = 0; i < values.length; i++){
-    const row = values[i];
-    const name = String(row[NAME_COL-1] || '').trim();
-    if (!name || !want[name.toLowerCase()]) continue;
-    const chip = row[CHIP_COL-1];
-    out.push({ name, chipDateISO: toISO(chip) });
-  }
-  return out;
-}
-
-/** Helper: best-effort to ISO (yyyy-mm-dd). */
-function toISO(v){
-  if (!v) return '';
-  if (Object.prototype.toString.call(v) === '[object Date]' && !isNaN(v)){
-    return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  }
-  // try to parse text like MM/DD/YY or MM/DD/YYYY
-  const m = String(v).match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/);
-  if (m){
-    let [_, mm, dd, yy] = m;
-    yy = (yy.length === 2) ? (2000 + parseInt(yy,10)) : parseInt(yy,10);
-    const d = new Date(yy, parseInt(mm,10)-1, parseInt(dd,10));
-    if (!isNaN(d)) return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  }
-  return '';
-}
-
-/**************************************
- * JB Notes Cycling Helpers (Server) — Read-only chip policy
- * Sheet: "DASHBOARD 8.0"
- * A: Name, F: Category, Q: Chip Date (MM/dd/yy)
- **************************************/
-
-function _parseChipDate_(v) {
-  if (!v) return null;
-  if (Object.prototype.toString.call(v) === '[object Date]') return v;
-  try {
-    var parts = String(v).trim().split(/[\/\-\.]/);
-    if (parts.length >= 3) {
-      var mm = parseInt(parts[0], 10) - 1;
-      var dd = parseInt(parts[1], 10);
-      var yy = parts[2].length === 2 ? 2000 + parseInt(parts[2], 10) : parseInt(parts[2], 10);
-      return new Date(yy, mm, dd);
-    }
-  } catch (e) {}
-  var d = new Date(v);
-  return isNaN(d.getTime()) ? null : d;
-}
-
-/**
- * Returns JB clients whose chip date (Q) is blank or <= today, oldest first (blanks first).
- * Does NOT modify chip dates (read-only).
- */
-function listJBCycleClients() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName('DASHBOARD 8.0');
-  var last = sh.getLastRow();
-  if (last < 2) return [];
-
-  var data = sh.getRange(2, 1, last - 1, sh.getLastColumn()).getValues();
-  var today = new Date(); today.setHours(0,0,0,0);
-
-  var NAME_COL = 1;     // A
-  var CAT_COL  = 6;     // F
-  var CHIP_COL = 17;    // Q
-
-  var out = [];
-  for (var i = 0; i < data.length; i++) {
-    var row = data[i];
-    if (String(row[CAT_COL - 1]).trim().toUpperCase() !== 'JB') continue;
-
-    var nm = String(row[NAME_COL - 1]).trim();
-    if (!nm) continue;
-
-    var chip = _parseChipDate_(row[CHIP_COL - 1]);
-    if (!chip) {
-      out.push({ name: nm, row: i + 2, chipDate: '' });
-      continue;
-    }
-    var chipDay = new Date(chip.getTime()); chipDay.setHours(0,0,0,0);
-    if (chipDay.getTime() <= today.getTime()) {
-      out.push({ name: nm, row: i + 2, chipDate: Utilities.formatDate(chip, Session.getScriptTimeZone(), 'MM/dd/yy') });
-    }
-  }
-
-  out.sort(function(a, b) {
-    if (!a.chipDate && !b.chipDate) return 0;
-    if (!a.chipDate) return -1;
-    if (!b.chipDate) return 1;
-    var ad = _parseChipDate_(a.chipDate), bd = _parseChipDate_(b.chipDate);
-    return ad - bd;
-  });
-
-  return out;
-}
-
-/** Get distinct category values (Column F), sorted A→Z, for the category dropdown in Focus Mode. */
-function listDistinctCategories() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName('DASHBOARD 8.0');
-  var last = sh.getLastRow();
-  if (last < 2) return [];
-  var vals = sh.getRange(2, 6, last - 1, 1).getValues().map(function(r){ return String(r[0] || '').trim(); });
-  var set = {};
-  vals.forEach(function(v){ if (v) set[v] = true; });
-  return Object.keys(set).sort();
-}
-
-/** Update a client's Category (Column F). Does NOT touch chip (Column Q). */
-function setClientCategory(clientName, newCategory) {
-  if (!clientName) throw new Error('No client name provided');
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName('DASHBOARD 8.0');
-  var last = sh.getLastRow();
-  if (last < 2) return false;
-
-  var names = sh.getRange(2, 1, last - 1, 1).getValues();
-  var targetRow = -1;
-  var find = String(clientName).trim
-}
-
-/**************************************
- * FOCUS MODE: Update Category (Col F)
- * Sheet: "DASHBOARD 8.0"
- * A: Name, F: Category
- **************************************/
-function updateClientCategory(clientName, newCategory) {
-  if (!clientName || !newCategory) throw new Error('Missing clientName or newCategory');
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName('DASHBOARD 8.0');
-  var last = sh.getLastRow();
-  if (last < 2) return false;
-
-  var NAME_COL = 1; // A
-  var CAT_COL  = 6; // F
-
-  var names = sh.getRange(2, NAME_COL, last - 1, 1).getValues();
-  var targetRow = -1, find = String(clientName).trim().toLowerCase();
-
-  for (var i=0; i<names.length; i++){
-    var nm = String(names[i][0]||'').trim().toLowerCase();
-    if (nm === find) { targetRow = i + 2; break; }
-  }
-  if (targetRow === -1) return false;
-
-  sh.getRange(targetRow, CAT_COL).setValue(String(newCategory).trim());
-  return true;
-}
-
-/**
- * listDueClientsByCategory(category)
- * Returns [{ name, chipDateISO }] for rows in "DASHBOARD 8.0"
- * where column F == category and chip date (col Q) is <= today (oldest first).
- */
-function listDueClientsByCategory(category) {
-  var ss = SpreadsheetApp.getActive();
-  var sh = ss.getSheetByName('DASHBOARD 8.0');
-  if (!sh) return [];
-
-  var NAME_COL = 1;  // A
-  var CAT_COL  = 6;  // F
-  var CHIP_COL = 17; // Q
-  var last = sh.getLastRow();
-  if (last < 2) return [];
-
-  var maxCol = Math.max(NAME_COL, CAT_COL, CHIP_COL);
-  var values = sh.getRange(2, 1, last - 1, maxCol).getValues();
-
-  // midnight "today" in script timezone
-  var tz = Session.getScriptTimeZone() || 'America/Chicago';
-  var today = new Date();
-  today.setHours(0,0,0,0);
-
-  var want = String(category || '').trim().toUpperCase();
-  var out = [];
-
-  for (var i = 0; i < values.length; i++) {
-    var name = String(values[i][NAME_COL - 1] || '').trim();
-    var cat  = String(values[i][CAT_COL  - 1] || '').trim().toUpperCase();
-    var raw  = values[i][CHIP_COL - 1];
-    if (!name || !cat || !raw) continue;
-    if (cat !== want) continue;
-
-    var d = _parseChipDate_(raw); // uses your existing helper
-    if (!d) continue;
-    var dd = new Date(d); dd.setHours(0,0,0,0);
-    if (dd.getTime() <= today.getTime()) {
-      out.push({
-        name: name,
-        chipDateISO: Utilities.formatDate(d, tz, "yyyy-MM-dd'T'HH:mm:ssXXX")
-      });
-    }
-  }
-
-  out.sort(function(a, b) {
-    return new Date(a.chipDateISO).getTime() - new Date(b.chipDateISO).getTime();
-  });
-  return out;
-}
-
-
