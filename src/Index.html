@@ -466,6 +466,35 @@ a:focus {
   flex: 0 0 auto !important;
 }
 
+/* === CHIP STYLES (carryover from 393) === */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 12px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,0.12);
+  background: rgba(0,0,0,0.04);
+  margin-left: 8px;
+  white-space: nowrap;
+}
+.chip-initials {
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.chip-sep {
+  opacity: 0.5;
+}
+.chip-date {
+  letter-spacing: 0.3px;
+}
+.chip-assign {
+  opacity: 0.6;
+  font-style: italic;
+}
+
 </style>
 </head>
 
@@ -698,6 +727,36 @@ addBtn.addEventListener('click', addNote);
 .withSuccessHandler(_=>{
   stopLoading();
   showToast('Client note has been updated successfully');
+// Update chip under the Assign input using the real Column Q date
+const slot = document.getElementById(`chipSlot-${it.row}`);
+if (slot) {
+  slot.innerHTML = '';
+  const initials = (name.split(/\s+/).map(s => s[0]).join('') || '').slice(0, 3);
+
+  google.script.run
+    .withSuccessHandler(function(realDate) {
+      const chipEl = createChipElementReadOnly(initials, realDate || '');
+      slot.appendChild(chipEl);
+    })
+    .withFailureHandler(function(err) {
+      // Fallback: show chip with no date if lookup fails
+      const chipEl = createChipElementReadOnly(initials, '');
+      slot.appendChild(chipEl);
+      console.warn('chipDate lookup failed:', err);
+    })
+    .getChipDateByClientName(name);
+}
+
+const slot = document.getElementById(`chipSlot-${it.row}`);
+if (slot) {
+  slot.innerHTML = '';
+  // Derive simple initials from the assigned name (placeholder)
+  const initials = (name.split(/\s+/).map(s => s[0]).join('') || '').slice(0, 3);
+  // No date yet — we’ll wire real Column Q next step
+  const chipEl = createChipElementReadOnly(initials, '');
+  slot.appendChild(chipEl);
+}
+
 })
 
           .withFailureHandler(err=>{
@@ -724,6 +783,24 @@ addBtn.addEventListener('click', addNote);
       side.appendChild(meta);
       side.appendChild(document.createElement('div')).style.height='6px';
       side.appendChild(r);
+// ▼ CHIP CONTAINER under the Assign input (unique per row)
+const chipSlot = document.createElement('div');
+chipSlot.className = 'assigned-chip-slot';
+chipSlot.id = `chipSlot-${it.row}`; // use the sheet row as a unique key
+side.appendChild(chipSlot);
+
+// If this row is already assigned, render a chip immediately
+if (it.assigned) {
+  const slot = chipSlot; // we just created it
+  slot.innerHTML = '';
+  // Derive simple initials from assigned name
+  const initials = (String(it.assigned).trim().split(/\s+/).map(s => s[0]).join('') || '').slice(0, 3);
+  // Try to use any date the payload might already carry (will be blank in v400 until we plumb Q)
+  const qDate = it.chipDate || it.mmddyy || it.qDate || '';
+  const chipEl = createChipElementReadOnly(initials, qDate);
+  slot.appendChild(chipEl);
+}
+
 
       row.appendChild(note); 
       row.appendChild(side);
@@ -985,6 +1062,68 @@ function loadRecent(done){
     </div>
   </div>
 </div>
+<script>
+// === CHIP HELPERS (carryover from 393) ===
+function normalizeChipDate(mmddyy) {
+  if (!mmddyy) return "";
+  const s = String(mmddyy).trim();
+  const justDigits = s.replace(/[^\d]/g, "");
+  let mm="", dd="", yy="";
+  if (justDigits.length >= 6) {
+    mm = justDigits.slice(0,2);
+    dd = justDigits.slice(2,4);
+    yy = justDigits.slice(4,6);
+  } else {
+    const parts = s.split(/[^\d]/g).filter(Boolean);
+    if (parts.length >= 3) {
+      mm = (parts[0]||"").padStart(2,"0").slice(0,2);
+      dd = (parts[1]||"").padStart(2,"0").slice(0,2);
+      yy = (parts[2]||"").slice(-2);
+    }
+  }
+  if (!mm || !dd || !yy) return "";
+  return `${mm}/${dd}/${yy}`;
+}
+
+function createChipElementReadOnly(initials, mmddyy) {
+  const safeInitials = (initials || "").toUpperCase().trim();
+  const safeDate = normalizeChipDate(mmddyy || "");
+
+  const chip = document.createElement('span');
+  chip.className = 'chip ' + (safeInitials ? safeInitials : 'EMPTY');
+
+  if (!safeInitials && !safeDate) {
+    const ph = document.createElement('span');
+    ph.className = 'chip-assign';
+    ph.textContent = '(ASSIGN)';
+    chip.appendChild(ph);
+    return chip;
+  }
+
+  if (safeInitials) {
+    const initEl = document.createElement('span');
+    initEl.className = 'chip-initials';
+    initEl.textContent = safeInitials;
+    chip.appendChild(initEl);
+  }
+
+  if (safeInitials && safeDate) {
+    const sepEl = document.createElement('span');
+    sepEl.className = 'chip-sep';
+    sepEl.textContent = ' | ';
+    chip.appendChild(sepEl);
+  }
+
+  if (safeDate) {
+    const dateEl = document.createElement('span');
+    dateEl.className = 'chip-date';
+    dateEl.textContent = safeDate;
+    chip.appendChild(dateEl);
+  }
+
+  return chip;
+}
+</script>
 
 
 

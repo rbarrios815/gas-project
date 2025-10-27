@@ -2675,26 +2675,40 @@ function inboxAddNote(rawNote) {
 }
 
 
+// Updated: include Column Q chip date per assigned client
 function inboxGetRecent(limit) {
   const sh = ensureNotesInbox_();
   const last = sh.getLastRow();
   if (last < 2) return { recent: [], raw: [] };
 
-  const all = sh.getRange(2,1,last-1,3).getValues().map((r,i)=>({
-    row: i+2, note: String(r[0]||'').trim(),
-    assigned: String(r[1]||'').trim(),
+  // Columns: A=note, B=assigned, C=timestamp
+  const all = sh.getRange(2, 1, last - 1, 3).getValues().map((r, i) => ({
+    row: i + 2,
+    note: String(r[0] || '').trim(),
+    assigned: String(r[1] || '').trim(),
     ts: r[2] ? new Date(r[2]).getTime() : 0
   }));
 
   const tz = Session.getScriptTimeZone();
-  const sorted = [...all].sort((a,b)=>b.ts-a.ts).slice(0, limit||5).map(x=>({
-    row: x.row,
-    note: x.note,
-    assigned: x.assigned,
-    timestamp: x.ts ? Utilities.formatDate(new Date(x.ts), tz, 'MM/dd/yy h:mma') : ''
-  }));
+
+  const sorted = [...all]
+    .sort((a, b) => b.ts - a.ts)
+    .slice(0, limit || 5)
+    .map(x => {
+      // Pull the real Column Q date for this assigned client (if any)
+      var chipDate = x.assigned ? getChipDateByClientName(x.assigned) : '';
+      return {
+        row: x.row,
+        note: x.note,
+        assigned: x.assigned,
+        timestamp: x.ts ? Utilities.formatDate(new Date(x.ts), tz, 'MM/dd/yy h:mma') : '',
+        chipDate: chipDate // <-- frontend reads this for the chip under the input
+      };
+    });
+
   return { recent: sorted, raw: all };
 }
+
 
 function getCanonicalClientName_(typed) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
@@ -3031,4 +3045,36 @@ function listDueClientsByCategory(category) {
   return out;
 }
 
+// === CHIP DATE LOOKUP (Column Q in "DASHBOARD 8.0") ======================
+function getChipDateByClientName(name) {
+  name = (name || '').trim();
+  if (!name) return '';
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('DASHBOARD 8.0');
+  if (!sh) return '';
+
+  // Assumes Column A holds client names (adjust A if your name column differs)
+  // Column Q = 17th column
+  var lastRow = sh.getLastRow();
+  if (lastRow < 2) return '';
+
+  var rng = sh.getRange(2, 1, lastRow - 1, 17).getValues(); // rows 2..last, cols A..Q
+  for (var i = 0; i < rng.length; i++) {
+    var row = rng[i];
+    var clientName = String(row[0] || '').trim(); // Col A
+    if (clientName && clientName.toLowerCase() === name.toLowerCase()) {
+      var q = row[16]; // Col Q (0-based index 16)
+      // Normalize to MM/DD/YY if this is a Date
+      if (q instanceof Date) {
+        var mm = (q.getMonth() + 1).toString().padStart(2, '0');
+        var dd = q.getDate().toString().padStart(2, '0');
+        var yy = q.getFullYear().toString().slice(-2);
+        return mm + '/' + dd + '/' + yy;
+      }
+      return String(q || '').trim();
+    }
+  }
+  return '';
+}
 
