@@ -466,6 +466,35 @@ a:focus {
   flex: 0 0 auto !important;
 }
 
+/* === CHIP STYLES (carryover from 393) === */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 12px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,0.12);
+  background: rgba(0,0,0,0.04);
+  margin-left: 8px;
+  white-space: nowrap;
+}
+.chip-initials {
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.chip-sep {
+  opacity: 0.5;
+}
+.chip-date {
+  letter-spacing: 0.3px;
+}
+.chip-assign {
+  opacity: 0.6;
+  font-style: italic;
+}
+
 </style>
 </head>
 
@@ -985,6 +1014,68 @@ function loadRecent(done){
     </div>
   </div>
 </div>
+<script>
+// === CHIP HELPERS (carryover from 393) ===
+function normalizeChipDate(mmddyy) {
+  if (!mmddyy) return "";
+  const s = String(mmddyy).trim();
+  const justDigits = s.replace(/[^\d]/g, "");
+  let mm="", dd="", yy="";
+  if (justDigits.length >= 6) {
+    mm = justDigits.slice(0,2);
+    dd = justDigits.slice(2,4);
+    yy = justDigits.slice(4,6);
+  } else {
+    const parts = s.split(/[^\d]/g).filter(Boolean);
+    if (parts.length >= 3) {
+      mm = (parts[0]||"").padStart(2,"0").slice(0,2);
+      dd = (parts[1]||"").padStart(2,"0").slice(0,2);
+      yy = (parts[2]||"").slice(-2);
+    }
+  }
+  if (!mm || !dd || !yy) return "";
+  return `${mm}/${dd}/${yy}`;
+}
+
+function createChipElementReadOnly(initials, mmddyy) {
+  const safeInitials = (initials || "").toUpperCase().trim();
+  const safeDate = normalizeChipDate(mmddyy || "");
+
+  const chip = document.createElement('span');
+  chip.className = 'chip ' + (safeInitials ? safeInitials : 'EMPTY');
+
+  if (!safeInitials && !safeDate) {
+    const ph = document.createElement('span');
+    ph.className = 'chip-assign';
+    ph.textContent = '(ASSIGN)';
+    chip.appendChild(ph);
+    return chip;
+  }
+
+  if (safeInitials) {
+    const initEl = document.createElement('span');
+    initEl.className = 'chip-initials';
+    initEl.textContent = safeInitials;
+    chip.appendChild(initEl);
+  }
+
+  if (safeInitials && safeDate) {
+    const sepEl = document.createElement('span');
+    sepEl.className = 'chip-sep';
+    sepEl.textContent = ' | ';
+    chip.appendChild(sepEl);
+  }
+
+  if (safeDate) {
+    const dateEl = document.createElement('span');
+    dateEl.className = 'chip-date';
+    dateEl.textContent = safeDate;
+    chip.appendChild(dateEl);
+  }
+
+  return chip;
+}
+</script>
 
 
 
