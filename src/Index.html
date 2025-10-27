@@ -727,6 +727,36 @@ addBtn.addEventListener('click', addNote);
 .withSuccessHandler(_=>{
   stopLoading();
   showToast('Client note has been updated successfully');
+// Update chip under the Assign input using the real Column Q date
+const slot = document.getElementById(`chipSlot-${it.row}`);
+if (slot) {
+  slot.innerHTML = '';
+  const initials = (name.split(/\s+/).map(s => s[0]).join('') || '').slice(0, 3);
+
+  google.script.run
+    .withSuccessHandler(function(realDate) {
+      const chipEl = createChipElementReadOnly(initials, realDate || '');
+      slot.appendChild(chipEl);
+    })
+    .withFailureHandler(function(err) {
+      // Fallback: show chip with no date if lookup fails
+      const chipEl = createChipElementReadOnly(initials, '');
+      slot.appendChild(chipEl);
+      console.warn('chipDate lookup failed:', err);
+    })
+    .getChipDateByClientName(name);
+}
+
+const slot = document.getElementById(`chipSlot-${it.row}`);
+if (slot) {
+  slot.innerHTML = '';
+  // Derive simple initials from the assigned name (placeholder)
+  const initials = (name.split(/\s+/).map(s => s[0]).join('') || '').slice(0, 3);
+  // No date yet — we’ll wire real Column Q next step
+  const chipEl = createChipElementReadOnly(initials, '');
+  slot.appendChild(chipEl);
+}
+
 })
 
           .withFailureHandler(err=>{
@@ -753,6 +783,24 @@ addBtn.addEventListener('click', addNote);
       side.appendChild(meta);
       side.appendChild(document.createElement('div')).style.height='6px';
       side.appendChild(r);
+// ▼ CHIP CONTAINER under the Assign input (unique per row)
+const chipSlot = document.createElement('div');
+chipSlot.className = 'assigned-chip-slot';
+chipSlot.id = `chipSlot-${it.row}`; // use the sheet row as a unique key
+side.appendChild(chipSlot);
+
+// If this row is already assigned, render a chip immediately
+if (it.assigned) {
+  const slot = chipSlot; // we just created it
+  slot.innerHTML = '';
+  // Derive simple initials from assigned name
+  const initials = (String(it.assigned).trim().split(/\s+/).map(s => s[0]).join('') || '').slice(0, 3);
+  // Try to use any date the payload might already carry (will be blank in v400 until we plumb Q)
+  const qDate = it.chipDate || it.mmddyy || it.qDate || '';
+  const chipEl = createChipElementReadOnly(initials, qDate);
+  slot.appendChild(chipEl);
+}
+
 
       row.appendChild(note); 
       row.appendChild(side);
