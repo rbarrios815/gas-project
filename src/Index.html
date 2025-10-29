@@ -697,6 +697,42 @@ addBtn.addEventListener('click', addNote);
       side.appendChild(document.createElement('div')).style.height='6px';
       side.appendChild(r);
 
+// --- CHIP ROW under the Assign input ---------------------------------
+const chipRow = document.createElement('div');
+chipRow.className = 'assigned-chip-slot';
+side.appendChild(chipRow);
+
+function refreshAssignedChip() {
+  const nm = (inp.value || '').trim();
+  chipRow.innerHTML = '';
+  if (!nm) return;
+
+  google.script.run
+    .withSuccessHandler(function(meta){
+      chipRow.innerHTML = '';
+      // Use your existing chip factory (already in Index.html)
+      const chip = createChipElementReadOnly(meta.initials || '', meta.chipDate || '');
+      chipRow.appendChild(chip);
+    })
+    .withFailureHandler(function(err){
+      console.warn('getClientMetaByName failed:', err);
+    })
+    .getClientMetaByName(nm);
+}
+
+// initial render (if already assigned)
+refreshAssignedChip();
+
+// keep the chip in sync when the assignment changes
+inp.addEventListener('change', refreshAssignedChip);
+inp.addEventListener('keydown', function(e){
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    refreshAssignedChip();
+  }
+});
+
+
       row.appendChild(note); 
       row.appendChild(side);
       recentList.appendChild(row);
