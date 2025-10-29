@@ -627,80 +627,101 @@ addBtn.addEventListener('click', addNote);
     /* Recent (5) with assign */
   const recentList = document.getElementById('recentList');
 
-  function renderRecent(payload){
-    recentList.innerHTML='';
-    const items=(payload&&payload.recent)?payload.recent:[];
-    if(!items.length){ return; }
+ // RENDER Recent with (INITIALS | DATE) chip under the Assign input
+function renderRecent(payload){
+  const recentList = document.getElementById('recentList');
+  recentList.innerHTML = '';
+  const items = (payload && payload.recent) ? payload.recent : [];
+  if (!items.length) return;
 
-    items.forEach(it=>{
-      const row=document.createElement('div'); 
-      row.className='item';
+  items.forEach(it => {
+    const row = document.createElement('div');
+    row.className = 'item';
 
-      // LEFT: note text
-      const note=document.createElement('div'); 
-      note.className='note'; 
-      note.textContent=it.note;
+    // LEFT: note text
+    const note = document.createElement('div');
+    note.className = 'note';
+    note.textContent = it.note;
 
-      // RIGHT: timestamp + assign input (auto-assigns on selection)
-      const side=document.createElement('div'); 
-      side.style.minWidth='280px';
+    // RIGHT: timestamp + assign + chip
+    const side = document.createElement('div');
+    side.style.minWidth = '280px';
 
-      // Timestamp only (NO green assigned label)
-      const meta=document.createElement('div'); 
-      meta.className='meta';
-      meta.textContent = it.timestamp ? it.timestamp : '';
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = it.timestamp ? it.timestamp : '';
 
-      // Wider input: 360px (twice the previous 180px)
-      const inp=document.createElement('input'); 
-      inp.type='text'; 
-      inp.className='small'; 
-      inp.setAttribute('list','clientNamesList'); 
-      inp.style.width='360px';
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.className = 'small';
+    inp.setAttribute('list','clientNamesList');
+    inp.style.width = '360px';
+    inp.value = it.assigned || '';
+    inp.placeholder = it.assigned ? 'Change assignment…' : 'Assign…';
 
-      // Keep selection visible in the input (no extra green label elsewhere)
-      inp.value = it.assigned || '';
-      inp.placeholder = it.assigned ? 'Change assignment…' : 'Assign…';
-
-      // Auto-assign handler
-      function commitAssign(){
-        const name = (inp.value||'').trim();
-        if(!name) return;
-        startLoading();
-        google.script.run
-.withSuccessHandler(_=>{
-  stopLoading();
-  showToast('Client note has been updated successfully');
-})
-
-          .withFailureHandler(err=>{
-            alert(err && err.message ? err.message : String(err));
+    function commitAssign(){
+      const name = (inp.value || '').trim();
+      if (!name) return;
+      startLoading();
+      google.script.run
+        .withSuccessHandler(_=>{
+          // After save, reload recent so chip (INITIALS | DATE) refreshes
+          loadRecent(() => {
             stopLoading();
-          })
-          .inboxAssignToClient(it.row, name);
+            showToast('Client note has been updated successfully');
+          });
+        })
+        .withFailureHandler(err=>{
+          stopLoading();
+          alert(err && err.message ? err.message : String(err));
+        })
+        .inboxAssignToClient(it.row, name);
+    }
+    inp.addEventListener('change', commitAssign);
+    inp.addEventListener('keydown', (e)=>{
+      if (e.key === 'Enter'){
+        e.preventDefault();
+        commitAssign();
       }
+    });
 
-      // Assign immediately when a value is chosen or Enter is pressed
-      inp.addEventListener('change', commitAssign);
-      inp.addEventListener('keydown', (e)=>{
-        if(e.key === 'Enter'){ 
-          e.preventDefault(); 
-          commitAssign(); 
-        }
-      });
+    // CHIP SLOT
+    const chipSlot = document.createElement('div');
+    chipSlot.className = 'assigned-chip-slot';
 
-      // Layout row (no Assign button, no green label)
-      const r=document.createElement('div'); 
-      r.className='row'; 
-      r.appendChild(inp);
+    // Build the (INITIALS | DATE) chip if we have anything
+    (function renderChip(){
+      chipSlot.innerHTML = '';
+      const initials = it.chipInitials || '';
+      const date = it.chipDate || '';
+      if (!initials && !date) return;
+      if (typeof createChipElementReadOnly === 'function') {
+        const chip = createChipElementReadOnly(initials, date);
+        chip.classList.add('chip--xs');
+        chipSlot.appendChild(chip);
+      } else {
+        // tiny fallback
+        const span = document.createElement('span');
+        span.textContent = [initials, date].filter(Boolean).join(' | ');
+        chipSlot.appendChild(span);
+      }
+    })();
 
-      side.appendChild(meta);
-      side.appendChild(document.createElement('div')).style.height='6px';
-      side.appendChild(r);
+    // Layout
+    const r = document.createElement('div');
+    r.className = 'row';
+    r.appendChild(inp);
 
-// --- CHIP ROW under the Assign input ---------------------------------
-const chipRow = document.createElement('div');
-chipRow.className = 'assigned-chip-slot';
-side.appendChild(chipRow);
+    side.appendChild(meta);
+    side.appendChild(document.createElement('div')).style.height = '6px';
+    side.appendChild(r);
+    side.appendChild(chipSlot);
+
+    row.appendChild(note);
+    row.appendChild(side);
+    recentList.appendChild(row);
+  });
+}
 
 function refreshAssignedChip() {
   const nm = (inp.value || '').trim();
