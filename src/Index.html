@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8" />
@@ -147,7 +147,7 @@
   }
 }
 
-/* === Mobile textarea hard height (force) — 2x (50 -> 100) = full screen === */
+/* === Mobile textarea hard height (force) â€” 2x (50 -> 100) = full screen === */
 @media (max-width: 640px) {
   /* Highest practical specificity + !important */
   #dashBody textarea#noteInput {
@@ -262,7 +262,7 @@ html { font-size: 200%; }
 
 .assigned-chip-slot { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
 
-/* Compact chips just in the recent list’s chip slot */
+/* Compact chips just in the recent listâ€™s chip slot */
 .assigned-chip-slot .chip--xs{
   font-size: 11px;
   padding: 2px 6px;
@@ -278,7 +278,7 @@ html { font-size: 200%; }
   font-size: 11px;
 }
 
-/* If there’s an avatar/icon inside the chip */
+/* If thereâ€™s an avatar/icon inside the chip */
 .assigned-chip-slot .chip--xs .chip-icon,
 .assigned-chip-slot .chip--xs img{
   width: 14px;
@@ -304,9 +304,9 @@ html { font-size: 200%; }
   gap: 10px;                  /* space between bulb and textarea */
 }
 
-/* Inject the 💡 icon on the left */
+/* Inject the ðŸ’¡ icon on the left */
 .toplist-suggestion::before {
-  content: "💡";
+  content: "ðŸ’¡";
   flex: 0 0 auto;
   font-size: 1.25em;          /* tweak as needed */
   line-height: 1;
@@ -428,7 +428,7 @@ a:focus {
 .assigned-chip-slot .chip--xs,
 .recent-row#recentRow .recent-bar.inside-autocomplete .chip,
 .recent-row#recentRow .recent-bar.inside-autocomplete .chip--xs {
-  font-size: 5% !important;        /* was 10%; now ~2× smaller again */
+  font-size: 5% !important;        /* was 10%; now ~2Ã— smaller again */
   line-height: 1 !important;
   padding: 0.15em 0.30em !important;
   border-radius: 0.8em !important;
@@ -524,7 +524,7 @@ function showToast(msg){
   showToast._t = setTimeout(()=> t.classList.remove('show'), 2000);
 }
 
-/* Expand/Collapse: tab rides with panel — NOTES-style toggle */
+/* Expand/Collapse: tab rides with panel â€” NOTES-style toggle */
 /* === DASHBOARD: Notes-style open/close =================================== */
 (function(){
   const sheet   = document.getElementById('dashSheet');
@@ -562,7 +562,7 @@ function showToast(msg){
     if (e.key === 'Escape' && isOpen()) window.closeDashboard();
   });
 
-// initial state — default OPEN (and still restore if previously saved)
+// initial state â€” default OPEN (and still restore if previously saved)
 let startOpen = true;
 try {
   const saved = sessionStorage.getItem('v1.dashboardOpen');
@@ -657,7 +657,7 @@ function renderRecent(payload){
     inp.setAttribute('list','clientNamesList');
     inp.style.width = '360px';
     inp.value = it.assigned || '';
-    inp.placeholder = it.assigned ? 'Change assignment…' : 'Assign…';
+    inp.placeholder = it.assigned ? 'Change assignmentâ€¦' : 'Assignâ€¦';
 
     function commitAssign(){
       const name = (inp.value || '').trim();
@@ -765,7 +765,7 @@ function loadRecent(done){
   google.script.run
     .withSuccessHandler(p=>{
       renderRecent(p);
-      stopLoading();                 // ⬅️ stop only after items render
+      stopLoading();                 // â¬…ï¸ stop only after items render
       if (typeof done === 'function') done();
     })
     .withFailureHandler(e=>{
@@ -816,7 +816,7 @@ function loadRecent(done){
     const addBtn  = document.getElementById('btnAddInbox');
     const newNote = document.getElementById('inboxNewNote');
 
-    // ✅ PUT THESE LINES RIGHT HERE:
+    // âœ… PUT THESE LINES RIGHT HERE:
     if (overlay && overlay.parentNode !== document.body) {
       document.body.appendChild(overlay);   // moves it (doesn't clone)
     }
@@ -860,7 +860,7 @@ function loadRecent(done){
   handle.addEventListener('click', toggleSheet);
   if (overlay) overlay.addEventListener('click', closeSheet);
 
-  // don’t close when interacting inside the form
+  // donâ€™t close when interacting inside the form
   sheet.addEventListener('click', function(e){
     if (e.target.closest('form, textarea, input, select, button, [contenteditable]')) {
       e.stopPropagation();
@@ -890,6 +890,8 @@ function loadRecent(done){
 
 
 </body>
+<!-- VERIFY:VERIFY-20251029-133658 -->
+<!-- VERIFY:VERIFY-20251029-133748 -->
 </html>
 
 
@@ -1298,7 +1300,7 @@ button:active {
     transition: width 0.3s ease; /* <- shorter/smoother */
 }
 
-/* Animated shimmer while “indeterminate” */
+/* Animated shimmer while â€œindeterminateâ€ */
 #loadingBar.indeterminate {
     animation: lgShimmer 1.2s linear infinite;
 }
@@ -1485,7 +1487,7 @@ input#clientAutocomplete, select#clientSelect {
 
 #columnBDropdown, #columnDDropdown {
   width: 100%;
-  /* No font-size line here—now it inherits the same larger 1.5em size as JB/RICKY */
+  /* No font-size line hereâ€”now it inherits the same larger 1.5em size as JB/RICKY */
   margin-top: 0px;
   margin-bottom: 0px;
 }
@@ -1845,14 +1847,14 @@ input#clientAutocomplete, select#clientSelect {
   /* Just a slightly dark overlay + big centered star emoji */
   background: rgba(10, 10, 0, 0.75);
   z-index: 999999; /* Sit on top of everything */
-  pointer-events: none; /* Don’t let this block clicks */
+  pointer-events: none; /* Donâ€™t let this block clicks */
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 300px; 
 }
 .star-animation::before {
-  content: "⭐";
+  content: "â­";
 }
 
 
@@ -1916,7 +1918,7 @@ input#clientAutocomplete, select#clientSelect {
 
 .chip.EMPTY { background: #f0f0f0; color: #333; }/* placeholder neutral */
 
-/* === CHIP SIZE OVERRIDE (2/3 scale) — PASTE AFTER EXISTING .chip RULES === */
+/* === CHIP SIZE OVERRIDE (2/3 scale) â€” PASTE AFTER EXISTING .chip RULES === */
 .chip {
   /* shrink overall text to 2/3 of the surrounding size */
   font-size: 0.6667em;
@@ -1958,7 +1960,7 @@ input#clientAutocomplete, select#clientSelect {
   /* no max-width, no auto-centering */
 }
 
-/* Keep input’s *outer* size unchanged; just add internal space for the button */
+/* Keep inputâ€™s *outer* size unchanged; just add internal space for the button */
 #clientAutocomplete {
   width: 100%;
   box-sizing: border-box;
@@ -1986,7 +1988,7 @@ input#clientAutocomplete, select#clientSelect {
   font-weight: bold;   /* still be bold */
 }
 
-/* ——— Ricky’s Suggestion block: green wrapper, white textarea ——— */
+/* â€”â€”â€” Rickyâ€™s Suggestion block: green wrapper, white textarea â€”â€”â€” */
 .toplist-suggestion{
   background-color:#90EE90;   /* light green */
   padding:10px;
@@ -2019,7 +2021,7 @@ input#clientAutocomplete, select#clientSelect {
   font-size: 1em; /* same visual scale as your other controls */
 }
 
-/* Ricky’s Suggestion: full-width green block, textarea stays white */
+/* Rickyâ€™s Suggestion: full-width green block, textarea stays white */
 .toplist-suggestion {
   background-color: #90EE90; /* light green */
   padding: 10px;
@@ -2109,7 +2111,7 @@ input#clientAutocomplete, select#clientSelect {
   z-index: 2;
 }
 
-/* Chip visuals (already present)—no change needed; this just ensures consistent scale in the tighter space */
+/* Chip visuals (already present)â€”no change needed; this just ensures consistent scale in the tighter space */
 .chip { font-size: 0.6667em; }
 
 /* === INLINE NEW CLIENT BUTTON INSIDE CHIPS BAR === */
@@ -2241,18 +2243,18 @@ input#clientAutocomplete, select#clientSelect {
 /* paste AFTER your last #autocompleteSuggestions {...} block */
 #clientAutocomplete,
 #autocompleteSuggestions div {
-  white-space: nowrap;      /* never wrap; we’ll shrink instead */
+  white-space: nowrap;      /* never wrap; weâ€™ll shrink instead */
   overflow: hidden;         /* avoid accidental overflow during resize */
-  text-overflow: clip;      /* no ellipsis; we’re going to scale text down */
+  text-overflow: clip;      /* no ellipsis; weâ€™re going to scale text down */
   line-height: 1.2;         /* keeps rows tidy when we shrink font-size */
 }
 
 
 /* === SUGGESTION ROWS: one line, overflow hidden; baseline stays large === */
 #autocompleteSuggestions > div {
-  white-space: nowrap;     /* never wrap; we’ll shrink font-size if needed */
+  white-space: nowrap;     /* never wrap; weâ€™ll shrink font-size if needed */
   overflow: hidden;        /* clip while we measure/shrink */
-  text-overflow: clip;     /* no ellipsis, we’re shrinking instead */
+  text-overflow: clip;     /* no ellipsis, weâ€™re shrinking instead */
   width: 100%;             /* make the available width explicit */
   box-sizing: border-box;
 }
@@ -2385,7 +2387,7 @@ input#clientAutocomplete, select#clientSelect {
   margin-right: 30px !important;
 }
 
-/* — QUICK HIDE: Scroll button + Tasks box — */
+/* â€” QUICK HIDE: Scroll button + Tasks box â€” */
 #scrollBottomBtn { display: none !important; }
 #updateTasksContainer { display: none !important; }
 
@@ -2502,14 +2504,14 @@ input#clientAutocomplete, select#clientSelect {
            aria-expanded="false"
            aria-autocomplete="list"
            class="cat-input" />
-    <span class="cat-caret" aria-hidden="true">▼</span>
+    <span class="cat-caret" aria-hidden="true">â–¼</span>
     <datalist id="categoryList"></datalist>
   </div>
 
   <!-- Calendar button -->
   <button id="calendarBtn" class="calendar-btn" title="Open calendar">
     <!-- simple calendar glyph -->
-    🗓️
+    ðŸ—“ï¸
   </button>
 </div>
 
@@ -2577,7 +2579,7 @@ input#clientAutocomplete, select#clientSelect {
         <br>
 <!-- In-Progress (Loaded) with left-side bulb -->
 <div class="inprogress-bulb-row" style="background-color:#90EE90; padding:10px; border:1px solid #ccc; border-radius:4px; display:flex; align-items:flex-start; gap:10px;">
-  <span aria-hidden="true" style="font-size:1.25em; line-height:1; margin-top:4px;">💡</span>
+  <span aria-hidden="true" style="font-size:1.25em; line-height:1; margin-top:4px;">ðŸ’¡</span>
   <textarea id="loadedInProgressArea"
             style="flex:1 1 auto; width:100%; min-height:60px; background-color:white; box-sizing:border-box;"
             onblur="onInProgressLoadedBlur(this.value)"></textarea>
@@ -2662,15 +2664,15 @@ input#clientAutocomplete, select#clientSelect {
   <option value="QC">QC</option>
     <option value="TEAM">TEAM</option>
     <option value="BDAY">BDAY</option>
-    <option value="BRIEFCASE">💼</option>
-    <option value="STAR">⭐</option>
-    <option value="GRADCAP">🎓</option>
-    <option value="PHONE">📞</option>
+    <option value="BRIEFCASE">ðŸ’¼</option>
+    <option value="STAR">â­</option>
+    <option value="GRADCAP">ðŸŽ“</option>
+    <option value="PHONE">ðŸ“ž</option>
   </select>
 
   <!-- NEW: SUGGESTIONS button inline with the dropdown -->
   <button id="suggestionsToggleBtn" type="button" class="secondary-button" onclick="toggleSuggestions()">
-    💡
+    ðŸ’¡
   </button>
 
 </div>
@@ -2722,7 +2724,7 @@ input#clientAutocomplete, select#clientSelect {
   <div class="modal-card">
     <div class="modal-header">
       <span id="apptTitle">Schedule appointment</span>
-      <button id="apptClose" class="modal-close" aria-label="Close">✕</button>
+      <button id="apptClose" class="modal-close" aria-label="Close">âœ•</button>
     </div>
     <div class="modal-body">
       <label class="form-row">
@@ -2849,7 +2851,7 @@ input#clientAutocomplete, select#clientSelect {
   document.documentElement.appendChild(measurer);
 })();
 
-/* Returns the pixel width the input’s current value would occupy at a given font-size */
+/* Returns the pixel width the inputâ€™s current value would occupy at a given font-size */
 function measureInputTextPx(inputEl, fontPx){
   const measurer = document.getElementById('__fit_measurer__');
   if (!measurer || !inputEl) return 0;
@@ -2868,12 +2870,12 @@ function measureInputTextPx(inputEl, fontPx){
   return measurer.getBoundingClientRect().width;
 }
 
-/* Shrink an element’s font-size until its scrollWidth fits within clientWidth (one line) */
+/* Shrink an elementâ€™s font-size until its scrollWidth fits within clientWidth (one line) */
 function fitElementTextToOneLine(el, opts){
   if (!el) return;
   const cs = getComputedStyle(el);
   const maxPx = Math.max(10, parseFloat(cs.fontSize) || 16); // current as ceiling
-  const minPx = Math.max(10, (opts && opts.minPx) || 10);    // don’t go below 10px unless you choose
+  const minPx = Math.max(10, (opts && opts.minPx) || 10);    // donâ€™t go below 10px unless you choose
 
   // Determine available width (account for padding)
   const rect = el.getBoundingClientRect();
@@ -2901,10 +2903,10 @@ function fitElementTextToOneLine(el, opts){
     }
 
     if (contentWidth <= available) {
-      best = mid;          // fits → try to go larger
+      best = mid;          // fits â†’ try to go larger
       lo = mid + 1;
     } else {
-      hi = mid - 1;        // doesn’t fit → go smaller
+      hi = mid - 1;        // doesnâ€™t fit â†’ go smaller
     }
   }
 
@@ -2918,7 +2920,7 @@ function fitElementTextToOneLine(el, opts){
   }
 }
 
-/* Fit the autocomplete input’s current "Name (Category)" to one line */
+/* Fit the autocomplete inputâ€™s current "Name (Category)" to one line */
 function fitClientInputNow(){
   const input = document.getElementById('clientAutocomplete');
   if (!input) return;
@@ -2931,7 +2933,7 @@ function shrinkSuggestionRow(row, minPx = 10) {
 
   const cs = getComputedStyle(row);
 
-  // Remember each row’s natural "big" font once; never grow beyond it.
+  // Remember each rowâ€™s natural "big" font once; never grow beyond it.
   if (!row.__baseFontPx) {
     row.__baseFontPx = parseFloat(cs.fontSize) || 16;
   }
@@ -2939,10 +2941,10 @@ function shrinkSuggestionRow(row, minPx = 10) {
   // Start from the natural big size each time we re-evaluate.
   row.style.fontSize = row.__baseFontPx + 'px';
 
-  // If it fits already, we’re done—keep it big.
+  // If it fits already, weâ€™re doneâ€”keep it big.
   if (row.scrollWidth <= row.clientWidth) return;
 
-  // Otherwise, binary search down from base → min to find the largest that fits.
+  // Otherwise, binary search down from base â†’ min to find the largest that fits.
   let lo = Math.max(10, minPx), hi = row.__baseFontPx, best = lo, prevInline = row.style.fontSize;
 
   while (lo <= hi) {
@@ -2950,14 +2952,14 @@ function shrinkSuggestionRow(row, minPx = 10) {
     row.style.fontSize = mid + 'px';
 
     if (row.scrollWidth <= row.clientWidth) {
-      best = mid;      // fits → try larger
+      best = mid;      // fits â†’ try larger
       lo = mid + 1;
     } else {
-      hi = mid - 1;    // doesn’t fit → go smaller
+      hi = mid - 1;    // doesnâ€™t fit â†’ go smaller
     }
   }
 
-  // Apply the best size we found (never larger than the row’s base).
+  // Apply the best size we found (never larger than the rowâ€™s base).
   row.style.fontSize = Math.min(best, row.__baseFontPx) + 'px';
 }
 
@@ -2994,7 +2996,7 @@ window.addEventListener('resize', function(){
   let growTimer = null;       // interval driving slow growth
   let current = 0;            // current width as 0..100
   let target = 0;             // target width (we ease toward it)
-  const MAX_IDLE = 90;        // idle ceiling while loading (don’t hit 100% until done)
+  const MAX_IDLE = 90;        // idle ceiling while loading (donâ€™t hit 100% until done)
 
   function startGrowLoop(){
     if (growTimer) return;
@@ -3044,7 +3046,7 @@ window.addEventListener('resize', function(){
     const checkDone = () => {
       if (current >= 99.5) {
         stopGrowLoop();
-        // 2) short pause so the eye catches “complete”
+        // 2) short pause so the eye catches â€œcompleteâ€
         setTimeout(() => {
           bar.classList.remove('indeterminate');
           // 3) animate shrink-to-zero
@@ -3077,13 +3079,13 @@ window.addEventListener('resize', function(){
       target = Math.max(target, 55);
       setTimeout(() => { if (refCount > 0) target = Math.max(target, 72); }, 300);
       setTimeout(() => { if (refCount > 0) target = Math.max(target, 86); }, 1000);
-      // never exceed MAX_IDLE until we’re told to hide
+      // never exceed MAX_IDLE until weâ€™re told to hide
       const capIdle = setInterval(() => {
         if (refCount === 0) { clearInterval(capIdle); return; }
         if (target > MAX_IDLE) target = MAX_IDLE;
       }, 200);
     } else {
-      // another request started → nudge target a bit so it feels alive
+      // another request started â†’ nudge target a bit so it feels alive
       target = Math.min(Math.max(target, current + 6), MAX_IDLE);
     }
   };
@@ -3093,7 +3095,7 @@ window.addEventListener('resize', function(){
     if (refCount === 0) finishThenShrink();
   };
 
-  // Optional “oh-no” lever if something goes haywire
+  // Optional â€œoh-noâ€ lever if something goes haywire
   window.forceHideLoadingBar = function(){
     refCount = 0;
     stopGrowLoop();
@@ -3175,7 +3177,7 @@ function syncClientsListToDropdown(){
     });
   } catch(_) {}
 
-  // Stamp today’s date header and clear the title (your existing UI behavior)
+  // Stamp todayâ€™s date header and clear the title (your existing UI behavior)
   (function setToday(){
     var now = new Date();
     var opts = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
@@ -3250,7 +3252,7 @@ setFilterAndSync('JB'); // uses the canonical path
 
 
 
-/* ===== PASTE #1 — helpers for soft refresh + wiring ===== */
+/* ===== PASTE #1 â€” helpers for soft refresh + wiring ===== */
 function refreshTopClientsPreservingScroll() {
   try {
     const y = window.scrollY || 0;
@@ -3316,7 +3318,7 @@ function wireToplistSuggestionTextareas() {
       dirty = (ta.value !== original);
     });
 
-    // Ctrl/⌘+Enter = quick commit
+    // Ctrl/âŒ˜+Enter = quick commit
     ta.addEventListener('keydown', function (e) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
         e.preventDefault();
@@ -3325,7 +3327,7 @@ function wireToplistSuggestionTextareas() {
       e.stopPropagation();
     }, true);
 
-    // SAVE ONLY ON BLUR — but DO NOT re-render the whole list
+    // SAVE ONLY ON BLUR â€” but DO NOT re-render the whole list
     ta.addEventListener('blur', function () {
       if (!dirty || ta.value.trim() === original.trim()) return;
 
@@ -3349,7 +3351,7 @@ function wireToplistSuggestionTextareas() {
           dirty = false;
           if (typeof hideLoadingBar === 'function') hideLoadingBar();
         })
-        // ⬇️ CHANGE THIS if your server save function has a different name
+        // â¬‡ï¸ CHANGE THIS if your server save function has a different name
         .updateClientColumnL(clientName, ta.value);
     }, true);
   });
@@ -3409,7 +3411,7 @@ function escapeHTML(s) {
 
 /** Split a full name into reasonable tokens (letters, digits, apostrophes, hyphens). */
 function tokenizeNameParts(name) {
-  // Split on anything that’s NOT allowed inside a name token
+  // Split on anything thatâ€™s NOT allowed inside a name token
   // (space, commas, slashes, ampersands, periods, etc.)
   return String(name)
     .split(/[^A-Za-z0-9'-]+/)
@@ -3581,7 +3583,7 @@ function showNameBubbleForFragment(fragment, rect) {
 
   candidates = candidates.slice(0, 10);
 
-  let html = '<div class="bubble-title">Related to “' + escapeHTML(term) + '”</div>';
+  let html = '<div class="bubble-title">Related to â€œ' + escapeHTML(term) + 'â€</div>';
   if (!candidates.length) {
     html += '<div class="bubble-item" style="opacity:.7; cursor:default;">No matches</div>';
   } else {
@@ -3672,10 +3674,10 @@ function showTasksFromSpreadsheet() {
   var box = document.getElementById('tasksList');
   if (!box) return;
 
-  // make sure it’s visible
+  // make sure itâ€™s visible
   if (container) container.style.display = 'block';
 
-  box.innerHTML = '<div style="opacity:.7;font-style:italic;">Loading tasks…</div>';
+  box.innerHTML = '<div style="opacity:.7;font-style:italic;">Loading tasksâ€¦</div>';
 
   google.script.run
     .withSuccessHandler(function(rows) {
@@ -3909,10 +3911,10 @@ function fitRecentRowOneLine() {
     row.style.fontSize = mid + 'px';
 
     if (row.scrollWidth <= available) {
-      best = mid;      // fits → try larger
+      best = mid;      // fits â†’ try larger
       lo = mid + 1;
     } else {
-      hi = mid - 1;    // too wide → go smaller
+      hi = mid - 1;    // too wide â†’ go smaller
     }
   }
 
@@ -3964,10 +3966,10 @@ var currentClientName = '';
 var inputElement = document.getElementById('clientAutocomplete');
 /* === SNIPPET (REPLACEMENT): balanced show/hide per autocomplete call === */
 (function installAutocompleteLoadingWrapper(){
-  // We’ll make sure each call to autocompleteClient pairs exactly one show with one hide.
+  // Weâ€™ll make sure each call to autocompleteClient pairs exactly one show with one hide.
   let tries = 0;
   const maxTries = 50;
-  // Track only typing-related shows, so we don’t interfere with other areas using the bar.
+  // Track only typing-related shows, so we donâ€™t interfere with other areas using the bar.
   let typingInFlight = 0;
 
   const tick = () => {
@@ -4193,7 +4195,7 @@ function selectButton(buttonId, selectedColor, clientFilter) {
   document.getElementById(buttonId).style.backgroundColor = selectedColor;
 
   // If these buttons are meant to scope a different panel, call that logic here.
-  // Do NOT touch the Top Clients filter list directly; it’s driven only by the dropdown.
+  // Do NOT touch the Top Clients filter list directly; itâ€™s driven only by the dropdown.
 }
 
 
@@ -4234,7 +4236,7 @@ document.addEventListener('DOMContentLoaded', function fastFirstPaint() {
 
 
 
-/* PASTE #3 — ignore clicks inside suggestion blocks */
+/* PASTE #3 â€” ignore clicks inside suggestion blocks */
 document.addEventListener('DOMContentLoaded', function () {
   var wrap = document.getElementById('topClientsDisplay');
 
@@ -4262,7 +4264,7 @@ document.addEventListener('DOMContentLoaded', function () {
   if (!wrap) return;
   wrap.addEventListener('click', function(e){
     if (e.target.closest('.toplist-suggestion')) {
-      // Don’t let row/card click handlers do anything while editing the textarea
+      // Donâ€™t let row/card click handlers do anything while editing the textarea
       e.stopPropagation();
       return;
     }
@@ -4454,7 +4456,7 @@ document.getElementById('notesDisplay').style.display = 'block';
      // After successful fetch, set up the dropdowns and display data
 setupColumnDropdowns(data);
 
-// ⭐ Set chip cache FIRST (so displayNotes sees it)
+// â­ Set chip cache FIRST (so displayNotes sees it)
 window.__chipForCurrentClient = {
   initials: (data.chipInitials || "").toUpperCase(),
   date: data.chipDate || ""   // already MM/DD/YY per our server plan
@@ -4507,7 +4509,7 @@ function normalizeTopClientsFilter(val) {
   // Map emojis/aliases to canonical keys your renderer understands
   const map = {
     'JB':'JB', 'RB':'RB', 'QC':'QC', 'TEAM':'TEAM', 'BDAY':'BDAY',
-    '💼':'BRIEFCASE', '⭐':'STAR', '🎓':'GRADCAP', '📞':'PHONE'
+    'ðŸ’¼':'BRIEFCASE', 'â­':'STAR', 'ðŸŽ“':'GRADCAP', 'ðŸ“ž':'PHONE'
   };
   return map.hasOwnProperty(raw) ? map[raw] : raw.toUpperCase();
 }
@@ -4775,7 +4777,7 @@ function confirmNewCategory() {
       var opt = document.createElement('option');
       opt.value = name;
       opt.textContent = name;
-      // insert alphabetically before the sentinel NEW CATEGORY…
+      // insert alphabetically before the sentinel NEW CATEGORYâ€¦
       var inserted = false;
       for (var i = 0; i < sel.options.length; i++) {
         var o = sel.options[i];
@@ -4833,7 +4835,7 @@ google.script.run
 
     if (typeof updateCategoryLabel === 'function') updateCategoryLabel();
 
-    // ⬇️ re-run the Top Clients filter now
+    // â¬‡ï¸ re-run the Top Clients filter now
     retriggerTopClientsFilter();
 
     google.script.run
@@ -4899,7 +4901,7 @@ function updateCategorySelectValue(currentCategory) {
       opt.value = currentCategory;
       opt.textContent = currentCategory;
       var sentinel = sel.querySelector('option[value="__NEW__"]');
-      sel.add(opt, sentinel); // insert before NEW CATEGORY…
+      sel.add(opt, sentinel); // insert before NEW CATEGORYâ€¦
     }
   }
   sel.value = currentCategory || '';
@@ -4913,7 +4915,7 @@ function sanitizeSuggestionBulbs() {
       const span = document.createElement('span');
       span.className = 'bulb';
       span.setAttribute('aria-hidden', 'true');
-      span.textContent = '💡';
+      span.textContent = 'ðŸ’¡';
       card.insertBefore(span, card.firstChild);
     } else {
       // keep the first; remove any extras
@@ -4924,9 +4926,9 @@ function sanitizeSuggestionBulbs() {
       }
     }
 
-    // 2) If some renderer dropped raw “💡” text nodes, remove those
+    // 2) If some renderer dropped raw â€œðŸ’¡â€ text nodes, remove those
     Array.from(card.childNodes).forEach(n => {
-      if (n.nodeType === Node.TEXT_NODE && n.nodeValue && n.nodeValue.trim() === '💡') {
+      if (n.nodeType === Node.TEXT_NODE && n.nodeValue && n.nodeValue.trim() === 'ðŸ’¡') {
         n.parentNode.removeChild(n);
       }
     });
@@ -4990,7 +4992,7 @@ function toggleNotesVisibility() {
     toggleButton.innerText = notesExpanded ? 'LESS' : 'MORE';
   }
 
-  // If the user just clicked the LESS button (i.e., was expanded → now collapsed),
+  // If the user just clicked the LESS button (i.e., was expanded â†’ now collapsed),
   // scroll to the top.
   if (wasExpanded && !notesExpanded) {
     // Use the global helper (defined below). If you have your own scrollToTop already, this will call it.
@@ -5042,7 +5044,7 @@ function groupLinesIntoBlocks(allLines) {
     if (!current) current = { date: null, lines: [] };
 
     if (line.trim() === "") {
-      // Collapse 2+ blanks → single ""
+      // Collapse 2+ blanks â†’ single ""
       if (!pendingBlank) {
         current.lines.push(""); // represents a single <br>
         pendingBlank = true;
@@ -5088,7 +5090,7 @@ function extractDateFromLine(line) {
   var month = parseInt(m[1], 10);
   var day   = parseInt(m[2], 10);
   var year  = parseInt(m[3], 10);
-  if (year < 100) year = 2000 + year; // 24 → 2024
+  if (year < 100) year = 2000 + year; // 24 â†’ 2024
   // Basic sanity
   if (month < 1 || month > 12 || day < 1 || day > 31) return null;
   return new Date(year, month - 1, day);
@@ -5112,7 +5114,7 @@ function displayNotes(notes) {
   notes.forEach(function(n) {
     if (n.note && n.note !== 'N/A') {
       n.note.split('\n').forEach(function(line) {
-        // Keep all lines (including blank) — groupLinesIntoBlocks will collapse 2+ blanks.
+        // Keep all lines (including blank) â€” groupLinesIntoBlocks will collapse 2+ blanks.
         allLines.push(String(line || ""));
       });
     }
@@ -5142,7 +5144,7 @@ function displayNotes(notes) {
   unhighlightedWrap.style.gap = '5px';
   container.appendChild(unhighlightedWrap);
 
-  // === BUTTON ROW (MORE/LESS + ✏️) ===
+  // === BUTTON ROW (MORE/LESS + âœï¸) ===
   var buttonRow = document.createElement('div');
   buttonRow.style.display = 'inline-flex';
   buttonRow.style.alignSelf = 'center';
@@ -5163,7 +5165,7 @@ function displayNotes(notes) {
   editBtn.setAttribute('aria-label', 'Edit notes');
   editBtn.style.fontSize = '0.66em';
   editBtn.style.marginLeft = '6px';
-  editBtn.innerHTML = '✏️';
+  editBtn.innerHTML = 'âœï¸';
   editBtn.onclick = function (e) {
     e.stopPropagation();
     // Flatten blocks back to the user's raw lines (join with \n)
@@ -5205,7 +5207,7 @@ function displayNotes(notes) {
     div.innerHTML = renderBlockHTML(block);
 
     if (i >= firstHighlightIdx) {
-      // Newest 3 blocks → highlighted
+      // Newest 3 blocks â†’ highlighted
       div.classList.add('latest-note');
       div.style.backgroundColor = 'yellow';
       highlightedWrap.appendChild(div);
@@ -5222,7 +5224,7 @@ function displayNotes(notes) {
       }
 
     } else {
-      // Older blocks → hidden by default; toggled by MORE/LESS
+      // Older blocks â†’ hidden by default; toggled by MORE/LESS
       div.classList.add('older-note');
       div.style.display = 'none';
       unhighlightedWrap.appendChild(div);
@@ -5232,7 +5234,7 @@ function displayNotes(notes) {
 // Always show the row; only hide the MORE/LESS button if no older blocks
 var hasOlder = unhighlightedWrap.children.length > 0;
 toggleBtn.style.display = hasOlder ? 'inline-block' : 'none';
-buttonRow.style.display = 'inline-flex'; // keep the row visible so ✏️ stays
+buttonRow.style.display = 'inline-flex'; // keep the row visible so âœï¸ stays
 
 
   notesDisplay.appendChild(container);
@@ -5247,7 +5249,7 @@ buttonRow.style.display = 'inline-flex'; // keep the row visible so ✏️ stays
 
 
 
-  /* ===== UI STATE (client + filter) — ADD THIS BLOCK ONCE ===== */
+  /* ===== UI STATE (client + filter) â€” ADD THIS BLOCK ONCE ===== */
 const UI_STATE_KEY = 'uiState.v1';
 
 function getCurrentUIState() {
@@ -5329,7 +5331,7 @@ function editCombinedNotes(contentElement, existingText) {
       textarea.style.fontWeight = cs.fontWeight || 'normal';
       textarea.style.letterSpacing = cs.letterSpacing || 'normal';
     } else {
-      // Fallback if notes aren’t rendered yet
+      // Fallback if notes arenâ€™t rendered yet
       textarea.style.fontFamily = 'inherit';
       textarea.style.fontSize   = '32px';
       textarea.style.lineHeight = '1.3';
@@ -5492,7 +5494,7 @@ retriggerTopClientsFilter();
 
 google.script.run
   .withSuccessHandler(function (clients) {
-    repaintTopClientsWithCurrentFilter(clients);  // ← always matches dropdown
+    repaintTopClientsWithCurrentFilter(clients);  // â† always matches dropdown
   })
   .getTopClients();
 
@@ -5781,12 +5783,12 @@ document.getElementById('topClientsTitle').style.display = 'none';
   if (!out) return;
   out.innerHTML = '';
 
-  // Map emojis → actual emoji to look for
+  // Map emojis â†’ actual emoji to look for
   var emojiMap = {
-    BRIEFCASE: '💼',
-    STAR: '⭐',
-    GRADCAP: '🎓',
-    PHONE: '📞'
+    BRIEFCASE: 'ðŸ’¼',
+    STAR: 'â­',
+    GRADCAP: 'ðŸŽ“',
+    PHONE: 'ðŸ“ž'
   };
 
   // Robust emoji checker for various label shapes
@@ -5870,7 +5872,7 @@ function chipDateToTimeForSort(chipDateStr){
 
   // 3) Filtering: owners OR emoji labels only
   var OWNER_KEYS = ['JB','RB','QC','TEAM','BDAY'];
-  var emojiMap = { BRIEFCASE:'💼', STAR:'⭐', GRADCAP:'🎓', PHONE:'📞' };
+  var emojiMap = { BRIEFCASE:'ðŸ’¼', STAR:'â­', GRADCAP:'ðŸŽ“', PHONE:'ðŸ“ž' };
 
   function hasEmojiLabel(c, emoji) {
     if (!emoji) return false;
@@ -6227,7 +6229,7 @@ function paintRecentBar(list){
     const muted = e.columnL ? '' : ' rc-muted';
     const cat   = e.category ? `<span class="rc-cat">${e.category}</span>` : '';
     const chip  = (e.chipInitials || e.chipDate)
-      ? `<span class="rc-chip">${(e.chipInitials||'').toUpperCase()}${e.chipDate?' · '+e.chipDate:''}</span>` : '';
+      ? `<span class="rc-chip">${(e.chipInitials||'').toUpperCase()}${e.chipDate?' Â· '+e.chipDate:''}</span>` : '';
     const dot   = e.columnL ? '<span class="rc-dot" title="Has In-Progress"></span>' : '';
     return `
       <div class="recent-pill${muted}" data-name="${e.name}" title="${e.name}">
@@ -6238,7 +6240,7 @@ function paintRecentBar(list){
       </div>`;
   }).join('');
 
-  // click → open that client (use your existing loader)
+  // click â†’ open that client (use your existing loader)
   wrap.querySelectorAll('.recent-pill').forEach(pill => {
     pill.addEventListener('click', () => {
       const name = pill.getAttribute('data-name');
@@ -7019,7 +7021,7 @@ function displayTodayNotes(notes) {
 
     if (displayArea.style.display === 'none' || displayArea.style.display === '') {
         var formattedNotes = notes.map(function(item) {
-            var noteDisplay = item.isPastNote ? '⭐ ' + item.note : item.note;
+            var noteDisplay = item.isPastNote ? 'â­ ' + item.note : item.note;
             return noteDisplay.replace(/\n/g, '<br>');
         }).join('<br><br>');
 
@@ -7033,7 +7035,7 @@ function displayTodayNotes(notes) {
 }
 
 
-// REPLACEMENT: populateCategoryDropdown — fills #categorySelect with unique Column F values (A→Z)
+// REPLACEMENT: populateCategoryDropdown â€” fills #categorySelect with unique Column F values (Aâ†’Z)
 function populateCategoryDropdown(categories) {
   var sel = document.getElementById('categorySelect');
   if (!sel) return;
@@ -7054,10 +7056,10 @@ function populateCategoryDropdown(categories) {
 
   var newOpt = document.createElement('option');
   newOpt.value = '__NEW__';
-  newOpt.textContent = 'NEW CATEGORY…';
+  newOpt.textContent = 'NEW CATEGORYâ€¦';
   sel.appendChild(newOpt);
 
-  // 🔧 One unified handler for both cases
+  // ðŸ”§ One unified handler for both cases
   if (!sel._wiredChange) {
     sel.addEventListener('change', function () {
       if (this.value === '__NEW__') {
@@ -7306,11 +7308,11 @@ function showCategorySelection(clientName) {
 
     // Populate category options
     var categories = [
-        '⭐⭐⭐⭐⭐',
-        '⭐⭐⭐⭐',
-        '⭐⭐⭐',
-        '⭐⭐',
-        '⭐',
+        'â­â­â­â­â­',
+        'â­â­â­â­',
+        'â­â­â­',
+        'â­â­',
+        'â­',
     ];
 
     categories.forEach(function(category) {
@@ -7395,7 +7397,7 @@ REPLACE ENTIRE displayClient FUNCTION WITH THIS
 **********************************************/
 /**********************************************
   READ-ONLY Top Clients renderer (keeps original layout)
-  + Adds green Ricky’s Suggestion block (hidden by default)
+  + Adds green Rickyâ€™s Suggestion block (hidden by default)
 **********************************************/
 function displayClient(client, container) {
   // Card wrapper (keep your existing task-display sizing)
@@ -7406,7 +7408,7 @@ function displayClient(client, container) {
   clientDiv.style.alignItems = 'flex-start';
   clientDiv.style.marginBottom = '10px';
 
-  /* ── Top row: Client button ONLY (no day-of-week dropdown in Top Clients list) ── */
+  /* â”€â”€ Top row: Client button ONLY (no day-of-week dropdown in Top Clients list) â”€â”€ */
   var topRow = document.createElement('div');
   topRow.style.cssText = "display:flex; align-items:center;";
 
@@ -7426,7 +7428,7 @@ function displayClient(client, container) {
 
   clientDiv.appendChild(topRow);
 
-  /* ── Notes highlight section (read-only in list) ── */
+  /* â”€â”€ Notes highlight section (read-only in list) â”€â”€ */
   var allC = [];
   (client.pastWorks || []).forEach(function(pw){
     String(pw || '').split('\n').forEach(function(line){
@@ -7495,7 +7497,7 @@ function displayClient(client, container) {
           div.appendChild(chipEl);
         }
       } else {
-        // OLDER — stays hidden (no MORE button to reveal)
+        // OLDER â€” stays hidden (no MORE button to reveal)
         div.classList.add('older-note');
         div.style.display = 'none';
         olderWrap.appendChild(div);
@@ -7506,7 +7508,7 @@ function displayClient(client, container) {
     clientDiv.appendChild(notesWrap);
   }
 
-  /* ── Ricky’s Suggestion (Column L) — green block; obeys global toggle; unchanged ── */
+  /* â”€â”€ Rickyâ€™s Suggestion (Column L) â€” green block; obeys global toggle; unchanged â”€â”€ */
   var sugWrap = document.createElement('div');
   sugWrap.className = 'toplist-suggestion';
   sugWrap.style.display = 'none'; // toggled by your existing toggleSuggestions()
@@ -7515,7 +7517,7 @@ function displayClient(client, container) {
   var lab = document.createElement('label');
   lab.style.fontWeight = 'bold';
   lab.style.display = 'block';
-  lab.textContent = "💡";
+  lab.textContent = "ðŸ’¡";
   sugWrap.appendChild(lab);
 
   var ta = document.createElement('textarea');
@@ -7529,7 +7531,7 @@ function displayClient(client, container) {
 
   clientDiv.appendChild(sugWrap);
 
-  /* ── Thick divider like before ── */
+  /* â”€â”€ Thick divider like before â”€â”€ */
   var thickLine = document.createElement('hr');
   thickLine.style.cssText = "width:100%; border:3px solid black; margin:10px 0;";
   clientDiv.appendChild(thickLine);
@@ -7677,10 +7679,10 @@ function showStarAnimation() {
 }
 
 /*******************************************************
- SNIPPET #3: Real-time “In Progress” sync & save
+ SNIPPET #3: Real-time â€œIn Progressâ€ sync & save
 *******************************************************/
 /*******************************************************
- SNIPPET #3: Real-time “In Progress” sync & save (UPDATED)
+ SNIPPET #3: Real-time â€œIn Progressâ€ sync & save (UPDATED)
 *******************************************************/
 
 function onInProgressChange(clientName, newValue) {
@@ -7693,7 +7695,7 @@ function onInProgressChange(clientName, newValue) {
       // Hide the loading bar AFTER success
       hideLoadingBar();
 
-      // 2) If successful, mirror that newValue into the loaded client area (if it’s the same client)
+      // 2) If successful, mirror that newValue into the loaded client area (if itâ€™s the same client)
       updateInProgressDom(clientName, newValue);
     })
     .withFailureHandler(function(err) {
@@ -7713,7 +7715,7 @@ function onInProgressLoadedBlur(valueFromUI) {
   var ta = document.getElementById('loadedInProgressArea');
   if (!ta) return;
 
-  // Don’t do anything if text hasn't changed
+  // Donâ€™t do anything if text hasn't changed
   var newVal = String(valueFromUI || '');
   var oldVal = String(ta.getAttribute('data-last-saved') || '');
   if (newVal.trim() === oldVal.trim()) return;
@@ -7726,12 +7728,12 @@ function onInProgressLoadedBlur(valueFromUI) {
       // Lock in the new value locally, NO full re-render
       ta.setAttribute('data-last-saved', newVal);
 
-      // Small inline “Saved” badge (reuse the helper you already have)
+      // Small inline â€œSavedâ€ badge (reuse the helper you already have)
       if (typeof showInlineSavedBadge === 'function') showInlineSavedBadge(ta);
 
       if (typeof hideLoadingBar === 'function') hideLoadingBar();
 
-      // ✅ DO NOT call displayTopClients(), showTopClients(), getTopClients(), etc. here
+      // âœ… DO NOT call displayTopClients(), showTopClients(), getTopClients(), etc. here
       reloadPreservingState();
 
     })
@@ -7741,14 +7743,14 @@ function onInProgressLoadedBlur(valueFromUI) {
       ta.value = oldVal;
       if (typeof hideLoadingBar === 'function') hideLoadingBar();
     })
-    // ⬇️ change to your server function name if different
+    // â¬‡ï¸ change to your server function name if different
     .updateClientColumnL(clientName, newVal);
 }
 /* ===== END REPLACEMENT ===== */
 
 
 
-// This function updates all “In Progress:” textareas on the page for the given client
+// This function updates all â€œIn Progress:â€ textareas on the page for the given client
 // so they match the newly saved value, WITHOUT reloading.
 function updateInProgressDom(clientName, newValue) {
   // 1) If the loaded client is the same, update the loadedInProgressArea
@@ -7760,7 +7762,7 @@ function updateInProgressDom(clientName, newValue) {
     }
   }
 
-  // 2) Update the “In Progress:” textareas in the top clients list
+  // 2) Update the â€œIn Progress:â€ textareas in the top clients list
   //    (They have .className = "inProgressArea" plus a data-client attribute)
   var allAreas = document.querySelectorAll('.inProgressArea[data-client="' + clientName + '"]');
   allAreas.forEach(function(area) {
@@ -8098,7 +8100,7 @@ function showMatchesDropdown(rowDiv, matches, taskObj) {
 
   /*121*/ // We'll override the existing applyBtn.onclick to handle manual picks
   /*122*/ // But first, we need a reference to the existing applyBtn:
-  //        We'll define applyBtn later below (lines ~161), so we’ll "inject"
+  //        We'll define applyBtn later below (lines ~161), so weâ€™ll "inject"
   //        the logic after we create it. We do so with a small trick shown below.
   /*123*/ 
   /*124*/ // We won't finalize li6 into the UL until after we define the rest.
@@ -8232,7 +8234,7 @@ function doApplyTaskToClient(chosenClient, chosenWorkType, taskObj, rowId) {
 }
 
 /**
- * Strips the leading name portion from the full task text. This is rough logic – modify as needed.
+ * Strips the leading name portion from the full task text. This is rough logic â€“ modify as needed.
  */
 function stripNameFromTask(fullTask, chosenClientName) {
   // Simplify by removing the first words that match chosenClientName, or at least the first 2-3 words
@@ -8245,7 +8247,7 @@ function stripNameFromTask(fullTask, chosenClientName) {
 /*********************************
  * SNIPPET: findClientName
  * Paste this directly after the
- * stripNameFromTask function’s
+ * stripNameFromTask functionâ€™s
  * closing brace
  *********************************/
 function findClientName(fullTask, clientNamesArray) {
@@ -8310,7 +8312,7 @@ function scrollToBottomInOneSecond() {
 function createChipElement(clientName, initials, mmddyy) {
   var safeInitials = (initials || "").toUpperCase().trim();
 
-  // ✅ Normalize the date to always display as M/D/YY
+  // âœ… Normalize the date to always display as M/D/YY
   var safeDate = normalizeChipDate(mmddyy || "");
 
   var chip = document.createElement('span');
@@ -8330,7 +8332,7 @@ function createChipElement(clientName, initials, mmddyy) {
 
     var sepEl = document.createElement('span');
     sepEl.className = 'chip-sep';
-    sepEl.textContent = ' • ';
+    sepEl.textContent = ' â€¢ ';
 
     var dateEl = document.createElement('span');
     dateEl.className = 'chip-date';
@@ -8383,7 +8385,7 @@ function createChipElementReadOnly(clientName, initials, mmddyy) {
     chip.appendChild(dateEl);
   }
 
-  // IMPORTANT: no click handler attached — read-only.
+  // IMPORTANT: no click handler attached â€” read-only.
   return chip;
 }
 
@@ -8421,7 +8423,7 @@ function openChipEditor(anchorEl, clientName, initials, mmddyy) {
   var dateInput = document.createElement('input');
   dateInput.type = 'date';
 
-  // prefill date from MM/DD/YY → YYYY-MM-DD
+  // prefill date from MM/DD/YY â†’ YYYY-MM-DD
   if (mmddyy) {
     var m = mmddyy.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
     if (m) {
@@ -8450,7 +8452,7 @@ function openChipEditor(anchorEl, clientName, initials, mmddyy) {
     google.script.run.withSuccessHandler(function(){
       hideLoadingBar();
 
-      // Convert ISO → MM/DD/YY for chip display
+      // Convert ISO â†’ MM/DD/YY for chip display
       var newMmddyy = '';
       if (newIso) {
         var d = new Date(newIso);
@@ -8486,11 +8488,11 @@ retriggerTopClientsFilter();
   }
 
   // AUTO-SAVE behaviors:
-  // 1) Change initials → save immediately
+  // 1) Change initials â†’ save immediately
   sel.addEventListener('change', saveChipAndClose);
-  // 2) Pick a date → save immediately
+  // 2) Pick a date â†’ save immediately
   dateInput.addEventListener('change', saveChipAndClose);
-  // 3) Click outside the popover → close without saving (no change made)
+  // 3) Click outside the popover â†’ close without saving (no change made)
   setTimeout(function() { // defer to avoid immediate close on open
     document.addEventListener('mousedown', outsideHandler);
   }, 0);
@@ -8583,7 +8585,7 @@ function ensureSuggestionsButtonInToolbar() {
   var btn = document.createElement('button');
   btn.id = 'suggestionsToggleBtn';
   btn.type = 'button';
-  btn.textContent = '💡';
+  btn.textContent = 'ðŸ’¡';
   btn.onclick = function () {
     if (typeof toggleSuggestions === 'function') toggleSuggestions();
   };
@@ -8755,7 +8757,7 @@ document.addEventListener('DOMContentLoaded', ensureSuggestionsButtonInToolbar);
     }
   }
 
-// Re-run the Top Clients filter as if the dropdown changed (even if value didn’t)
+// Re-run the Top Clients filter as if the dropdown changed (even if value didnâ€™t)
 function retriggerTopClientsFilter() {
   var dd = document.getElementById('topClientsFilterDropdown');
   if (!dd) return;
@@ -8787,7 +8789,7 @@ function normalizeFilterValue(v) {
 // Accept both tokens (BRIEFCASE/STAR/GRADCAP/PHONE) and the actual emoji
 function asEmojiOrNull(v) {
   const s = normalizeFilterValue(v).toUpperCase();
-  const map = { BRIEFCASE:'💼', STAR:'⭐', GRADCAP:'🎓', PHONE:'📞' };
+  const map = { BRIEFCASE:'ðŸ’¼', STAR:'â­', GRADCAP:'ðŸŽ“', PHONE:'ðŸ“ž' };
   if (map[s]) return map[s];
   // if they actually chose an emoji, pass it through
   const isEmoji = /[\u{1F300}-\u{1FAFF}]/u.test(v || '');
@@ -8873,7 +8875,7 @@ function suggestionsContainEmoji(client, emoji) {
     currentClient = clientName;
     showCatUI(!!currentClient);
 
-    // keep the full bar’s tooltip showing the full text that might overflow
+    // keep the full barâ€™s tooltip showing the full text that might overflow
     const barEl = document.querySelector('.your-autocomplete-input-selector'); // update if you want
     if (barEl) setTooltip(barEl, displayText || clientName);
 
@@ -8961,7 +8963,7 @@ function suggestionsContainEmoji(client, emoji) {
     }
   });
   catInput().addEventListener('change', () => saveCategory(catInput().value));
-  // Optional debounced “preview” (not saving): keep tooltip updated
+  // Optional debounced â€œpreviewâ€ (not saving): keep tooltip updated
   catInput().addEventListener('input', debounce(() => {
     setTooltip(catInput(), catInput().value || currentCategory || 'Select category');
   }, 200));
@@ -8969,7 +8971,7 @@ function suggestionsContainEmoji(client, emoji) {
   // === CALENDAR MODAL ===
   function openApptModal() {
     if (!currentClient) return;
-    apptTitle().textContent = `Schedule appointment — ${currentClient}`;
+    apptTitle().textContent = `Schedule appointment â€” ${currentClient}`;
     apptDate().value = ''; apptTime().value = '';
     apptModal().style.display = 'flex';
   }
@@ -9005,7 +9007,7 @@ function suggestionsContainEmoji(client, emoji) {
       .addAppointmentToCalendar(currentClient, d, t);
   });
 
-  // OPTIONAL: If your autocomplete already has a “selection” handler,
+  // OPTIONAL: If your autocomplete already has a â€œselectionâ€ handler,
   // just call window.onClientSelectedForBar(name, label) from there.
 })();
 
@@ -9015,4 +9017,7 @@ function suggestionsContainEmoji(client, emoji) {
 
 
 </body>
+<!-- VERIFY:VERIFY-20251029-133658 -->
+<!-- VERIFY:VERIFY-20251029-133748 -->
 </html>
+
