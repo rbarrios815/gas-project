@@ -2711,41 +2711,125 @@ function inboxAddNote(rawNote) {
   return { ok: true, row: row };
 }
 
-
 function inboxGetRecent(limit) {
-  const sh = ensureNotesInbox_();
+  const sh = ensureNotesInbox_(); // your existing inbox sheet helper
   const last = sh.getLastRow();
   if (last < 2) return { recent: [], raw: [] };
 
-  // A: note, B: assigned, C: timestamp
+  // Read inbox rows: A: Note, B: Assigned (client name), C: Timestamp
   const all = sh.getRange(2, 1, last - 1, 3).getValues().map((r, i) => ({
     row: i + 2,
-    note: String(r[0] || "").trim(),
-    assigned: String(r[1] || "").trim(),
+    note: String(r[0] || '').trim(),
+    assigned: String(r[1] || '').trim(),
     ts: r[2] ? new Date(r[2]).getTime() : 0
   }));
 
-  // Attach chip meta for any assigned name
-  const tz = Session.getScriptTimeZone();
-  const limited = [...all].sort((a, b) => b.ts - a.ts).slice(0, limit || 5).map(x => {
-    var stamp = x.ts ? Utilities.formatDate(new Date(x.ts), tz, 'MM/dd/yy h:mma') : '';
-    var meta = { initials: "", chipDate: "" };
-    if (x.assigned) {
-      meta = getClientMetaByName(x.assigned);
-    }
+  // Map each inbox item to include chipDate (Column Q from clients) AND chipInitials
+  const withChips = all.map(x => {
+    const chip = lookupClientChip_(x.assigned); // { chipDate, chipInitials }
     return {
       row: x.row,
       note: x.note,
       assigned: x.assigned,
-      timestamp: stamp,
-      assignedInitials: meta.initials || "",
-      assignedChipDate: meta.chipDate || ""
+      chipDate: chip.chipDate || '',         // formatted MM/dd/yy (or '')
+      chipInitials: chip.chipInitials || '', // e.g. 'JB'
+      ts: x.ts
     };
   });
 
-  return { recent: limited, raw: all };
+  const tz = Session.getScriptTimeZone();
+  const sorted = withChips
+    .sort((a, b) => b.ts - a.ts)
+    .slice(0, limit || 5)
+    .map(x => ({
+      row: x.row,
+      note: x.note,
+      assigned: x.assigned,
+      chipDate: x.chipDate,
+      chipInitials: x.chipInitials,
+      timestamp: x.ts ? Utilities.formatDate(new Date(x.ts), tz, 'MM/dd/yy h:mma') : ''
+    }));
+
+  return { recent: sorted, raw: all };
 }
 
+function getClientsSheet_() {
+  // Adjust the sheet name if yours differs
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheetByName('DASHBOARD 8.0');
+  if (!sh) throw new Error("Clients sheet 'DASHBOARD 8.0' not found.");
+  return sh;
+}
+
+function readClientsTable_() {
+  const sh = getClientsSheet_();
+  const rng = sh.getDataRange();
+  const vals = rng.getValues();
+  const headers = (vals[0] || []).map(String);
+  return { sh, headers, vals };
+}
+
+function findHeaderIndex_(headers, candidates, fallbackIndex1Based) {
+  // returns 1-based column index or provided fallback
+  const lc = headers.map(h => String(h || '').trim().toLowerCase());
+  for (const name of candidates) {
+    const i = lc.indexOf(String(name).toLowerCase());
+    if (i >= 0) return i + 1;
+  }
+  return fallbackIndex1Based || -1;
+}
+
+function lookupClientChip_(clientName) {
+  // Returns { chipDate: 'MM/dd/yy' | '', chipInitials: 'JB' | '' }
+  const result = { chipDate: '', chipInitials: '' };
+  if (!clientName) return result;
+
+  const { headers, vals } = readClientsTable_();
+
+  // try to find name + columns for initials & chip date (Q)
+  const nameCol = findHeaderIndex_(headers, ['name', 'client', 'client name'], 1);  // fallback col A
+  const initialsCol = findHeaderIndex_(headers, ['initials', 'chip initials', 'owner', 'assigned to', 'assignee'], -1);
+  const chipDateCol = 17; // Column Q fixed as per your setup
+
+  // scan for exact match (case-insensitive)
+  const target = String(clientName).trim().toLowerCase();
+  for (let r = 1; r < vals.length; r++) {
+    const rowName = String(vals[r][nameCol - 1] || '').trim().toLowerCase();
+    if (rowName === target) {
+      // Chip Date
+      const rawDate = vals[r][chipDateCol - 1];
+      if (rawDate) {
+        try {
+          const tz = Session.getScriptTimeZone();
+          result.chipDate = Utilities.formatDate(new Date(rawDate), tz, 'MM/dd/yy');
+        } catch (_) {
+          // if parsing fails, leave empty
+        }
+      }
+      // Initials
+      if (initialsCol > 0) {
+        result.chipInitials = String(vals[r][initialsCol - 1] || '').trim().toUpperCase();
+      }
+      // Fallback: derive initials from the client name if not on sheet
+      if (!result.chipInitials) {
+        result.chipInitials = deriveInitials_(clientName);
+      }
+      return result;
+    }
+  }
+
+  // If no row found: still derive initials from the name
+  result.chipInitials = deriveInitials_(clientName);
+  return result;
+}
+
+function deriveInitials_(name) {
+  if (!name) return '';
+  const parts = String(name).trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '';
+  const letters = parts.map(w => w.charAt(0).toUpperCase());
+  return letters.join('').slice(0, 3); // cap at 3 just in case
+}
 
 function inboxAssignToClient(row, clientTypedName) {
   const sh = ensureNotesInbox_();
