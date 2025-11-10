@@ -3763,7 +3763,7 @@ function wireToplistSuggestionTextareas() {
           if (typeof showInlineSavedBadge === 'function') {
             showInlineSavedBadge(ta);
           }
-          if (typeof updateInProgressDom === 'function') {
+      if (typeof updateInProgressDom === 'function') {
             updateInProgressDom(clientName, pendingValue);
           }          if (typeof hideLoadingBar === 'function') hideLoadingBar();
         })
@@ -8232,7 +8232,6 @@ function onInProgressLoadedBlur(valueFromUI) {
 
 
       // ✅ DO NOT call displayTopClients(), showTopClients(), getTopClients(), etc. here
-      reloadPreservingState();
 
     })
     .withFailureHandler(function (err) {
