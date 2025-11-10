@@ -3512,9 +3512,9 @@ function scheduleSuggestionTextareaFit(textarea) {
 function applySuggestionsVisibility() {
   var blocks = document.querySelectorAll('.toplist-suggestion');
   blocks.forEach(function(b) {
-    b.style.display = window.__suggestionsVisible ? 'block' : 'none';
-        var visible = !!window.__suggestionsVisible;
-    b.style.display = visible ? 'block' : 'none';
+  var visible = !!window.__suggestionsVisible;
+    b.style.display = visible ? 'flex' : 'none';
+    if (visible) {
     if (visible) {
       var ta = b.querySelector('textarea');
       if (ta) scheduleSuggestionTextareaFit(ta);
@@ -7023,9 +7023,6 @@ function drawHeatmap(weekdayCounts) {
   var chart = new google.visualization.ColumnChart(document.getElementById('heatmap'));
   chart.draw(data, options);
 }
-
-var futureChart = new google.visualization.ColumnChart(document.getElementById('futureHeatmap'));
-futureChart.draw(futureData, options);
 
 // Function to get data and draw the heatmap
 function getAndDrawHeatmapData() {
