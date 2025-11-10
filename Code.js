@@ -1410,6 +1410,36 @@ function updateClientData(clientName, newData) {
     }
 }
 
+ /* Update Column L ("In Progress") for the given client.
+ * Mirrors updateInProgress but exposes a concise name for the client UI.
+ * Returns a small payload so the frontend can trust the saved value.
+ */
+function updateClientColumnL(clientName, newValue) {
+  var name = String(clientName || '').trim();
+  if (!name) {
+    throw new Error('Missing clientName.');
+  }
+
+  var text = newValue == null ? '' : String(newValue);
+
+  // Reuse the normalized lookup logic that already strips trailing digits.
+  updateInProgress(name, text);
+
+  // Keep recent-clients metadata in sync (ignore failures – best effort only).
+  try {
+    logRecentClient(name, 5);
+  } catch (err) {
+    console.warn('logRecentClient failed inside updateClientColumnL:', err);
+  }
+
+  return {
+    ok: true,
+    client: name,
+    value: text
+  };
+}
+
+
 // Example of function to handle quadrant selection
 function selectQuadrant(clientType, timeFrame) {
     // Assuming you have a function to call your Google Apps Script with parameters
