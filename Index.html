@@ -3691,6 +3691,9 @@ function wireToplistSuggestionTextareas() {
   const nodes = document.querySelectorAll('#topClientsDisplay .toplist-suggestion textarea.note-textarea, #topClientsDisplay .toplist-suggestion textarea.toplist-textarea');
 
   nodes.forEach(function (ta) {
+        if (ta.dataset.wiredSuggestion === 'true') return;
+    ta.dataset.wiredSuggestion = 'true';
+
     // Never let clicks/focus bubble up and cause row-level re-renders
     ['mousedown', 'click', 'focus'].forEach(function(ev){
       ta.addEventListener(ev, function (e) { e.stopPropagation(); }, true);
@@ -3708,11 +3711,25 @@ function wireToplistSuggestionTextareas() {
     }
     if (!clientName) return; // can't save without a client
 
-    let original = ta.value;
+    ta.setAttribute('data-client', clientName);
+    ta.classList.add('inProgressArea');
+    if (!ta.hasAttribute('data-last-saved')) {
+      ta.setAttribute('data-last-saved', ta.value || '');
+    }
     let dirty = false;
 
+        const getBaseline = () => {
+      const stored = ta.getAttribute('data-last-saved');
+      return stored != null ? stored : '';
+    };
+
+    const syncDirty = () => {
+      dirty = (ta.value !== getBaseline());
+    };
+
+
     ta.addEventListener('input', function () {
-      dirty = (ta.value !== original);
+      syncDirty();
     });
 
     // Ctrl/⌘+Enter = quick commit
@@ -3726,30 +3743,40 @@ function wireToplistSuggestionTextareas() {
 
     // SAVE ONLY ON BLUR — but DO NOT re-render the whole list
     ta.addEventListener('blur', function () {
-      if (!dirty || ta.value.trim() === original.trim()) return;
+      const baseline = getBaseline();
+      const pendingValue = ta.value;
+      if (!dirty || pendingValue.trim() === baseline.trim()) {
+        dirty = false;
+        return;
+      }
+
 
       if (typeof showLoadingBar === 'function') showLoadingBar();
 
       google.script.run
         .withSuccessHandler(function () {
           // Keep the screen exactly as-is; just lock in the new value
-          original = ta.value;
           dirty = false;
+          ta.setAttribute('data-last-saved', pendingValue || '');
 
           // Small visual ack near the textarea
-          showInlineSavedBadge(ta);
-
-          if (typeof applySuggestionsVisibility === 'function') applySuggestionsVisibility();
-          if (typeof hideLoadingBar === 'function') hideLoadingBar();
+          if (typeof showInlineSavedBadge === 'function') {
+            showInlineSavedBadge(ta);
+          }
+          if (typeof updateInProgressDom === 'function') {
+            updateInProgressDom(clientName, pendingValue);
+          }          if (typeof hideLoadingBar === 'function') hideLoadingBar();
         })
         .withFailureHandler(function (err) {
           alert('Error saving In Progress: ' + (err && err.message ? err.message : err));
-          ta.value = original; // revert
+          ta.value = baseline; // revert
           dirty = false;
+                    ta.setAttribute('data-last-saved', baseline || '');
+
           if (typeof hideLoadingBar === 'function') hideLoadingBar();
         })
         // ⬇️ CHANGE THIS if your server save function has a different name
-        .updateClientColumnL(clientName, ta.value);
+        .updateClientColumnL(clientName, pendingValue);
     }, true);
   });
 }
@@ -5080,6 +5107,19 @@ displayLabels(Array.isArray(data.labels) ? data.labels : []);
 // SNIPPET #4: Ensure the loaded "In Progress:" is set from data.columnL
 // Seed the In Progress textarea and remember the last-saved value
 var loadedInProgressArea = document.getElementById('loadedInProgressArea');
+var selectedClientName = '';
+var clientSelectEl = document.getElementById('clientSelect');
+if (clientSelectEl && clientSelectEl.value) {
+  selectedClientName = clientSelectEl.value;
+} else if (data && data.notes && data.notes.length && data.notes[0].clientName) {
+  selectedClientName = data.notes[0].clientName;
+}
+if (selectedClientName) {
+  loadedInProgressArea.setAttribute('data-client', selectedClientName);
+} else {
+  loadedInProgressArea.removeAttribute('data-client');
+}
+loadedInProgressArea.classList.add('inProgressArea');
 var seed = data.columnL || '';
 loadedInProgressArea.value = seed;
 loadedInProgressArea.setAttribute('data-last-saved', seed);
@@ -7966,6 +8006,7 @@ function displayClient(client, container) {
   sugWrap.className = 'toplist-suggestion';
   sugWrap.style.display = 'none'; // toggled by your existing toggleSuggestions()
   sugWrap.style.alignSelf = 'stretch';   // ensure it spans the whole card width
+  sugWrap.setAttribute('data-client', client.name);
 
   var bulb = document.createElement('span');
   bulb.className = 'bulb';
@@ -7974,12 +8015,11 @@ function displayClient(client, container) {
   sugWrap.appendChild(bulb);
 
   var ta = document.createElement('textarea');
-  ta.className = 'note-textarea';
+  ta.className = 'note-textarea inProgressArea';
   ta.style.minHeight = '60px';
   ta.value = client.columnLContent || '';
-  ta.addEventListener('blur', function(){
-    onToplistSuggestionBlur(client.name, ta.value); // saves Column L then reloads (your code)
-  });
+  ta.setAttribute('data-client', client.name);
+  ta.setAttribute('data-last-saved', ta.value || '');
   sugWrap.appendChild(ta);
 
   clientDiv.appendChild(sugWrap);
@@ -8186,6 +8226,11 @@ function onInProgressLoadedBlur(valueFromUI) {
 
       if (typeof hideLoadingBar === 'function') hideLoadingBar();
 
+            if (typeof updateInProgressDom === 'function') {
+        updateInProgressDom(clientName, newVal);
+      }
+
+
       // ✅ DO NOT call displayTopClients(), showTopClients(), getTopClients(), etc. here
       reloadPreservingState();
 
@@ -8206,12 +8251,18 @@ function onInProgressLoadedBlur(valueFromUI) {
 // This function updates all “In Progress:” textareas on the page for the given client
 // so they match the newly saved value, WITHOUT reloading.
 function updateInProgressDom(clientName, newValue) {
+    var normalizedValue = newValue == null ? '' : String(newValue);
+
   // 1) If the loaded client is the same, update the loadedInProgressArea
-  var currentlySelected = document.getElementById('clientSelect').value;
-  if (currentlySelected === clientName) {
+var selectEl = document.getElementById('clientSelect');
+  var currentlySelected = selectEl ? selectEl.value : '';
+    if (currentlySelected === clientName) {
     var loadedText = document.getElementById('loadedInProgressArea');
-    if (loadedText && loadedText.value !== newValue) {
-      loadedText.value = newValue;
+   if (loadedText && loadedText.value !== normalizedValue) {
+      loadedText.value = normalizedValue;
+    }
+    if (loadedText) {
+      loadedText.setAttribute('data-last-saved', normalizedValue);
     }
   }
 
@@ -8219,9 +8270,11 @@ function updateInProgressDom(clientName, newValue) {
   //    (They have .className = "inProgressArea" plus a data-client attribute)
   var allAreas = document.querySelectorAll('.inProgressArea[data-client="' + clientName + '"]');
   allAreas.forEach(function(area) {
-    if (area.value !== newValue) {
-      area.value = newValue;
+    if (area.value !== normalizedValue) {
+      area.value = normalizedValue;
     }
+        area.setAttribute('data-last-saved', normalizedValue);
+
   });
 }
 // UPDATED: Handle JB / RB / QC filters and update topClientsTitle
@@ -9003,18 +9056,23 @@ function chipDateToTime(raw) {
 
 function onToplistSuggestionBlur(clientName, newValue) {
   if (!clientName) return;
-  showLoadingBar();
+  if (typeof showLoadingBar === 'function') showLoadingBar();
   google.script.run
     .withSuccessHandler(function() {
-      hideLoadingBar();
-      // FULL refresh so ShowClientNotes + Top Clients match exactly
-      location.reload();
+     if (typeof updateInProgressDom === 'function') {
+        updateInProgressDom(clientName, newValue);
+      }
+      if (typeof refreshTopClientsPreservingScroll === 'function') {
+        refreshTopClientsPreservingScroll();
+      }
+      if (typeof hideLoadingBar === 'function') hideLoadingBar();
     })
     .withFailureHandler(function(err) {
-      hideLoadingBar();
+      if (typeof hideLoadingBar === 'function') hideLoadingBar();
+
       alert('Error saving Ricky\'s Suggestion: ' + (err && err.message ? err.message : err));
     })
-    .updateInProgress(clientName, newValue); // Apps Script: writes Column L for that client
+    .updateClientColumnL(clientName, newValue);
 }
 
 
