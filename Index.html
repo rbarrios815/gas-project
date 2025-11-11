@@ -6902,6 +6902,13 @@ function normalizeClientNameForMatch(name) {
   } else {
     base = String(name || '').replace(/\d+$/, '').trim();
   }
+
+  return String(base || '')
+    .toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
   return base;
 }
 
@@ -6909,12 +6916,45 @@ function findClientOptionByBaseName(targetName) {
   var clientSelect = document.getElementById('clientSelect');
   if (!clientSelect) return null;
 
+  var rawTarget = String(targetName || '').trim();
+  if (!rawTarget) return null;
+
+  var lowerTarget = rawTarget.toLowerCase();
+  var normalizedTarget = normalizeClientNameForMatch(rawTarget);
+  var fallbackByPrefix = null;
+  var fallbackByNormalized = null;
   var normalizedTarget = normalizeClientNameForMatch(targetName).toLowerCase();
   if (!normalizedTarget) return null;
 
   for (var i = 0; i < clientSelect.options.length; i++) {
     var option = clientSelect.options[i];
     var optionText = option.text || option.value || '';
+    var optionClientName = optionText.split(' (')[0].trim();
+    var optionValue = (option.value || '').trim();
+    var lowerOptionName = optionClientName.toLowerCase();
+    var lowerOptionValue = optionValue.toLowerCase();
+
+    if (lowerOptionName === lowerTarget || lowerOptionValue === lowerTarget) {
+      return { option: option, index: i };
+    }
+
+    if (!fallbackByPrefix && lowerTarget.startsWith(lowerOptionName)) {
+      fallbackByPrefix = { option: option, index: i };
+    }
+
+    if (!fallbackByPrefix && lowerOptionName.startsWith(lowerTarget)) {
+      fallbackByPrefix = { option: option, index: i };
+    }
+
+    if (!fallbackByNormalized) {
+      var normalizedOption = normalizeClientNameForMatch(optionClientName);
+      if (normalizedOption && normalizedOption === normalizedTarget) {
+        fallbackByNormalized = { option: option, index: i };
+      }
+    }
+  }
+
+  return fallbackByPrefix || fallbackByNormalized;
     var optionClientName = optionText.split(' (')[0];
     var normalizedOption = normalizeClientNameForMatch(optionClientName).toLowerCase();
 
@@ -6955,6 +6995,7 @@ function selectClientFromButton(clientText) {
   showClientNotes(); // Refresh client notes if needed
 
   if (typeof onClientOpened === 'function') {
+    var canonicalName = (optionValue || optionText || clientText || '').trim();
     var canonicalName = normalizeClientNameForMatch(optionValue || optionText || clientText);
     if (canonicalName) {
       onClientOpened(canonicalName);
