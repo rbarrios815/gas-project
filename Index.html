@@ -6909,6 +6909,7 @@ function normalizeClientNameForMatch(name) {
     .replace(/[^a-z0-9\s]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
+  return base;
 }
 
 function findClientOptionByBaseName(targetName) {
@@ -6922,6 +6923,8 @@ function findClientOptionByBaseName(targetName) {
   var normalizedTarget = normalizeClientNameForMatch(rawTarget);
   var fallbackByPrefix = null;
   var fallbackByNormalized = null;
+  var normalizedTarget = normalizeClientNameForMatch(targetName).toLowerCase();
+  if (!normalizedTarget) return null;
 
   for (var i = 0; i < clientSelect.options.length; i++) {
     var option = clientSelect.options[i];
@@ -6952,6 +6955,15 @@ function findClientOptionByBaseName(targetName) {
   }
 
   return fallbackByPrefix || fallbackByNormalized;
+    var optionClientName = optionText.split(' (')[0];
+    var normalizedOption = normalizeClientNameForMatch(optionClientName).toLowerCase();
+
+    if (normalizedOption === normalizedTarget) {
+      return { option: option, index: i };
+    }
+  }
+
+  return null;
 }
 
 // This function will be called when the task button is clicked
@@ -6984,6 +6996,7 @@ function selectClientFromButton(clientText) {
 
   if (typeof onClientOpened === 'function') {
     var canonicalName = (optionValue || optionText || clientText || '').trim();
+    var canonicalName = normalizeClientNameForMatch(optionValue || optionText || clientText);
     if (canonicalName) {
       onClientOpened(canonicalName);
     }
