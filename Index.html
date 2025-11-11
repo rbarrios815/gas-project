@@ -680,35 +680,6 @@ function showToast(msg, ms=1700){
   setTimeout(() => t.classList.remove('show'), ms);
 }
 
-/** Add a note to "recentList" (simulates Notes Inbox) **/
-function addNote(text){
-  const trimmed = (text || '').trim();
-  const area = document.getElementById('noteInput');
-  if(!trimmed){
-    showToast('Nothing to add');
-    return;
-  }
-  const list = document.getElementById('recentList');
-  const item = document.createElement('div');
-  item.className = 'item';
-  item.innerHTML = `
-    <div class="note"></div>
-    <div class="meta">Saved ${new Date().toLocaleString()}</div>
-  `;
-  item.querySelector('.note').textContent = trimmed;
-  list.prepend(item);
-
-  // Clear textarea after add
-  if(area) area.value = '';
-  showToast('Note saved');
-}
-
-/** Wire up ADD button (manual add) **/
-document.getElementById('addBtn')?.addEventListener('click', () => {
-  const text = document.getElementById('noteInput')?.value || '';
-  addNote(text);
-});
-
 /* =========================
    Web Speech (no triple print)
    =========================
@@ -974,36 +945,55 @@ setState(startOpen);
 
 
 const addBtn = document.getElementById('addBtn');
+let addNotePending = false;
 
+function addNote(textOverride){
+  if (addNotePending) {
+    return;
+  }
 
-function addNote(){
-  const txt = (noteInput.value || '').trim();
-  if (!txt) { addStatus.textContent = ''; return; }
+  const rawText = typeof textOverride === 'string' ? textOverride : (noteInput.value || '');
+  const txt = rawText.trim();
+  if (!txt) {
+    addStatus.textContent = '';
+    return;
+  }
 
+  addNotePending = true;
   startLoading();
   addStatus.textContent = '';
-  addBtn.disabled = true;
+  if (addBtn) {
+    addBtn.disabled = true;
+  }
 
   google.script.run
     .withSuccessHandler(_ => {
-      noteInput.value = '';
-      // Refresh list, then stop loader (inside loadRecent), then re-enable + toast
+      if (noteInput) {
+        noteInput.value = '';
+      }
+
       loadRecent(() => {
-        addBtn.disabled = false;
+        addNotePending = false;
+        if (addBtn) {
+          addBtn.disabled = false;
+        }
         showToast('Note added successfully');
       });
     })
     .withFailureHandler(err => {
       console.log(err);
       stopLoading();
-      addBtn.disabled = false;
+      addNotePending = false;
+      if (addBtn) {
+        addBtn.disabled = false;
+      }
       showToast('Error adding note');
     })
     .inboxAddNote(txt);
 }
 
 
-addBtn.addEventListener('click', addNote);
+addBtn?.addEventListener('click', () => addNote());
 
     /* Recent (5) with assign */
   const recentList = document.getElementById('recentList');
@@ -6834,47 +6824,59 @@ var suggestions; // Keep this global to store suggestions
 
 function autocompleteClient() {
   var clientSelect = document.getElementById('clientSelect');
+  var inputElement = document.getElementById('clientAutocomplete');
+  if (!clientSelect || !inputElement) {
+    return;
+  }
 
-    var inputElement = document.getElementById('clientAutocomplete');
+  if (!suggestions) {
     suggestions = document.getElementById('autocompleteSuggestions');
-    if (!suggestions) {
-        suggestions = document.createElement('div');
-        suggestions.id = 'autocompleteSuggestions';
-        inputElement.parentNode.appendChild(suggestions);
+  }
+  if (!suggestions) {
+    suggestions = document.createElement('div');
+    suggestions.id = 'autocompleteSuggestions';
+    inputElement.parentNode.appendChild(suggestions);
+  }
+
+  var inputValue = inputElement.value.trim().toLowerCase();
+
+  suggestions.innerHTML = '';
+  suggestions.style.display = 'none';
+
+  if (!inputValue) {
+    return;
+  }
+
+  var rect = inputElement.getBoundingClientRect();
+  var availableHeight = window.innerHeight - rect.bottom;
+  suggestions.style.maxHeight = availableHeight + 'px';
+
+  (clientsData || []).forEach(function(client) {
+    if (!client || !client.rowText || !client.clientName) {
+      return;
     }
 
-    inputElement.addEventListener('input', function() {
-        var inputValue = inputElement.value.toLowerCase();
+    if (client.rowText.includes(inputValue)) {
+      var suggestion = document.createElement('div');
+      var displayText = client.clientName + (client.category ? ' (' + client.category + ')' : '');
+      suggestion.textContent = displayText;
 
-        // Clear current suggestions
+      suggestion.onclick = function() {
+        inputElement.value = displayText;
+        clientSelect.value = client.clientName;
         suggestions.innerHTML = '';
+        suggestions.style.display = 'none';
+        showClientNotes();
+        scrollToTop();
+      };
 
-        // Calculate the available height below the input field
-        var rect = inputElement.getBoundingClientRect();
-        var availableHeight = window.innerHeight - rect.bottom;
+      suggestions.appendChild(suggestion);
+    }
+  });
 
-        // Set the max-height of suggestions to the available height
-        suggestions.style.maxHeight = availableHeight + 'px';
-
-        // Populate suggestions
-        clientsData.forEach(function(client) {
-            if (client.rowText.includes(inputValue) && inputValue) {
-                var suggestion = document.createElement('div');
-                suggestion.innerHTML = client.clientName + (client.category ? ' (' + client.category + ')' : '');
-
-                suggestion.onclick = function() {
-                    inputElement.value = this.innerHTML;
-                    clientSelect.value = client.clientName;
-                    showClientNotes();
-                        scrollToTop(); // Add this line to scroll to the top
-
-                    suggestions.innerHTML = ''; // Hide suggestions after selection
-                };
-
-                suggestions.appendChild(suggestion);
-            }
-        });
-    });
+  if (suggestions.children.length > 0) {
+    suggestions.style.display = 'block';
+  }
 }
 
 

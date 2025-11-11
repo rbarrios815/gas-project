@@ -1546,11 +1546,17 @@ function getAllClientsData() {
 
   for (var i = 1; i < data.length; i++) { // Start from 1 to skip header row if there's a header
     var row = data[i];
-       var rawName = row[0];
+    var rawName = row[0];
     if (!rawName) {
       continue;
     }
-     var category = row[5] != null ? row[5].toString().trim() : '';
+
+    var normalizedName = rawName.toString().replace(/\d+$/, '').trim();
+    if (!normalizedName) {
+      continue;
+    }
+
+    var category = row[5] != null ? row[5].toString().trim() : '';
     var rowText = row
       .map(function (cell) {
         if (cell === null || cell === undefined) {
@@ -1569,11 +1575,6 @@ function getAllClientsData() {
       category: category,
       rowText: rowText
     });
-
-    var normalizedName = rawName.toString().replace(/\d+$/, '').trim();
-    if (!normalizedName) {
-      continue;
-    }
   }
   
   return clients;
