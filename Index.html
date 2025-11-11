@@ -966,20 +966,34 @@ setState(startOpen);
 
 const addBtn = document.getElementById('addBtn');
 
+let addNotePending = false;
 
-function addNote(){
-  const txt = (noteInput.value || '').trim();
-  if (!txt) { addStatus.textContent = ''; return; }
+function addNote(textOverride){
+  if (addNotePending) {
+    return;
+  }
+
+ const rawText = typeof textOverride === 'string' ? textOverride : (noteInput.value || '');
+  const txt = rawText.trim();
+  if (!txt) {
+    addStatus.textContent = '';
+    return;
+  }
+
+  addNotePending = true;
 
   startLoading();
   addStatus.textContent = '';
-  addBtn.disabled = true;
-
+  if (addBtn) {
+    addBtn.disabled = true;
+  }
   google.script.run
     .withSuccessHandler(_ => {
-      noteInput.value = '';
-      // Refresh list, then stop loader (inside loadRecent), then re-enable + toast
-      loadRecent(() => {
+
+      if (noteInput) {
+        noteInput.value = '';
+      }
+   loadRecent(() => {
         addBtn.disabled = false;
         showToast('Note added successfully');
       });
@@ -987,14 +1001,17 @@ function addNote(){
     .withFailureHandler(err => {
       console.log(err);
       stopLoading();
-      addBtn.disabled = false;
-      showToast('Error adding note');
+   addNotePending = false;
+        if (addBtn) {
+          addBtn.disabled = false;
+        }
+              showToast('Error adding note');
     })
     .inboxAddNote(txt);
 }
 
 
-addBtn.addEventListener('click', addNote);
+addBtn?.addEventListener('click', () => addNote());
 
     /* Recent (5) with assign */
   const recentList = document.getElementById('recentList');
@@ -3549,9 +3566,8 @@ function scheduleSuggestionTextareaFit(textarea) {
 function applySuggestionsVisibility() {
   var blocks = document.querySelectorAll('.toplist-suggestion');
   blocks.forEach(function(b) {
-    b.style.display = window.__suggestionsVisible ? 'block' : 'none';
-        var visible = !!window.__suggestionsVisible;
-    b.style.display = visible ? 'block' : 'none';
+    var visible = !!window.__suggestionsVisible;
+    b.style.display = visible ? 'flex' : 'none';
     if (visible) {
       var ta = b.querySelector('textarea');
       if (ta) scheduleSuggestionTextareaFit(ta);
