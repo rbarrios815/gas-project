@@ -2508,17 +2508,21 @@ input#clientAutocomplete, select#clientSelect {
 .autocomplete-field {
   position: relative;
   width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .autocomplete-field #clientAutocomplete {
-  padding-right: 220px !important;
+  padding-right: 12px !important;
+  flex: 1 1 auto;
 }
 
 #categoryChangeSection {
-  position: absolute;
-  top: 50%;
-  right: 18px;
-  transform: translateY(-50%);
+  position: relative;
+  top: auto;
+  right: auto;
+  transform: none;
   display: none;
   background: transparent;
   padding: 0;
@@ -2526,7 +2530,7 @@ input#clientAutocomplete, select#clientSelect {
 }
 
 #categorySelect {
-  max-width: 45%;
+  flex: 0 0 auto;
   min-width: 160px;
   padding: 6px 32px 6px 12px;
   border-radius: 6px;
@@ -2841,7 +2845,7 @@ input#clientAutocomplete, select#clientSelect {
       <!-- Category combo (hidden until a client is selected) -->
       <div id="categoryChangeSection" class="category-inline" style="display:none;">
         <select id="categorySelect" class="category-select">
-          <option value="">Select a category...</option>
+          <option value="" data-role="placeholder">Select a category...</option>
         </select>
       </div>
     </div>
@@ -4989,11 +4993,13 @@ function updateCategorySelectValue(newValue){
 
   const value = (newValue || '').trim();
 
-  if (!sel.options.length) {
-    const placeholder = document.createElement('option');
+  let placeholder = sel.querySelector('option[data-role="placeholder"]');
+  if (!placeholder) {
+    placeholder = document.createElement('option');
     placeholder.value = '';
+    placeholder.dataset.role = 'placeholder';
     placeholder.textContent = 'Select a category...';
-    sel.appendChild(placeholder);
+    sel.insertBefore(placeholder, sel.firstChild);
   }
 
   if (value) {
@@ -5004,6 +5010,16 @@ function updateCategorySelectValue(newValue){
       existing.textContent = value;
       sel.appendChild(existing);
     }
+    placeholder.textContent = '';
+    placeholder.hidden = true;
+    placeholder.disabled = true;
+    placeholder.selected = false;
+  }
+  else {
+    placeholder.textContent = 'Select a category...';
+    placeholder.hidden = false;
+    placeholder.disabled = false;
+    placeholder.selected = true;
   }
 
   __suppressCategoryChange = true;
@@ -7444,15 +7460,18 @@ function updateCategoryLabel() {
     var categorySelect = document.getElementById('categorySelect');
     if (!categorySelect || !categorySelect.options.length) return;
 
-    var placeholderOption = categorySelect.options[0];
+    var placeholderOption = categorySelect.querySelector('option[data-role="placeholder"]') || categorySelect.options[0];
+    if (!placeholderOption) return;
     var activeCategory = (__currentCategory || '').trim() || (categorySelect.value || '').trim();
 
-    placeholderOption.text = 'Select a category...';
-    placeholderOption.hidden = !!activeCategory;
-    placeholderOption.disabled = !!activeCategory;
-    if (!activeCategory) {
+    var hasCategory = !!activeCategory;
+    placeholderOption.text = hasCategory ? '' : 'Select a category...';
+    placeholderOption.hidden = hasCategory;
+    placeholderOption.disabled = hasCategory;
+    if (!hasCategory) {
         placeholderOption.hidden = false;
         placeholderOption.disabled = false;
+        placeholderOption.selected = true;
     }
 }
 
@@ -7737,8 +7756,18 @@ function hideClientNotes() {
   // Clear category selection
   var catSel = document.getElementById('categorySelect');
   if (catSel) catSel.value = '';
-  if (catSel && catSel.options && catSel.options.length) {
-    catSel.options[0].text = 'Select a category...';
+  if (catSel) {
+    var placeholderOption = catSel.querySelector('option[data-role="placeholder"]');
+    if (!placeholderOption) {
+      placeholderOption = document.createElement('option');
+      placeholderOption.value = '';
+      placeholderOption.dataset.role = 'placeholder';
+      catSel.insertBefore(placeholderOption, catSel.firstChild || null);
+    }
+    placeholderOption.text = 'Select a category...';
+    placeholderOption.hidden = false;
+    placeholderOption.disabled = false;
+    placeholderOption.selected = true;
   }
 
   // Clear past work input
