@@ -4304,7 +4304,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Force the EMAIL SUMMARY button to be visible immediately
   // (In case any default CSS hides it, this ensures it's displayed.)
-document.getElementById('scrollBottomBtn').style.display = 'inline-block';
+  var scrollBottomBtn = document.getElementById('scrollBottomBtn');
+  if (scrollBottomBtn) {
+    scrollBottomBtn.style.display = 'inline-block';
+  }
 }
 /***** END SNIPPET *****/
 
