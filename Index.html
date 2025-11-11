@@ -326,6 +326,8 @@ html { font-size: 200%; }
   gap: 8px;
   flex-wrap: nowrap;   /* prevent wrap */
   overflow: hidden;    /* clip during measurement */
+    width: 100%;
+  max-width: 100%;
 }
 
 /* Chips take remaining space, single line only */
@@ -337,6 +339,7 @@ html { font-size: 200%; }
   min-width: 0;        /* allow shrinking */
   overflow: hidden;    /* clip while shrinking */
   white-space: nowrap; /* single line */
+
 }
 
 
@@ -374,6 +377,12 @@ html { font-size: 200%; }
 /* Make sure pills themselves don't wrap internal content */
 .recent-pill {
   white-space: nowrap;
+   display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35em;
+  min-width: 0;
+  overflow: hidden;
 }
 
 /* === LEFT-LIGHTBULB FOR GREEN SUGGESTION BOXES === */
@@ -1406,12 +1415,28 @@ button:active {
         filter: brightness(75%); /* Further darken button when active/pressed */
 
 }
+.note-actions-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 16px auto 12px;
+  width: 100%;
+}
 
+.note-actions-row > button {
+  flex: 0 1 auto;
+  min-width: min(180px, 45%);
+}
 
- #addAppointmentBtn {
-    background-color: red; /* Light red color */
-  }
-
+#addAppointmentBtn {
+  background-color: #e03131;
+  color: #fff;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
 
   #newClientForm button {
   background-color: var(--submit-button-color); /* Use the purple color variable */
@@ -1664,11 +1689,15 @@ button:active {
 
 
 .label-box {
-    padding: 5px;
-    margin: 5px;
+    padding: 5px 8px;
+    margin: 4px;
     border: 1px solid #ddd;
-    display: inline-block; /* or 'block' if you want each label on a new line */
-    background-color: #f0f0f0;
+   display: inline-flex;
+    align-items: center;
+    justify-content: center;
+        background-color: #f0f0f0;
+            border-radius: 10px;
+    white-space: nowrap;
 }
 
 /* Add this CSS rule to initially hide the label section */
@@ -1715,11 +1744,19 @@ input#clientAutocomplete, select#clientSelect {
 .labels-container {
   display: flex;
   width: 100%;
+    align-items: flex-start;
+  gap: 10px;
 }
 
 #labelsDisplay {
-  flex-basis: 85%; /* Assign 90% of the parent container's width to labels display */
-    font-size: 65%; /* This will set the font size to half of the inherited size */
+ flex: 1 1 85%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-content: flex-start;
+  font-size: 0.95rem;
+  line-height: 1.3;
+  overflow: hidden;
 
 }
 
@@ -1731,7 +1768,9 @@ input#clientAutocomplete, select#clientSelect {
 #labelsDropdown {
   width: 100%; /* Ensure the dropdown fills its container */
   box-sizing: border-box; /* Include padding and borders in the element's total width */
-    font-size: 65%; /* This will set the font size to 65% of the inherited size */
+  font-size: clamp(0.7rem, 0.55rem + 0.4vw, 1rem);
+  line-height: 1.2;
+  min-width: 0;
 
 }
 
@@ -2200,6 +2239,8 @@ input#clientAutocomplete, select#clientSelect {
   font-size: 1em;    /* optional: keep your sizing */
   width: auto;       /* optional */
   margin-left: 5px;  /* keep the small gap from nearby controls */
+    color: var(--text-color, #000);
+  background-color: #fff;
 }
 
 
@@ -2602,6 +2643,9 @@ input#clientAutocomplete, select#clientSelect {
 
 #recentClientsBar .rc-name {
   font-weight: 600;
+    min-width: 0;
+  overflow: hidden;
+  text-overflow: clip;
 }
 
 /* === NEW CLIENT button: standard look, right side of the blue box === */
@@ -2802,8 +2846,12 @@ input#clientAutocomplete, select#clientSelect {
   flex: 1 1 0;
   min-width: 0;
   padding: 0.35em 0.6em;
-  text-align: center;
-  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35em;
+  overflow: hidden;
+
 }
 
 #addNewClientBtn {
@@ -2828,6 +2876,53 @@ input#clientAutocomplete, select#clientSelect {
   flex-wrap: nowrap;
   position: relative;
 }
+
+#dateCategoryRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+#dateCategoryRow #dateTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+#dateCategoryRow > button {
+  position: static !important;
+  margin-left: 16px;
+  flex: 0 0 auto;
+  right: auto;
+}
+
+.top-filter-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.top-filter-inline select {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: min(32vw, 220px);
+  font-size: clamp(0.75rem, 0.65rem + 0.5vw, 1.05rem);
+  line-height: 1.2;
+  color: var(--text-color, #000);
+  background-color: #fff;
+  padding: 0.35em 0.9em;
+}
+
+.top-filter-inline button {
+  position: static;
+  margin: 0;
+  padding: 0.45em 0.75em;
+  font-size: clamp(0.85rem, 0.7rem + 0.3vw, 1rem);
+  right: auto;
+}
+
 
 #topClientsAddNewRow > * {
   position: static !important;
@@ -2999,9 +3094,10 @@ input#clientAutocomplete, select#clientSelect {
     <!-- Past Work submission -->
 <div id="pastWorkSection" style="flex: 1 1 100%; padding-right: 0; display: none; flex-direction: column; justify-content: flex-end; width: 100%; max-width: 100%;">
         <textarea id="newPastWork" class="past-work-textarea"></textarea>
-        <br>
-        <button class="update-team-task-btn" onclick="submitPastWork()">Submit Note</button>
-        <br>
+        <div class="note-actions-row">
+          <button class="update-team-task-btn" onclick="submitPastWork()">Submit Note</button>
+          <button id="addAppointmentBtn" class="secondary-button" onclick="showAppointmentInput()" style="display:none;">ADD APPOINTMENT</button>
+        </div>
 <!-- In-Progress (Loaded) with left-side bulb -->
 <div class="inprogress-bulb-row" style="background-color:#90EE90; padding:10px; border:1px solid #ccc; border-radius:4px; display:flex; align-items:flex-start; gap:10px;">
   <span aria-hidden="true" style="font-size:1.25em; line-height:1; margin-top:4px;">💡</span>
@@ -3042,10 +3138,6 @@ input#clientAutocomplete, select#clientSelect {
 
 
 
-<br>
-<!-- Button to show appointment scheduling inputs -->
-<button id="addAppointmentBtn" class="secondary-button" onclick="showAppointmentInput()" style="display:none;">Add APPOINTMENT to Calendar for This Client</button>
-
 <!-- Appointment scheduling inputs, initially hidden -->
 <div id="appointmentInputSection" style="display:none;">
     <label for="appointmentDate" class="appointment-label">Appointment Date:</label>
@@ -3059,8 +3151,7 @@ input#clientAutocomplete, select#clientSelect {
 
 
 
-<!-- Add the HIDE CLIENT NOTES button here -->
-<button id="hideClientNotesBtn" class="secondary-button" onclick="hideClientNotes()" style="display:none;">HIDE CLIENT NOTES</button>
+
 
 
 <hr style="border: 4px solid black;">
@@ -3068,42 +3159,15 @@ input#clientAutocomplete, select#clientSelect {
 <!-- Container for title and buttons -->
 <div id="titleButtonContainer" class="title-button-container">
     <!-- First Row: Date and Category Button -->
-    <div class="row" id="dateCategoryRow">
-        <div id="dateTitle" class="title-text"></div>
-        <!-- SNIPPET A: REPLACEMENT BUTTON -->
-<button id="scrollBottomBtn" class="secondary-button" onclick="scrollToBottomInOneSecond()">SCROLL DOWN</button>
-
-    </div>
-
-    <!-- Under #scrollBottomBtn -->
+  
+       <!-- Under #scrollBottomBtn -->
 
 
-    <!-- Second Row: Top Clients Title and Add New Client Button -->
-    <div class="row" id="topClientsAddNewRow">
-  <div id="topClientsTitle" class="title-text"></div>
-
-  <!-- FILTER DROPDOWN (unchanged) -->
-  <select id="topClientsFilterDropdown">
-  <option value="JB">JB</option>
-  <option value="RB">RB</option>
-  <option value="QC">QC</option>
-    <option value="TEAM">TEAM</option>
-    <option value="BDAY">BDAY</option>
-    <option value="BRIEFCASE">💼</option>
-    <option value="STAR">⭐</option>
-    <option value="GRADCAP">🎓</option>
-    <option value="PHONE">📞</option>
-  </select>
-
-  <!-- NEW: SUGGESTIONS button inline with the dropdown -->
-  <button id="suggestionsToggleBtn" type="button" class="secondary-button" onclick="toggleSuggestions()">
-    💡
-  </button>
-
-</div>
-
-</div>
-
+      <!-- Second Row: Top Clients Title and Add New Client Button -->
+      <div class="row" id="topClientsAddNewRow">
+        <div id="topClientsTitle" class="title-text"></div>
+      </div>
+  </div>
 
 
 <!-- Modal for displaying categories -->
@@ -4321,21 +4385,10 @@ function ensureHeaderSpacing() {
 window.__recentClients = Array.isArray(window.__recentClients) ? window.__recentClients : []; // most-recent-first, max 3
 
 function renderRecentClientsBar(){
-  var bar = document.getElementById('recentClientsBar');
-  if (!bar) return;
-
-  // Enforce exactly 3 max at render time as well
-  var list = (window.__recentClients || []).slice(0, 3);
-
-  bar.innerHTML = list.map(function(name){
-    return '<span class="recent-pill"><span class="rc-name">'+ escapeHTML(String(name || '')) +'</span></span>';
-  }).join('');
-
-  // keep the fixed header spacing correct if anything changes height
-  if (typeof ensureHeaderSpacing === 'function') ensureHeaderSpacing();
-
-  // After drawing chips, fit the whole row to one line
-  if (typeof fitRecentRowOneLine === 'function') fitRecentRowOneLine();
+  var list = (window.__recentClients || []).slice(0, 3).map(function(name){
+    return { name: name };
+  });
+  paintRecentBar(list);
 }
 
 function updateRecentsOnHide(clientName){
@@ -4442,6 +4495,11 @@ function fitRecentRowOneLine() {
   }
 
   row.style.fontSize = Math.min(best, row.__baseFontPx) + 'px';
+  
+  if (typeof fitRecentPills === 'function') {
+    var bar = document.getElementById('recentClientsBar');
+    if (bar) fitRecentPills(bar);
+  }
 }
 
 // Re-fit on window resize and after first paint
@@ -4452,8 +4510,12 @@ window.addEventListener('load',   fitRecentRowOneLine);
 (function observeRecentBar(){
   var bar = document.getElementById('recentClientsBar');
   if (!bar || !('MutationObserver' in window)) return;
-  var mo = new MutationObserver(function(){ requestAnimationFrame(fitRecentRowOneLine); });
-  mo.observe(bar, { childList: true, subtree: true, attributes: true });
+  var mo = new MutationObserver(function(){
+    requestAnimationFrame(function(){
+      fitRecentRowOneLine();
+      if (typeof fitRecentPills === 'function') fitRecentPills(bar);
+    });
+  });  mo.observe(bar, { childList: true, subtree: true, attributes: true });
 })();
 
 (function () {
@@ -4980,7 +5042,6 @@ document.getElementById('categoryChangeSection').style.display = displayStyle;
 document.getElementById('appointmentInputSection').style.display = 'none';
 document.getElementById('addAppointmentBtn').style.display = displayStyle;
 document.getElementById('labelsAdditionSection').style.display = displayStyle;
-document.getElementById('hideClientNotesBtn').style.display = displayStyle; // Show or hide the button
 document.getElementById('notesDisplay').style.display = 'block';
 
 
@@ -5269,7 +5330,9 @@ function labelContainsEmoji(labelText) {
 
 function displayLabels(labelsArray) {
     var labelsDisplay = document.getElementById('labelsDisplay');
-    labelsDisplay.innerHTML = '';
+  labelsDisplay.style.fontSize = '';
+    labelsDisplay.style.removeProperty('max-height');
+    labelsDisplay.style.overflow = 'hidden';
     
     var emojiLabels = [];
     var nonEmojiLabels = [];
@@ -5306,6 +5369,50 @@ function displayLabels(labelsArray) {
 
         labelsDisplay.appendChild(labelDiv);
     });
+    
+    requestAnimationFrame(function(){
+      shrinkLabelsToFit(labelsDisplay, 3);
+    });
+}
+
+function shrinkLabelsToFit(container, maxLines) {
+    if (!container) return;
+
+    if (!container.children.length) {
+        container.style.fontSize = '';
+        container.style.removeProperty('max-height');
+        container.style.overflow = 'hidden';
+        return;
+    }
+
+    const computed = window.getComputedStyle(container);
+    const baseFont = parseFloat(computed.fontSize) || 14;
+    let lineHeight = parseFloat(computed.lineHeight);
+    if (!lineHeight || Number.isNaN(lineHeight)) {
+        lineHeight = baseFont * 1.3;
+    }
+    const maxHeight = lineHeight * (maxLines || 3);
+
+    container.style.maxHeight = `${maxHeight}px`;
+    container.style.overflow = 'hidden';
+
+    let currentFont = baseFont;
+    let guard = 0;
+    while (container.scrollHeight - 1 > maxHeight && currentFont > 9 && guard < 16) {
+        currentFont -= 1;
+        container.style.fontSize = `${currentFont}px`;
+        guard++;
+    }
+}
+
+if (!window.__labelsResizeAttached) {
+    window.__labelsResizeAttached = true;
+    window.addEventListener('resize', debounce(function () {
+        const container = document.getElementById('labelsDisplay');
+        if (container) {
+            shrinkLabelsToFit(container, 3);
+        }
+    }, 150));
 }
 
 
@@ -6832,19 +6939,37 @@ function paintRecentBar(list){
   if (!list || !list.length) { wrap.innerHTML = ''; return; }
 
   wrap.innerHTML = list.map(e => {
+     const name = String(e.name || '').trim();
+    const safeName = escapeHTML(name);
     const muted = e.columnL ? '' : ' rc-muted';
-    const cat   = e.category ? `<span class="rc-cat">${e.category}</span>` : '';
-    const chip  = (e.chipInitials || e.chipDate)
-      ? `<span class="rc-chip">${(e.chipInitials||'').toUpperCase()}${e.chipDate?' · '+e.chipDate:''}</span>` : '';
+     const cat   = e.category ? `<span class="rc-cat">${escapeHTML(String(e.category || ''))}</span>` : '';
+    const chipInitials = String(e.chipInitials || '').toUpperCase();
+    const chipDate = e.chipDate ? ` · ${escapeHTML(String(e.chipDate))}` : '';
+    const chip  = (chipInitials || chipDate)
+      ? `<span class="rc-chip">${escapeHTML(chipInitials)}${chipDate}</span>` : '';
     const dot   = e.columnL ? '<span class="rc-dot" title="Has In-Progress"></span>' : '';
     return `
-      <div class="recent-pill${muted}" data-name="${e.name}" title="${e.name}">
+      <div class="recent-pill${muted}" data-name="${safeName}" title="${safeName}">
         ${dot}
-        <span class="rc-name">${e.name}</span>
+        <span class="rc-name" data-full-name="${safeName}">${safeName}</span>
         ${cat}
         ${chip}
       </div>`;
   }).join('');
+
+   if (typeof ensureHeaderSpacing === 'function') ensureHeaderSpacing();
+  if (typeof fitRecentRowOneLine === 'function') fitRecentRowOneLine();
+
+  requestAnimationFrame(() => fitRecentPills(wrap));
+
+  if (!window.__recentPillResizeAttached) {
+    window.__recentPillResizeAttached = true;
+    window.addEventListener('resize', debounce(() => {
+      const bar = document.getElementById('recentClientsBar');
+      if (bar) fitRecentPills(bar);
+    }, 150));
+  }
+
 
   // click → open that client (use your existing loader)
   wrap.querySelectorAll('.recent-pill').forEach(pill => {
@@ -6867,6 +6992,72 @@ function paintRecentBar(list){
     });
   });
 }
+function abbreviateRecentName(name) {
+  const trimmed = String(name || '').trim();
+  if (!trimmed) return '';
+  const parts = trimmed.split(/\s+/).filter(Boolean);
+  if (parts.length < 2) {
+    return trimmed.length > 16 ? trimmed.slice(0, 16) : trimmed;
+  }
+  const last = parts.pop();
+  const first = parts.shift();
+  if (!first) return trimmed;
+  const initial = first.charAt(0).toUpperCase();
+  return initial ? `${initial}. ${last}` : trimmed;
+}
+
+function fitRecentPill(pill) {
+  if (!pill) return;
+  const nameEl = pill.querySelector('.rc-name');
+  if (!nameEl) return;
+
+  const fullName = nameEl.getAttribute('data-full-name') || nameEl.textContent || '';
+  nameEl.style.fontSize = '';
+  const baseFont = parseFloat(window.getComputedStyle(nameEl).fontSize) || 14;
+  const minFont = 10;
+  nameEl.textContent = fullName;
+  nameEl.style.fontSize = baseFont + 'px';
+
+  const overflow = () => pill.scrollWidth - pill.clientWidth > 1;
+  let currentFont = baseFont;
+  let guard = 0;
+
+  while (overflow() && currentFont > minFont && guard < 12) {
+    currentFont -= 1;
+    nameEl.style.fontSize = currentFont + 'px';
+    guard++;
+  }
+
+  if (!overflow()) return;
+
+  const abbreviated = abbreviateRecentName(fullName);
+  if (abbreviated && abbreviated !== fullName) {
+    nameEl.textContent = abbreviated;
+    nameEl.setAttribute('data-short-name', abbreviated);
+    nameEl.style.fontSize = baseFont + 'px';
+    currentFont = baseFont;
+    guard = 0;
+    while (overflow() && currentFont > minFont && guard < 12) {
+      currentFont -= 1;
+      nameEl.style.fontSize = currentFont + 'px';
+      guard++;
+    }
+  }
+
+  if (overflow()) {
+    nameEl.style.fontSize = Math.max(minFont, currentFont) + 'px';
+  }
+}
+
+function fitRecentPills(container) {
+  if (!container) return;
+  const pills = container.querySelectorAll('.recent-pill');
+  pills.forEach(pill => {
+    pill.style.fontSize = '';
+    fitRecentPill(pill);
+  });
+}
+
 
 // 2) Load on page load: fast render, then (optional) metadata refresh
 function loadRecentBar() {
@@ -7792,8 +7983,8 @@ function hideClientNotes() {
     'categoryChangeSection',
     'appointmentInputSection',
     'addAppointmentBtn',
-    'labelsAdditionSection',
-    'hideClientNotesBtn'
+    'labelsAdditionSection'
+
   ];
   idsToHide.forEach(function(id){
     var el = document.getElementById(id);
@@ -7806,8 +7997,12 @@ function hideClientNotes() {
 
   // Clear labels
   var labelsDisplayEl = document.getElementById('labelsDisplay');
-  if (labelsDisplayEl) labelsDisplayEl.innerHTML = '';
-
+  if (labelsDisplayEl) {
+    labelsDisplayEl.innerHTML = '';
+    labelsDisplayEl.style.fontSize = '';
+    labelsDisplayEl.style.removeProperty('max-height');
+    labelsDisplayEl.style.overflow = 'hidden';
+  }
   // Reset autocomplete input
   var clientAutocomplete = document.getElementById('clientAutocomplete');
   if (clientAutocomplete) {
