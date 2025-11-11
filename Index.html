@@ -147,18 +147,72 @@
   }
 }
 
-/* === Mobile textarea hard height (force) — 2x (50 -> 100) = full screen === */
+/* === ACTION ROW: keep side-by-side on all sizes ========================= */
+#actionRow {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+/* Left stays left; right stays right via spacer */
+#actionRow .left-actions,
+#actionRow .right-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex: 0 0 auto !important;
+}
+
+/* Spacer pushes the mic to the far right */
+#actionRow .spacer {
+  flex: 1 1 auto !important;
+  min-width: 8px;
+}
+
+/* Prevent the global mobile rule from making these buttons full-width */
+#actionRow .btn,
+#actionRow #addBtn,
+#actionRow #voiceToggleBtn {
+  width: auto !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* Ensure the row never collapses or wraps weirdly */
+#actionRow { flex-wrap: nowrap !important; }
+#actionRow .left-actions,
+#actionRow .right-actions { flex-wrap: nowrap !important; }
+
+/* Mic visual style stays, but sizing is sane for tight rows */
+#voiceToggleBtn {
+  border: 1px solid #ced4da;
+  background: #F8FAF8;
+  border-radius: 10px;
+  font-size: 32px;
+  padding: 10px 14px;
+}
+
+/* On very narrow phones, still keep one line */
 @media (max-width: 640px) {
-  /* Highest practical specificity + !important */
+  #actionRow { flex-direction: row !important; }
+  #actionRow .btn,
+  #actionRow #addBtn,
+  #actionRow #voiceToggleBtn { width: auto !important; }
+}
+
+
+/* === Mobile textarea height (leave room for buttons) ===================== */
+@media (max-width: 640px) {
   #dashBody textarea#noteInput {
-    height: 100dvh !important;   /* doubled from 50dvh */
-    min-height: 100dvh !important;
-    max-height: 100dvh !important;
+    height: 50dvh !important;
+    min-height: 50dvh !important;
+    max-height: 50dvh !important;
     width: 100% !important;
     box-sizing: border-box;
-    resize: none;
+    resize: vertical;
   }
 }
+
 
 
 /* === 2x SCALE OVERRIDES (fonts + textarea) ============================== */
@@ -179,6 +233,31 @@ html { font-size: 200%; }
 #dashBody #recentList .note   { font-size: 64px; }  /* was 16px */
 #dashBody #recentList .meta   { font-size: 44px; }  /* was 11px */
 #dashBody input[type="text"].small { font-size: 48px; }  /* was 12px */
+/* === VOICE ROW HELPERS (scoped) ======================================= */
+#actionRow .emoji-btn{
+  line-height: 1;
+  padding: 6px 10px;
+}
+#actionRow{ gap: 8px; }
+#actionRow .left-actions,
+#actionRow .right-actions{ flex: 0 0 auto; }
+
+/* Keep mic/ADD row visible at the bottom of its card */
+.card { position: relative; }
+#actionRow {
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+  padding-top: 8px;
+  z-index: 2; /* above textarea content */
+}
+/* Make the mic button easy to see and tap */
+#voiceToggleBtn {
+  border: 1px solid #ced4da;
+  background: #f8f9fa;
+  border-radius: 10px;
+}
+
 
 /* === Toast notification (bottom-center) ================================ */
 #toast{
@@ -204,6 +283,7 @@ html { font-size: 200%; }
   transform: translateX(-50%) translateY(0);
 }
 @media (max-width:640px){
+
   #toast{ 
     width: calc(100vw - 24px);
     text-align: center;
@@ -301,24 +381,32 @@ html { font-size: 200%; }
 .toplist-suggestion {
   display: flex;              /* row layout */
   align-items: flex-start;    /* top-align the textarea with the icon */
-  gap: 10px;                  /* space between bulb and textarea */
+  gap: 10px; 
+    background-color: #90EE90;  /* light green */
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-top: 8px;
+  width: 100%;
+  box-sizing: border-box;                 /* space between bulb and textarea */
 }
 
-/* Inject the 💡 icon on the left */
-.toplist-suggestion::before {
-  content: "💡";
+.toplist-suggestion .bulb {
+
   flex: 0 0 auto;
-  font-size: 1.25em;          /* tweak as needed */
+  font-size: 1.25em;
   line-height: 1;
-  margin-top: 4px;            /* slight nudge to align with textarea text */
+  margin-top: 4px;
 }
 
 /* Let the textarea fill the remaining width */
 .toplist-suggestion .note-textarea,
-.toplist-suggestion textarea {
-  flex: 1 1 auto;
+.toplist-suggestion textarea,
+.toplist-suggestion textarea.toplist-textarea {  flex: 1 1 auto;
   width: 100%;
   box-sizing: border-box;
+    background: white;
+
 }
 
 
@@ -344,6 +432,8 @@ html { font-size: 200%; }
   width: 100%;
   background: white;
   box-sizing: border-box;
+   overflow: hidden;  /* no scrollbars; JS will shrink text */
+  resize: none;
 }
 
 
@@ -465,6 +555,42 @@ a:focus {
   object-fit: cover !important;
   flex: 0 0 auto !important;
 }
+/* === FLOATING MIC BUTTON (always visible) ================================ */
+#floatingMicBtn{
+  position: fixed;
+  left: 16px;
+  bottom: 18px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;               /* 🎤 / ⏹️ size */
+  border: 0;
+  outline: none;
+  cursor: pointer;
+  z-index: 200100;               /* above toasts/sheets/loading bars */
+  background: linear-gradient(135deg, var(--green1), var(--green2));
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(0,0,0,.25);
+  transition: transform .08s ease, box-shadow .12s ease, background .2s ease;
+}
+#floatingMicBtn:hover{ transform: translateY(-1px); box-shadow: 0 10px 28px rgba(0,0,0,.28); }
+#floatingMicBtn:active{ transform: translateY(1px); box-shadow: 0 6px 18px rgba(0,0,0,.22); }
+
+/* “inactive” look when not supported */
+#floatingMicBtn.is-disabled{
+  background: #ced4da;
+  color: #495057;
+  cursor: not-allowed;
+}
+
+/* Small boost to the inline mic in the action row so it stands out too */
+#voiceToggleBtn{
+  font-size: 32px;         /* ensure emoji is large enough to notice */
+  padding: 10px 14px;
+}
 
 </style>
 </head>
@@ -479,30 +605,43 @@ a:focus {
   <!-- Loading bar -->
   
   <div id="loadingBarWrap"><div id="loadingBar"></div></div>
+  <!-- Floating always-visible mic button -->
+<button id="floatingMicBtn" aria-label="Start voice input (floating)">🎤</button>
+
+  <!-- Toast -->
+<div id="toast" role="status" aria-live="polite"></div>
+
 
   <!-- Overlay that slides; tab moves with it -->
   <!-- === DASHBOARD (Notes-style bottom sheet) ============================= -->
 <div id="dashOverlay" aria-hidden="true"></div>
 <div id="dashSheet" class="dashboard-closed" aria-hidden="true">
-
-
-
-<div id="dashHandle" role="button" aria-controls="dashSheet" aria-expanded="false">
-  <span id="changeViewLabel">CHANGE VIEW</span>
-  <button id="focusBtn" class="focus-btn" type="button" aria-haspopup="dialog" aria-controls="focusOverlay">FOCUS</button>
-</div>
-
-
-
-
+  <div id="dashHandle" role="button" aria-controls="dashSheet" aria-expanded="false">
+     CHANGE VIEW
+  </div>
 
   <div id="dashBody" role="region" aria-label="Dashboard content">
     <div class="card">
       <textarea id="noteInput"></textarea>
-<div class="row" style="margin-top:8px;">
-  <button id="addBtn" class="btn">ADD</button>
-  <span id="addStatus" class="meta" style="margin-left:4px"></span>
+      
+<div class="row" id="actionRow" style="margin-top:8px; align-items:center;">
+  <!-- LEFT: Voice toggle (🎤 → ⏹️) -->
+  <div class="left-actions" style="display:flex; align-items:center; gap:8px;">
+    <button id="voiceToggleBtn" class="btn emoji-btn" aria-label="Start voice input" title="Start voice">🎤</button>
+  </div>
+
+  <!-- Spacer pushes the ADD button to the far right -->
+  <div class="spacer" style="flex:1 1 auto;"></div>
+
+  <!-- RIGHT: ADD button + status -->
+  <div class="right-actions" style="display:flex; align-items:center; gap:8px;">
+    <button id="addBtn" class="btn">ADD</button>
+    <span id="addStatus" class="meta" style="margin-left:4px"></span>
+  </div>
 </div>
+
+
+
 
     </div>
 
@@ -518,6 +657,231 @@ a:focus {
   <datalist id="clientNamesList"></datalist>
 
 <script>
+
+  /* =========================
+   Notes Inbox + Speech Input
+   ========================= */
+
+/** Toast helper **/
+function showToast(msg, ms=1700){
+  const t = document.getElementById('toast');
+  if(!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), ms);
+}
+
+/** Add a note to "recentList" (simulates Notes Inbox) **/
+function addNote(text){
+  const trimmed = (text || '').trim();
+  const area = document.getElementById('noteInput');
+  if(!trimmed){
+    showToast('Nothing to add');
+    return;
+  }
+  const list = document.getElementById('recentList');
+  const item = document.createElement('div');
+  item.className = 'item';
+  item.innerHTML = `
+    <div class="note"></div>
+    <div class="meta">Saved ${new Date().toLocaleString()}</div>
+  `;
+  item.querySelector('.note').textContent = trimmed;
+  list.prepend(item);
+
+  // Clear textarea after add
+  if(area) area.value = '';
+  showToast('Note saved');
+}
+
+/** Wire up ADD button (manual add) **/
+document.getElementById('addBtn')?.addEventListener('click', () => {
+  const text = document.getElementById('noteInput')?.value || '';
+  addNote(text);
+});
+
+/* =========================
+   Web Speech (no triple print)
+   =========================
+   Why triple printing happens:
+   - Multiple listeners get attached across re-renders
+   - interimResults are appended repeatedly
+   Fix:
+   - Single recognition instance
+   - interimResults = false (finals only)
+   - Append only final transcript once per result
+*/
+let recognition = null;
+let recognizing = false;
+let sessionBuffer = '';   // accumulate per session only
+
+/* === Single toggle button for voice: 🎤 (start) <-> ⏹️ (stop+auto-add) === */
+const voiceToggleBtn = document.getElementById('voiceToggleBtn');
+/* Floating mic wiring: mirrors the inline 🎤 button and stays in sync */
+const floatingMicBtn = document.getElementById('floatingMicBtn');
+
+function setFloatingMicUI(listening){
+  if(!floatingMicBtn) return;
+  floatingMicBtn.textContent = listening ? '⏹️' : '🎤';
+  floatingMicBtn.setAttribute('aria-label', listening ? 'Stop and save to Notes Inbox (floating)' : 'Start voice input (floating)');
+}
+
+floatingMicBtn?.addEventListener('click', ()=>{
+  if(recognizing){
+    stopVoiceAndAutoAdd();
+    setVoiceButtonUI(false);    // keep inline button in sync
+    setFloatingMicUI(false);    // update floating button UI
+  }else{
+    startVoice();
+    setVoiceButtonUI(true);
+    setFloatingMicUI(true);
+  }
+});
+
+// Keep both buttons synchronized if recognition ends elsewhere
+(function syncAllVoiceButtons(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){
+    // Speech not supported: disable floating button visually
+    if (floatingMicBtn){
+      floatingMicBtn.classList.add('is-disabled');
+      floatingMicBtn.disabled = true;
+      floatingMicBtn.title = 'Speech recognition not supported in this browser';
+    }
+    return;
+  }
+  // Poll lightly so UI reflects true listening state even on unexpected onend
+  setInterval(()=>{ 
+    setVoiceButtonUI(!!recognizing);
+    setFloatingMicUI(!!recognizing);
+  }, 500);
+})();
+
+function setVoiceButtonUI(listening){
+  if(!voiceToggleBtn) return;
+  if(listening){
+    voiceToggleBtn.textContent = '⏹️';
+    voiceToggleBtn.setAttribute('aria-label','Stop and save to Notes Inbox');
+    voiceToggleBtn.title = 'Stop & save';
+  }else{
+    voiceToggleBtn.textContent = '🎤';
+    voiceToggleBtn.setAttribute('aria-label','Start voice input');
+    voiceToggleBtn.title = 'Start voice';
+  }
+}
+
+voiceToggleBtn?.addEventListener('click', ()=>{
+  if(recognizing){
+    stopVoiceAndAutoAdd();
+    setVoiceButtonUI(false);
+  }else{
+    startVoice();
+    setVoiceButtonUI(true);
+  }
+});
+
+/* Also keep the UI in sync if recognition ends for any reason */
+(function wireEndSync(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR) return;
+  // If you re-create 'recognition' later, the onend below (already set) flips recognizing=false.
+  // We add a small interval-based guard to nudge UI if needed.
+  setInterval(()=>{ setVoiceButtonUI(!!recognizing); }, 500);
+})();
+
+
+function ensureRecognition(){
+  if(recognition) return recognition;
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){
+    showToast('Speech not supported');
+    return null;
+  }
+  const r = new SR();
+  r.lang = 'en-US';
+  r.continuous = true;        // keep listening until we stop
+  r.interimResults = false;   // finals only → no echo/multiples
+
+  // Defensive: make sure we don't double-wire handlers
+  r.onresult = (event) => {
+    let finalChunk = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const res = event.results[i];
+      if (res.isFinal) {
+        finalChunk += res[0].transcript;
+      }
+    }
+    if (finalChunk) {
+      // Append to textarea ONCE per final result
+      const ta = document.getElementById('noteInput');
+      if (ta) {
+        ta.value = (ta.value ? (ta.value + ' ') : '') + finalChunk.trim();
+      }
+      // Also keep in-session buffer so we can auto-add on stop
+      sessionBuffer += (sessionBuffer ? ' ' : '') + finalChunk.trim();
+    }
+  };
+
+  r.onerror = (e) => {
+    // surface a useful message but don't spam the UI
+    console.warn('Speech error:', e);
+    showToast(e.error === 'not-allowed' ? 'Mic blocked' : 'Speech error');
+  };
+
+  r.onend = () => {
+    recognizing = false;
+  };
+
+  recognition = r;
+  return recognition;
+}
+
+function startVoice(){
+  const r = ensureRecognition();
+  if(!r) return;
+  if(recognizing){
+    showToast('Already listening');
+    return;
+  }
+  sessionBuffer = ''; // reset per session
+  try{
+    r.start();
+    recognizing = true;
+    showToast('Listening…');
+  }catch(e){
+    // Some browsers throw if start() is called too quickly
+    console.warn('start() failed', e);
+    showToast('Couldn’t start mic');
+  }
+}
+
+function stopVoiceAndAutoAdd(){
+  if(recognition && recognizing){
+    recognition.stop();
+    recognizing = false;
+  }
+  // Auto-add whatever we captured this session
+  if(sessionBuffer.trim()){
+    addNote(sessionBuffer.trim());
+  }else{
+    showToast('No speech captured');
+  }
+  sessionBuffer = '';
+}
+
+
+/* Quality-of-life loading bar helpers you already have styles for */
+function startLoading(){
+  const lb = document.getElementById('loadingBar');
+  if(!lb) return;
+  lb.style.animation = 'indeterminate 1.25s infinite';
+}
+function stopLoading(){
+  const lb = document.getElementById('loadingBar');
+  if(!lb) return;
+  lb.style.animation = 'none';
+}
   /* Loading bar */
   const bar = document.getElementById('loadingBar');
   function startLoading(){ bar.style.animation='indeterminate var(--anim) ease-in-out infinite'; }
@@ -569,26 +933,6 @@ function showToast(msg){
   document.addEventListener('keydown', (e)=>{
     if (e.key === 'Escape' && isOpen()) window.closeDashboard();
   });
-
-
-// Focus Mode: stop the click from reaching the CHANGE VIEW handler and start focus mode instead
-(function wireFocusButton() {
-  const focusBtn = document.getElementById('focusBtn');
-  if (!focusBtn) return;
-  focusBtn.addEventListener('click', function (e) {
-    // prevent the bar's click handler from seeing this click
-    e.preventDefault();
-    e.stopPropagation();
-    // start your focus mode flow
-    if (typeof startFocusMode === 'function') {
-      startFocusMode();
-    } else {
-      // Minimal fallback so you can see it's working
-      console.warn('startFocusMode() is not defined yet. Implement it to launch the popup/cycle.');
-    }
-  });
-})();
-
 
 // initial state — default OPEN (and still restore if previously saved)
 let startOpen = true;
@@ -853,138 +1197,11 @@ function loadRecent(done){
     // listeners, loaders, etc...
   })();
 
-(function () {
-  const focusBtn        = document.getElementById('focusBtn');
-  const focusOverlay    = document.getElementById('focusOverlay');
-  const focusCloseBtn   = document.getElementById('focusCloseBtn');
-  const focusBackBtn    = document.getElementById('focusBackBtn');
-  const focusNextBtn    = document.getElementById('focusNextBtn');
-  const focusCategoryEl = document.getElementById('focusCategory');
-  const focusMinutesEl  = document.getElementById('focusMinutes');
-  const focusContent    = document.getElementById('focusContent');
-  const focusStatus     = document.getElementById('focusStatus');
-
-  let timerId = null;
-  let index = 0;
-  let clients = []; // TODO: load per category
-  let lastCategory = focusCategoryEl.value;
-
-  function stopTimer() {
-    if (timerId) { clearInterval(timerId); timerId = null; }
-  }
-
-  function setStatus(msg) {
-    focusStatus.textContent = msg || '';
-  }
-
-  // Placeholder renderer - replace with your app's note renderer
-  function renderClientAt(i) {
-    const name = clients[i] || '(no clients yet)';
-    focusContent.innerHTML = '<h2 style="margin:0 0 8px 0;">' + name + '</h2>'
-      + '<div>(Client notes go here)</div>';
-    setStatus(`Showing ${i + 1} of ${clients.length} • Cat: ${lastCategory}`);
-  }
-
-  function nextClient() {
-    if (!clients.length) return;
-    index = (index + 1) % clients.length;
-    renderClientAt(index);
-  }
-
-  function startAutoAdvance() {
-    stopTimer();
-    const minutes = Math.max(1, parseInt(focusMinutesEl.value || '1', 10));
-    timerId = setInterval(nextClient, minutes * 60 * 1000);
-    setStatus(`Auto-advance every ${minutes} min • Cat: ${lastCategory}`);
-  }
-
-  function loadClientsFor(category) {
-    lastCategory = category;
-    // TODO: Replace with your actual data fetch (e.g., google.script.run)
-    // Example placeholder list while wiring:
-    clients = ['Alice', 'Bobby', 'Carlos', 'Dina', 'Evan'].map(n => `${n} (${category})`);
-    index = 0;
-    renderClientAt(index);
-  }
-
-  function openFocus() {
-    focusOverlay.hidden = false;
-    // initial load for selected category
-    loadClientsFor(focusCategoryEl.value);
-    startAutoAdvance();
-  }
-
-  function closeFocus() {
-    stopTimer();
-    focusOverlay.hidden = true;
-  }
-
-  // Prevent CHANGE VIEW from triggering when FOCUS is clicked
-  if (focusBtn) {
-    focusBtn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      openFocus();
-    });
-  }
-
-  focusCloseBtn.addEventListener('click', closeFocus);
-  focusBackBtn.addEventListener('click', function () {
-    // Optional: go to previous client
-    if (!clients.length) return;
-    index = (index - 1 + clients.length) % clients.length;
-    renderClientAt(index);
-  });
-
-  focusNextBtn.addEventListener('click', function () {
-    nextClient();
-  });
-
-  focusCategoryEl.addEventListener('change', function () {
-    loadClientsFor(focusCategoryEl.value);
-    startAutoAdvance();
-  });
-
-  focusMinutesEl.addEventListener('change', function () {
-    startAutoAdvance();
-  });
-})();
-
 
 </script>
 <div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
 
-<!-- === Focus Mode Overlay (paste before </body>) === -->
-<div id="focusOverlay" hidden>
-  <div class="focus-modal" role="dialog" aria-modal="true" aria-labelledby="focusTitle">
-    <div class="focus-header">
-      <button id="focusBackBtn" class="focus-action" type="button">⟵ Back</button>
-      <div id="focusTitle">FOCUS • Category:
-        <select id="focusCategory">
-          <option>JB</option>
-          <option>RB</option>
-          <option>TEAM</option>
-          <option>QC</option>
-          <option>BDAY</option>
-        </select>
-        • Minutes:
-        <input id="focusMinutes" type="number" min="1" step="1" value="2" style="width:4rem">
-      </div>
-      <div class="focus-controls">
-        <button id="focusNextBtn" class="focus-action" type="button">Next ▶</button>
-        <button id="focusCloseBtn" class="focus-action focus-danger" type="button" aria-label="Close">✕</button>
-      </div>
-    </div>
-
-    <div id="focusContent" class="focus-content">
-      <!-- Your client notes will be injected here -->
-    </div>
-
-    <div class="focus-footer">
-      <span id="focusStatus" aria-live="polite"></span>
-    </div>
-  </div>
-</div>
 
 
 
@@ -2135,6 +2352,8 @@ input#clientAutocomplete, select#clientSelect {
   background: white;     /* input stays white */
   width: 100%;           /* full width inside the green block */
   box-sizing: border-box;
+    overflow: hidden;      /* hide scrollbars; JS shrinks text instead */
+  resize: none;          /* keep size fixed so font shrinking is visible */
 }
 
 #editNotesButton { font-size: 0.66em; }
@@ -2260,6 +2479,15 @@ input#clientAutocomplete, select#clientSelect {
 /* Input no longer needs extra right padding for an absolute button */
 #clientAutocomplete {
   padding-right: 12px !important;
+    background-color: #90EE90 !important;  /* ensure the field stays light green */
+}
+
+#clientAutocomplete:focus,
+#clientAutocomplete:active,
+#clientAutocomplete:disabled,
+#clientAutocomplete[readonly] {
+  background-color: #90EE90 !important;  /* keep all states consistent */
+  
 }
 
 /* Keep suggestions neatly inside the blue box */
@@ -2554,203 +2782,11 @@ input#clientAutocomplete, select#clientSelect {
 .btn-secondary { background: #efefef; }
 .btn-primary { background: #21a45e; color: #fff; }
 
- #jbCycleOverlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); display: none; z-index: 99999; }
-  #jbCyclePanel  { position: absolute; inset: 0; background: #0b1220; color: #fff; padding: 24px; overflow: auto; }
-  #jbCycleHeader { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 12px; }
-  #jbCycleHeader input, #jbCycleHeader select { padding: 6px 8px; }
-  #jbCycleHeader button { padding: 8px 12px; border-radius: 8px; border: 0; cursor: pointer; }
-  #jbCycleTitle { font-size: 22px; font-weight: 700; margin-right: 12px; }
-  #jbCycleClientName { font-size: 28px; font-weight: 800; }
-  #jbCycleNotes { background:#111826; border-radius: 12px; padding: 16px; margin-top: 12px; min-height: 50vh; }
-
-  /* Progress/loading bar inside overlay */
-  #jbProgressWrap { width: 100%; background: #1f2a44; height: 8px; border-radius: 999px; overflow: hidden; margin-top: 6px; }
-  #jbProgressFill { width: 0%; height: 100%; background: #38bdf8; transition: width 0.25s linear; }
-
-  #focusOverlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.55);
-    display: none; z-index: 99998;
-  }
-  #focusPanel {
-    position: absolute; inset: 0; background: #0b1220; color: #fff;
-    display: flex; flex-direction: column;
-  }
-  #focusHeader {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 14px; background: #102035; border-bottom: 1px solid rgba(255,255,255,0.08);
-  }
-  #focusHeader .title { font-weight: 700; font-size: 16px; }
-  #focusHeader button, #focusHeader select {
-    border: 0; border-radius: 10px; padding: 6px 10px; cursor: pointer;
-  }
-  #focusHeader button { background: #1f8efa; color: #fff; }
-  #focusHeader .ghost { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.25); }
-  #focusBody {
-    flex: 1; overflow: auto; padding: 0; /* content is your live notes */
-    background: #0b1220;
-  }
-
-  /* Progress bar inside header */
-#focusProgWrap{ width:220px; height:8px; border-radius:6px; background:rgba(255,255,255,0.18); overflow:hidden; margin-left:10px; }
-#focusProg{ height:100%; width:0%; background:#1f8efa; }
-
-  /* The container where we reparent your real notes DOM */
-  #focusNotesHost { min-height: 100%; }
-
-
-#dashHandle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-#changeViewLabel {
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-
-.focus-btn {
-  padding: 6px 12px;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  font-weight: 700;
-}
-
-/* Full-screen overlay */
-#focusOverlay[hidden] { display: none !important; }
-
-#focusOverlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  background: rgba(0,0,0,0.66);
-  backdrop-filter: blur(2px);
-}
-
-/* Modal panel */
-.focus-modal {
-  margin: 6vh auto 4vh;
-  width: min(1000px, 92vw);
-  height: min(80vh, 88vh);
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  background: #ffffff;
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
-}
-
-/* Header */
-.focus-modal .focus-header {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; padding: 12px 16px; border-bottom: 1px solid #eee;
-  font-weight: 700;
-}
-
-/* Toolbar */
-.focus-controls {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-}
-
-/* Content area (client notes) */
-.focus-content {
-  padding: 12px 16px; overflow: auto;
-}
-
-/* Footer */
-.focus-footer {
-  display: flex; justify-content: flex-end; gap: 8px;
-  padding: 12px 16px; border-top: 1px solid #eee;
-}
-
-/* Basic button look for modal controls */
-.focus-action {
-  padding: 8px 12px; border-radius: 10px; border: 1px solid #ddd; background: #fafafa; cursor: pointer;
-}
-
-.focus-danger {
-  border-color: #f1c0c0; background: #ffecec;
-}
-
-
 
 </style>
 
-<style>
-  /* === Chips (brought over from v393) === */
-  .chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-weight: 600;
-    border: 1px solid #d0d0d0;
-    background: #fff;
-    white-space: nowrap;
-  }
-  .chip-initials {
-    letter-spacing: 0.4px;
-  }
-  .chip-sep {
-    opacity: 0.6;
-  }
-  .chip-date {
-    font-variant-numeric: tabular-nums;
-    line-height: 1;
-  }
-  .chip-assign {
-    opacity: 0.65;
-    font-style: italic;
-  }
-
-  /* Optional: sizes similar to your 393 look */
-  .chip .chip-date { font-size: 0.95rem; }
-  .chip .chip-initials { font-size: 0.9rem; }
-
-  /* You can theme per-initials class if you used this in 393:
-     .chip.JB { background:#f6ffed; border-color:#b7eb8f; }
-     .chip.RB { background:#e6f7ff; border-color:#91d5ff; }
-     etc.
-  */
-</style>
 
 </head>
-<div id="focusOverlay" role="dialog" aria-modal="true">
-  <div id="focusPanel">
-    <div id="focusHeader">
-      
-      <button id="focusBackBtn" class="ghost" title="Previous client">⟵ Back</button>
-      <span class="title">FOCUS: <span id="focusClientName">—</span></span>
-      <span style="margin-left:auto;"></span>
-      <label for="focusCategory">Category:</label>
-      <select id="focusCategory">
-        <option>JB</option>
-        <option>RB</option>
-        <option>TEAM</option>
-        <option>QC</option>
-        <option>BDAY</option>
-      </select>
-      <button id="focusNextBtn" title="Next client">Next ▶</button>
-      <button id="focusCloseBtn" class="ghost" title="Close">✕</button>
-    </div>
-    <div id="focusProgWrap"><div id="focusProg"></div></div>
-
-    <div id="focusBody">
-      <!-- We will MOVE your actual notes panel here while FOCUS is open -->
-      <div id="focusNotesHost"></div>
-    </div>
-  </div>
-</div>
-
-
-</div>
-
-
 <body onload="loadAllHeatmaps()">
     <!-- Loading Bar -->
 
@@ -2772,8 +2808,6 @@ input#clientAutocomplete, select#clientSelect {
   <button id="addNewClientBtn" type="button" class="recent-add-btn" onclick="displayAddNewClientModal()">
     <span>NEW</span><span>CLIENT</span>
   </button>
-
-
 </div>
 
 
@@ -2910,7 +2944,6 @@ input#clientAutocomplete, select#clientSelect {
 
 <br>
 <!-- Button to show appointment scheduling inputs -->
-
 <button id="addAppointmentBtn" class="secondary-button" onclick="showAppointmentInput()" style="display:none;">Add APPOINTMENT to Calendar for This Client</button>
 
 <!-- Appointment scheduling inputs, initially hidden -->
@@ -3126,43 +3159,9 @@ input#clientAutocomplete, select#clientSelect {
   <div id="tasksList"></div>
 </div>
 <!-- END SNIPPET #2 -->
-<div id="focusOverlay" role="dialog" aria-modal="true">
-  <div id="focusPanel">
-<div id="focusHeader">
-  <button id="focusBackBtn" class="ghost" title="Previous client">⟵ Back</button>
-  <span class="title">FOCUS: <span id="focusClientName">—</span></span>
 
-  <span style="margin-left:auto;"></span>
-
-  <label for="focusCategory">Category:</label>
-  <select id="focusCategory">
-    <option>JB</option>
-    <option>RB</option>
-    <option>TEAM</option>
-    <option>QC</option>
-    <option>BDAY</option>
-  </select>
-
-  <!-- Minutes input + countdown -->
-  <label style="margin-left:10px;">Minutes:
-    <input id="focusMinutes" type="number" min="0.5" step="0.5" value="2" style="width:80px;">
-  </label>
-  <span id="focusCountdown" style="min-width:84px;text-align:right;opacity:0.9;margin-left:8px;">—</span>
-
-  <button id="focusNextBtn" title="Next client" style="margin-left:10px;">Next ▶</button>
-  <button id="focusCloseBtn" class="ghost" title="Close">✕</button>
-</div>
-
-    <div id="focusBody">
-      <!-- We will MOVE your actual notes panel here while FOCUS is open -->
-      <div id="focusNotesHost"></div>
-    </div>
-  </div>
-</div>
 
 <script>
-
-
 
 /* === FIT-TO-ONE-LINE ENGINE (input + suggestions) === */
 
@@ -3479,12 +3478,84 @@ sanitizeSuggestionBulbs();
 }
 
 
+function fitToplistSuggestionTextarea(textarea) {
+  try {
+    if (!textarea) return;
+
+    const computed = window.getComputedStyle(textarea);
+    const baseFont = parseFloat(textarea.dataset.baseFontSize || computed.fontSize || '16');
+    if (!textarea.dataset.baseFontSize) {
+      textarea.dataset.baseFontSize = String(baseFont);
+    }
+
+    let baseHeight = parseFloat(textarea.dataset.baseHeight || '');
+    if (!baseHeight || Number.isNaN(baseHeight) || baseHeight <= 0) {
+      const minHeight = parseFloat(computed.minHeight);
+      if (!Number.isNaN(minHeight) && minHeight > 0) {
+        baseHeight = minHeight;
+      } else if (textarea.clientHeight > 0) {
+        baseHeight = textarea.clientHeight;
+      } else {
+        const computedHeight = parseFloat(computed.height);
+        baseHeight = (!Number.isNaN(computedHeight) && computedHeight > 0) ? computedHeight : 60;
+      }
+      textarea.dataset.baseHeight = String(baseHeight);
+    }
+
+    const clampHeight = baseHeight;
+    textarea.style.minHeight = clampHeight + 'px';
+    textarea.style.maxHeight = clampHeight + 'px';
+    textarea.style.height = clampHeight + 'px';
+    textarea.style.overflow = 'hidden';
+    textarea.style.resize = 'none';
+
+    const minFont = parseFloat(textarea.dataset.minFontSize || '8');
+    let fontSize = baseFont;
+
+    const overflows = () => textarea.scrollHeight > textarea.clientHeight + 0.5;
+
+    textarea.style.fontSize = fontSize + 'px';
+
+    while (overflows() && fontSize > minFont) {
+      fontSize -= 1;
+      textarea.style.fontSize = fontSize + 'px';
+    }
+
+    if (fontSize < baseFont) {
+      while (!overflows() && fontSize < baseFont) {
+        const next = Math.min(baseFont, fontSize + 1);
+        textarea.style.fontSize = next + 'px';
+        if (overflows()) {
+          textarea.style.fontSize = fontSize + 'px';
+          break;
+        }
+        fontSize = next;
+      }
+    }
+
+    textarea.dataset.currentFontSize = String(fontSize);
+  } catch (err) {
+    console.error('fitToplistSuggestionTextarea error:', err);
+  }
+}
+
+function scheduleSuggestionTextareaFit(textarea) {
+  if (!textarea) return;
+  const raf = window.requestAnimationFrame || function (cb) { return setTimeout(cb, 0); };
+  raf(function () { fitToplistSuggestionTextarea(textarea); });
+}
 
 
 function applySuggestionsVisibility() {
   var blocks = document.querySelectorAll('.toplist-suggestion');
   blocks.forEach(function(b) {
     b.style.display = window.__suggestionsVisible ? 'block' : 'none';
+        var visible = !!window.__suggestionsVisible;
+    b.style.display = visible ? 'block' : 'none';
+    if (visible) {
+      var ta = b.querySelector('textarea');
+      if (ta) scheduleSuggestionTextareaFit(ta);
+    }
   });
 
   // after visibility flips, re-enforce the single-left-bulb layout
@@ -3620,6 +3691,9 @@ function wireToplistSuggestionTextareas() {
   const nodes = document.querySelectorAll('#topClientsDisplay .toplist-suggestion textarea.note-textarea, #topClientsDisplay .toplist-suggestion textarea.toplist-textarea');
 
   nodes.forEach(function (ta) {
+        if (ta.dataset.wiredSuggestion === 'true') return;
+    ta.dataset.wiredSuggestion = 'true';
+
     // Never let clicks/focus bubble up and cause row-level re-renders
     ['mousedown', 'click', 'focus'].forEach(function(ev){
       ta.addEventListener(ev, function (e) { e.stopPropagation(); }, true);
@@ -3637,11 +3711,25 @@ function wireToplistSuggestionTextareas() {
     }
     if (!clientName) return; // can't save without a client
 
-    let original = ta.value;
+    ta.setAttribute('data-client', clientName);
+    ta.classList.add('inProgressArea');
+    if (!ta.hasAttribute('data-last-saved')) {
+      ta.setAttribute('data-last-saved', ta.value || '');
+    }
     let dirty = false;
 
+        const getBaseline = () => {
+      const stored = ta.getAttribute('data-last-saved');
+      return stored != null ? stored : '';
+    };
+
+    const syncDirty = () => {
+      dirty = (ta.value !== getBaseline());
+    };
+
+
     ta.addEventListener('input', function () {
-      dirty = (ta.value !== original);
+      syncDirty();
     });
 
     // Ctrl/⌘+Enter = quick commit
@@ -3655,30 +3743,40 @@ function wireToplistSuggestionTextareas() {
 
     // SAVE ONLY ON BLUR — but DO NOT re-render the whole list
     ta.addEventListener('blur', function () {
-      if (!dirty || ta.value.trim() === original.trim()) return;
+      const baseline = getBaseline();
+      const pendingValue = ta.value;
+      if (!dirty || pendingValue.trim() === baseline.trim()) {
+        dirty = false;
+        return;
+      }
+
 
       if (typeof showLoadingBar === 'function') showLoadingBar();
 
       google.script.run
         .withSuccessHandler(function () {
           // Keep the screen exactly as-is; just lock in the new value
-          original = ta.value;
           dirty = false;
+          ta.setAttribute('data-last-saved', pendingValue || '');
 
           // Small visual ack near the textarea
-          showInlineSavedBadge(ta);
-
-          if (typeof applySuggestionsVisibility === 'function') applySuggestionsVisibility();
-          if (typeof hideLoadingBar === 'function') hideLoadingBar();
+          if (typeof showInlineSavedBadge === 'function') {
+            showInlineSavedBadge(ta);
+          }
+      if (typeof updateInProgressDom === 'function') {
+            updateInProgressDom(clientName, pendingValue);
+          }          if (typeof hideLoadingBar === 'function') hideLoadingBar();
         })
         .withFailureHandler(function (err) {
           alert('Error saving In Progress: ' + (err && err.message ? err.message : err));
-          ta.value = original; // revert
+          ta.value = baseline; // revert
           dirty = false;
+                    ta.setAttribute('data-last-saved', baseline || '');
+
           if (typeof hideLoadingBar === 'function') hideLoadingBar();
         })
         // ⬇️ CHANGE THIS if your server save function has a different name
-        .updateClientColumnL(clientName, ta.value);
+        .updateClientColumnL(clientName, pendingValue);
     }, true);
   });
 }
@@ -4387,6 +4485,34 @@ var inputElement = document.getElementById('clientAutocomplete');
     window.showClientNotes.__wrappedForFit = true;
   })();
 
+   // Guarantee any direct `.value = ...` assignments also trigger a refit.
+  (function wrapValueSetter(){
+    if (input.__fitValueWrapped) return;
+    const proto = Object.getPrototypeOf(input);
+    const desc = proto && Object.getOwnPropertyDescriptor(proto, 'value');
+    if (!desc || typeof desc.get !== 'function' || typeof desc.set !== 'function') return;
+
+    Object.defineProperty(input, 'value', {
+      configurable: true,
+      enumerable: desc.enumerable,
+      get: function(){
+        return desc.get.call(this);
+      },
+      set: function(v){
+        desc.set.call(this, v);
+        requestAnimationFrame(fitClientInputNow);
+      }
+    });
+
+    Object.defineProperty(input, '__fitValueWrapped', {
+      value: true,
+      configurable: true,
+      writable: false,
+      enumerable: false
+    });
+  })();
+
+
   // Also fit immediately on first load (in case a value is prefilled)
   requestAnimationFrame(fitClientInputNow);
 })();
@@ -4981,6 +5107,19 @@ displayLabels(Array.isArray(data.labels) ? data.labels : []);
 // SNIPPET #4: Ensure the loaded "In Progress:" is set from data.columnL
 // Seed the In Progress textarea and remember the last-saved value
 var loadedInProgressArea = document.getElementById('loadedInProgressArea');
+var selectedClientName = '';
+var clientSelectEl = document.getElementById('clientSelect');
+if (clientSelectEl && clientSelectEl.value) {
+  selectedClientName = clientSelectEl.value;
+} else if (data && data.notes && data.notes.length && data.notes[0].clientName) {
+  selectedClientName = data.notes[0].clientName;
+}
+if (selectedClientName) {
+  loadedInProgressArea.setAttribute('data-client', selectedClientName);
+} else {
+  loadedInProgressArea.removeAttribute('data-client');
+}
+loadedInProgressArea.classList.add('inProgressArea');
 var seed = data.columnL || '';
 loadedInProgressArea.value = seed;
 loadedInProgressArea.setAttribute('data-last-saved', seed);
@@ -5022,14 +5161,32 @@ loadCategoriesForClientAfterNotes();
 
 
 
+function labelContainsEmoji(labelText) {
+    if (!labelText) return false;
+    return /[\p{Extended_Pictographic}]/u.test(labelText);
+}
 
 
 
 function displayLabels(labelsArray) {
     var labelsDisplay = document.getElementById('labelsDisplay');
     labelsDisplay.innerHTML = '';
+    
+    var emojiLabels = [];
+    var nonEmojiLabels = [];
+
 
     labelsArray.forEach(function(labelObj) {
+              if (labelContainsEmoji(labelObj.label)) {
+            emojiLabels.push(labelObj);
+        } else {
+            nonEmojiLabels.push(labelObj);
+        }
+    });
+
+    var orderedLabels = emojiLabels.concat(nonEmojiLabels);
+
+    orderedLabels.forEach(function(labelObj) {
         var labelDiv = document.createElement('div');
         labelDiv.className = 'label-box';
         labelDiv.textContent = labelObj.label;
@@ -5173,6 +5330,11 @@ google.script.run
         }
       })
       .getUniqueCategories();
+
+          // Refresh the autocomplete + dropdown data so the updated category appears immediately.
+    if (typeof refreshUIWithNewCategory === 'function') {
+      refreshUIWithNewCategory(clientName, category);
+    }
   })
 
     .withFailureHandler(function(err){
@@ -5860,33 +6022,52 @@ function retriggerTopClientsFilter(){
 
 
 
-// Refresh UI with new category
+// Refresh dropdown/autocomplete data after a category change so UI reflects it immediately.
 function refreshUIWithNewCategory(clientName, newCategory) {
-    // Call server-side function to get updated client list
-    google.script.run.withSuccessHandler(function(clients) {
-        clientsData = clients; // Update clientsData
-        populateClientDropdown(clients); // Update the client dropdown
-        selectUpdatedClient(clientName, newCategory); // Select the updated client
-retriggerTopClientsFilter();
+  google.script.run
+    .withSuccessHandler(function (clients) {
+      clientsData = Array.isArray(clients) ? clients : [];
+      if (typeof rebuildClientNameIndex === 'function') {
+        rebuildClientNameIndex();
+      }
 
-            }).getAllClientsData(); 
-}
+      populateClientDropdown(clientsData);
+
+      var clientSelect = document.getElementById('clientSelect');
+      if (clientSelect) {
+        clientSelect.value = clientName;
+      }
+
+    selectUpdatedClient(clientName, newCategory);
+    })
+    .withFailureHandler(function (err) {
+      console.error('Failed to refresh clients after category update:', err);
+    })
+    .getAllClientsData();
+    }
 
 
 // Select the updated client in the dropdown and reload notes
 function selectUpdatedClient(clientName, newCategory) {
     var clientSelect = document.getElementById('clientSelect');
     var clientAutocomplete = document.getElementById('clientAutocomplete');
-    var updatedClientText = clientName + ' (' + newCategory + ')';
+   var updatedClientText = newCategory ? clientName + ' (' + newCategory + ')' : clientName;
+    if (clientSelect) {
+        clientSelect.value = clientName;
+    }
 
-    // Set the clientSelect value to the clientName
-    clientSelect.value = clientName;
+   if (clientAutocomplete) {
+        clientAutocomplete.value = updatedClientText;
+        clientAutocomplete.style.color = 'black';
+    }
 
-    // Update the clientAutocomplete value to include the new category
-    clientAutocomplete.value = updatedClientText;
+    if (typeof currentClientName !== 'undefined') {
+        currentClientName = updatedClientText;
+    }
 
-    // Reload the notes for the selected client
-    showClientNotes();
+    if (typeof showClientNotes === 'function' && clientSelect) {
+        showClientNotes();
+    }
 }
 
 
@@ -6151,38 +6332,7 @@ document.getElementById('topClientsTitle').style.display = 'none';
   });
 
   // Paint
-filtered.forEach(function(c){
-  // 1) Render the row as before
-  displayClient(c, out);
-
-  // 2) Grab the row that was just appended
-  var row = out.lastElementChild;
-  if (!row) return;
-
-  // 3) Ensure we have a slot for the chip
-  var chipSlot = row.querySelector('.chip-slot');
-  if (!chipSlot) {
-    chipSlot = document.createElement('span');
-    chipSlot.className = 'chip-slot';
-    // Position: at the end of the row (move earlier if you want it near the name)
-    row.appendChild(chipSlot);
-  }
-
-  // 4) Clear any existing chip, then render the chip
-  chipSlot.innerHTML = '';
-
-  // Use your existing field names; fallbacks included
-  var initials = String((c.chipInitials || c.initials || '')).toUpperCase();
-  var dateLike = c.chipDate || c.mmddyy || c.date || '';
-
-  chipSlot.appendChild(
-    createChipElementReadOnly(
-      (c.clientName || c.name || ''),
-      initials,
-      dateLike
-    )
-  );
-});
+  filtered.forEach(function(c){ displayClient(c, out); });
 
   // Re-wire suggestion textareas + visibility
   if (typeof wireToplistSuggestionTextareas === 'function') wireToplistSuggestionTextareas();
@@ -6260,36 +6410,7 @@ function chipDateToTimeForSort(chipDateStr){
   });
 
   // 5) Paint
-filtered.forEach(function(c){
-  // 1) Render the row as before
-  displayClient(c, out);
-
-  // 2) Grab the row that was just appended
-  var row = out.lastElementChild;
-  if (!row) return;
-
-  // 3) Ensure we have a slot for the chip
-  var chipSlot = row.querySelector('.chip-slot');
-  if (!chipSlot) {
-    chipSlot = document.createElement('span');
-    chipSlot.className = 'chip-slot';
-    row.appendChild(chipSlot);
-  }
-
-  // 4) Clear any existing chip, then render the chip
-  chipSlot.innerHTML = '';
-
-  var initials = String((c.chipInitials || c.initials || '')).toUpperCase();
-  var dateLike = c.chipDate || c.mmddyy || c.date || '';
-
-  chipSlot.appendChild(
-    createChipElementReadOnly(
-      (c.clientName || c.name || ''),
-      initials,
-      dateLike
-    )
-  );
-});
+  filtered.forEach(function(c){ displayClient(c, out); });
 
   // 6) Wire suggestion areas & visibility
   if (typeof wireToplistSuggestionTextareas === 'function') wireToplistSuggestionTextareas();
@@ -6653,12 +6774,12 @@ function loadRecentBar() {
   // Fast: use cached metadata
   google.script.run
     .withSuccessHandler(list => paintRecentBar(list))
-    .getRecentClients(12, false);
+    .getRecentClients(3, false);
 
   // Optional: refresh metadata in a second pass so chips/categories are up to date
   google.script.run
     .withSuccessHandler(list => paintRecentBar(list))
-    .getRecentClients(12, true);
+    .getRecentClients(3, true);
 }
 
 // Kick it off as soon as DOM is ready
@@ -6668,7 +6789,7 @@ document.addEventListener('DOMContentLoaded', loadRecentBar);
 function onClientOpened(name){
   google.script.run
     .withSuccessHandler(() => loadRecentBar())
-    .logRecentClient(name, 12);
+    .logRecentClient(name, 3);
 }
 
 // If you have a central place that runs when a client is selected, call onClientOpened there.
@@ -7336,24 +7457,10 @@ function populateLabelsDropdown(labels) {
     placeholderOption.disabled = true;
     placeholderOption.selected = true;
     dropdown.appendChild(placeholderOption);
+    // Define the only label options that should be available
+    var fixedLabels = ["NEW LABEL", "🎂", "💻"];
 
-    // Remove "NEW LABEL" from the array if it exists
-    var newLabelIndex = labels.indexOf("NEW LABEL");
-    if (newLabelIndex > -1) {
-        labels.splice(newLabelIndex, 1);
-    }
-
-    // Add the "NEW LABEL" option after the placeholder
-    var newLabelOption = document.createElement('option');
-    newLabelOption.value = "NEW LABEL";
-    newLabelOption.textContent = "NEW LABEL";
-    dropdown.appendChild(newLabelOption);
-
-    // Sort the remaining labels alphabetically
-    labels.sort();
-
-    // Dynamic label options
-    labels.forEach(function(label) {
+    fixedLabels.forEach(function(label) {
         var option = document.createElement('option');
         option.value = label;
         option.textContent = label;
@@ -7899,20 +8006,20 @@ function displayClient(client, container) {
   sugWrap.className = 'toplist-suggestion';
   sugWrap.style.display = 'none'; // toggled by your existing toggleSuggestions()
   sugWrap.style.alignSelf = 'stretch';   // ensure it spans the whole card width
+  sugWrap.setAttribute('data-client', client.name);
 
-  var lab = document.createElement('label');
-  lab.style.fontWeight = 'bold';
-  lab.style.display = 'block';
-  lab.textContent = "💡";
-  sugWrap.appendChild(lab);
+  var bulb = document.createElement('span');
+  bulb.className = 'bulb';
+  bulb.setAttribute('aria-hidden', 'true');
+  bulb.textContent = '💡';
+  sugWrap.appendChild(bulb);
 
   var ta = document.createElement('textarea');
-  ta.className = 'note-textarea';
+  ta.className = 'note-textarea inProgressArea';
   ta.style.minHeight = '60px';
   ta.value = client.columnLContent || '';
-  ta.addEventListener('blur', function(){
-    onToplistSuggestionBlur(client.name, ta.value); // saves Column L then reloads (your code)
-  });
+  ta.setAttribute('data-client', client.name);
+  ta.setAttribute('data-last-saved', ta.value || '');
   sugWrap.appendChild(ta);
 
   clientDiv.appendChild(sugWrap);
@@ -8119,8 +8226,12 @@ function onInProgressLoadedBlur(valueFromUI) {
 
       if (typeof hideLoadingBar === 'function') hideLoadingBar();
 
+            if (typeof updateInProgressDom === 'function') {
+        updateInProgressDom(clientName, newVal);
+      }
+
+
       // ✅ DO NOT call displayTopClients(), showTopClients(), getTopClients(), etc. here
-      reloadPreservingState();
 
     })
     .withFailureHandler(function (err) {
@@ -8139,12 +8250,18 @@ function onInProgressLoadedBlur(valueFromUI) {
 // This function updates all “In Progress:” textareas on the page for the given client
 // so they match the newly saved value, WITHOUT reloading.
 function updateInProgressDom(clientName, newValue) {
+    var normalizedValue = newValue == null ? '' : String(newValue);
+
   // 1) If the loaded client is the same, update the loadedInProgressArea
-  var currentlySelected = document.getElementById('clientSelect').value;
-  if (currentlySelected === clientName) {
+var selectEl = document.getElementById('clientSelect');
+  var currentlySelected = selectEl ? selectEl.value : '';
+    if (currentlySelected === clientName) {
     var loadedText = document.getElementById('loadedInProgressArea');
-    if (loadedText && loadedText.value !== newValue) {
-      loadedText.value = newValue;
+   if (loadedText && loadedText.value !== normalizedValue) {
+      loadedText.value = normalizedValue;
+    }
+    if (loadedText) {
+      loadedText.setAttribute('data-last-saved', normalizedValue);
     }
   }
 
@@ -8152,9 +8269,11 @@ function updateInProgressDom(clientName, newValue) {
   //    (They have .className = "inProgressArea" plus a data-client attribute)
   var allAreas = document.querySelectorAll('.inProgressArea[data-client="' + clientName + '"]');
   allAreas.forEach(function(area) {
-    if (area.value !== newValue) {
-      area.value = newValue;
+    if (area.value !== normalizedValue) {
+      area.value = normalizedValue;
     }
+        area.setAttribute('data-last-saved', normalizedValue);
+
   });
 }
 // UPDATED: Handle JB / RB / QC filters and update topClientsTitle
@@ -8936,18 +9055,23 @@ function chipDateToTime(raw) {
 
 function onToplistSuggestionBlur(clientName, newValue) {
   if (!clientName) return;
-  showLoadingBar();
+  if (typeof showLoadingBar === 'function') showLoadingBar();
   google.script.run
     .withSuccessHandler(function() {
-      hideLoadingBar();
-      // FULL refresh so ShowClientNotes + Top Clients match exactly
-      location.reload();
+     if (typeof updateInProgressDom === 'function') {
+        updateInProgressDom(clientName, newValue);
+      }
+      if (typeof refreshTopClientsPreservingScroll === 'function') {
+        refreshTopClientsPreservingScroll();
+      }
+      if (typeof hideLoadingBar === 'function') hideLoadingBar();
     })
     .withFailureHandler(function(err) {
-      hideLoadingBar();
+      if (typeof hideLoadingBar === 'function') hideLoadingBar();
+
       alert('Error saving Ricky\'s Suggestion: ' + (err && err.message ? err.message : err));
     })
-    .updateInProgress(clientName, newValue); // Apps Script: writes Column L for that client
+    .updateClientColumnL(clientName, newValue);
 }
 
 
@@ -9087,14 +9211,14 @@ document.addEventListener('DOMContentLoaded', ensureSuggestionsButtonInToolbar);
     if (!clientName) return;
     google.script.run
       .withSuccessHandler(refreshRecentBar)
-      .logRecentClient(clientName, 4);
+      .logRecentClient(clientName, 3);
   }
 
   // 2) Ask server for the list, then render
   function refreshRecentBar() {
     google.script.run
       .withSuccessHandler(renderRecentBar)
-      .getRecentClients(4, /* refreshMetadata */ true);
+      .getRecentClients(3, /* refreshMetadata */ true);
   }
 
   // 3) Paint the pills into #recentClientsBar
@@ -9397,782 +9521,10 @@ function suggestionsContainEmoji(client, emoji) {
   // just call window.onClientSelectedForBar(name, label) from there.
 })();
 
-
-// ================== NOTES CAROUSEL (Popup) ==================
-(function(){
-  // ---- internal state ----
-  const S = {
-    overlay: null, bar: null, nameEl: null, remEl: null, minsEl: null,
-    btnPrev: null, btnPlay: null, btnNext: null, closeEl: null,
-    queue: [], index: 0, paused: false, msPerClient: 2*60*1000,
-    t0: 0, msRemaining: 0, raf: 0, pollingTimer: 0
-  };
-
-  // ---- storage helpers ----
-  function persistLastDuration(min){ try{ localStorage.setItem('notesCarousel.minutes', String(min)); }catch(_){} }
-  function restoreLastDuration(){ try{ return parseFloat(localStorage.getItem('notesCarousel.minutes')) || 2; }catch(_){ return 2; } }
-
-  // ---- dates ----
-  function todayMidnight(){
-    const d=new Date(); d.setHours(0,0,0,0); return d;
-  }
-  function parseISO(d){ return d ? new Date(d) : null; }
-  function eligible(chipISO){ const d=parseISO(chipISO); return d && d.getTime() <= todayMidnight().getTime(); }
-
-  // ---- queue building (JB + chipDate ≤ today, oldest first) ----
-  function fetchJBQueue(){
-    return new Promise(function(resolve,reject){
-      if (!(window.google && google.script && google.script.run)){
-        reject('Apps Script runtime unavailable'); return;
-      }
-      google.script.run
-        .withSuccessHandler(function(rows){
-          const q=(rows||[])
-            .filter(r => (r && r.name && r.category==='JB' && eligible(r.chipDateISO)))
-            .sort((a,b)=> new Date(a.chipDateISO) - new Date(b.chipDateISO));
-          resolve(q);
-        })
-        .withFailureHandler(reject)
-        .getClientsForCarouselWithChipDates(); // provided in Section 3
-    });
-  }
-
-  // ---- popup DOM ----
-  function buildOverlay(){
-    const wrap=document.createElement('div');
-    wrap.id='notesCarouselOverlay';
-    wrap.style.cssText = [
-      'position:fixed','inset:0','z-index:100000',
-      'background:#0b1320','display:flex','flex-direction:column','color:#fff'
-    ].join(';');
-
-    // top bar (reverse progress)
-    const bar=document.createElement('div');
-    bar.id='notesCarouselBar';
-    bar.style.cssText='height:6px;background:linear-gradient(90deg,#22c55e,#eab308,#ef4444);margin:0;width:100%';
-    wrap.appendChild(bar);
-
-    // header controls
-    const hdr=document.createElement('div');
-    hdr.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.1)';
-
-    const nameEl=document.createElement('div');
-    nameEl.id='notesCarouselClient';
-    nameEl.style.cssText='font-size:28px;font-weight:800;flex:1 1 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
-
-    const rem=document.createElement('div');
-    rem.id='notesCarouselRemaining';
-    rem.style.cssText='opacity:.8;font-weight:700';
-
-    const minsInput=document.createElement('input');
-    minsInput.type='number';
-    minsInput.min='0.25';
-    minsInput.step='0.25';
-    minsInput.id='notesCarouselMinutes';
-    minsInput.title='Minutes per client';
-    minsInput.style.cssText='width:90px;padding:6px;border-radius:8px;border:0;font-weight:700';
-
-    const prev=document.createElement('button');
-    prev.textContent='⟨';
-    const play=document.createElement('button');
-    play.textContent='⏸';
-    const next=document.createElement('button');
-    next.textContent='⟩';
-    [prev,play,next].forEach(b=>{
-      b.style.cssText='border:0;border-radius:10px;padding:8px 12px;font-weight:800;cursor:pointer';
-    });
-
-    const close=document.createElement('button');
-    close.textContent='✕';
-    close.style.cssText='margin-left:8px;border:0;border-radius:10px;padding:6px 10px;font-weight:800;cursor:pointer;background:#ef4444;color:#fff';
-
-    hdr.appendChild(nameEl);
-    hdr.appendChild(rem);
-    hdr.appendChild(document.createTextNode(' • '));
-    hdr.appendChild(minsInput);
-    hdr.appendChild(prev);
-    hdr.appendChild(play);
-    hdr.appendChild(next);
-    hdr.appendChild(close);
-
-    wrap.appendChild(hdr);
-
-    // body is your existing client view; we just keep it visible beneath
-
-    document.body.appendChild(wrap);
-
-    // wire
-    close.addEventListener('click', closeNotesCarouselPopup);
-    prev.addEventListener('click', ()=>prevClient(true));
-    next.addEventListener('click', ()=>nextClient(true));
-    play.addEventListener('click', togglePause);
-    minsInput.addEventListener('change', ()=> {
-      const v=Math.max(0.25, parseFloat(minsInput.value)||2);
-      setDurationPerClient(v);
-    });
-
-    // save refs
-    S.overlay=wrap; S.bar=bar; S.nameEl=nameEl; S.remEl=rem; S.minsEl=minsInput;
-    S.btnPrev=prev; S.btnPlay=play; S.btnNext=next; S.closeEl=close;
-  }
-
-  function destroyOverlay(){
-    try{ if (S.overlay && S.overlay.parentNode) S.overlay.parentNode.removeChild(S.overlay); }catch(_){}
-    S.overlay=S.bar=S.nameEl=S.remEl=S.minsEl=S.btnPrev=S.btnPlay=S.btnNext=S.closeEl=null;
-  }
-
-  function renderHUD(){
-    if (!S.overlay) return;
-    const left = Math.max(0, (S.queue.length - (S.index+1)));
-    S.remEl.textContent = `${left} remaining`;
-    const cur = S.queue[S.index];
-    S.nameEl.textContent = cur ? cur.name : '—';
-    S.minsEl.value = (S.msPerClient/60000).toFixed(2);
-    S.btnPlay.textContent = S.paused ? '▶︎' : '⏸';
-  }
-
-  // ---- progress bar + timer ----
-  function colorByFrac(fr){
-    if (fr > 0.5) return 'linear-gradient(90deg,#22c55e,#22c55e)';      // green
-    if (fr > 0.2) return 'linear-gradient(90deg,#eab308,#eab308)';      // yellow
-    return 'linear-gradient(90deg,#ef4444,#ef4444)';                     // red
-  }
-
-  function setBar(fr){
-    if (!S.bar) return;
-    // reverse fill (remaining)
-    const pct = Math.max(0, Math.min(1, fr))*100;
-    S.bar.style.width='100%';
-    S.bar.style.backgroundImage = colorByFrac(fr);
-    S.bar.style.backgroundSize = '100% 100%';
-    // simulate reverse by using a gradient mask via transform
-    S.bar.style.transformOrigin='right center';
-    S.bar.style.transform = `scaleX(${pct/100})`;
-  }
-
-  function tick(){
-    S.raf = 0;
-    if (S.paused) return;
-    const now = performance.now();
-    const elapsed = now - S.t0;
-    S.msRemaining = Math.max(0, S.msPerClient - elapsed);
-    const fr = S.msRemaining / S.msPerClient;
-    setBar(fr);
-    if (S.nameEl){
-      const mm = Math.floor(S.msRemaining/60000);
-      const ss = Math.floor((S.msRemaining%60000)/1000).toString().padStart(2,'0');
-      S.nameEl.title = `${mm}:${ss}`;
-    }
-    if (S.msRemaining <= 0) {
-      nextClient(false);
-      return;
-    }
-    S.raf = requestAnimationFrame(tick);
-  }
-
-  function startCountdown(){
-    cancelCountdown();
-    S.t0 = performance.now();
-    S.msRemaining = S.msPerClient;
-    S.paused = false;
-    renderHUD();
-    setBar(1);
-    S.raf = requestAnimationFrame(tick);
-  }
-  function cancelCountdown(){
-    if (S.raf){ cancelAnimationFrame(S.raf); S.raf=0; }
-  }
-
-  // ---- controls ----
-  function setDurationPerClient(minutes){
-    S.msPerClient = Math.max(15000, minutes*60000); // minimum 15s hard floor
-    persistLastDuration(minutes);
-    // apply on next client unless paused; if paused apply immediately on resume
-  }
-  function togglePause(){
-    S.paused = !S.paused;
-    if (!S.paused){
-      // resume: continue with leftover
-      S.t0 = performance.now() - (S.msPerClient - S.msRemaining);
-      S.raf = requestAnimationFrame(tick);
-    } else {
-      cancelCountdown();
-    }
-    renderHUD();
-  }
-
-  function goTo(index){
-    if (!S.queue.length) return;
-    // wrap only for manual prev/next; start/auto uses non-wrap
-    if (index < 0) index = S.queue.length-1;
-    if (index >= S.queue.length) index = 0;
-    S.index = index;
-
-    const cur = S.queue[S.index];
-    // Load client without using autocomplete
-    try{
-      const sel = document.getElementById('clientSelect');
-      if (sel){ sel.value = cur.name; }
-      if (typeof showClientNotes === 'function') showClientNotes();
-    }catch(_){}
-
-    renderHUD();
-    startCountdown();
-  }
-
-  function nextClient(manual){
-    if (!S.queue.length) return;
-    if (manual){
-      goTo(S.index+1);
-      return;
-    }
-    // auto: no wrap; stop when exhausted
-    if (S.index+1 < S.queue.length){
-      goTo(S.index+1);
-    } else {
-      // done
-      cancelCountdown();
-      setBar(0);
-      S.nameEl && (S.nameEl.textContent='All done');
-      S.remEl && (S.remEl.textContent='0 remaining');
-    }
-  }
-  function prevClient(manual){
-    if (!S.queue.length) return;
-    // prev is always manual => wrap allowed
-    goTo(S.index-1);
-  }
-
-  function removeByName(name){
-    const i = S.queue.findIndex(q=>q.name===name);
-    if (i<0) return;
-    const removingCurrent = (i===S.index);
-    S.queue.splice(i,1);
-    if (!S.queue.length){
-      renderHUD();
-      cancelCountdown();
-      setBar(0);
-      return;
-    }
-    if (removingCurrent){
-      if (S.index >= S.queue.length) S.index = S.queue.length-1;
-      goTo(S.index); // load the new current
-    } else {
-      if (i < S.index) S.index--; // keep current item fixed visually
-      renderHUD();
-    }
-  }
-
-  // ---- live pruning: if chip date moves forward, drop them ----
-  function pruneQueueOnDateChange(){
-    if (!(window.google && google.script && google.script.run)) return;
-    // fetch fresh chip dates for names currently in queue
-    const names = S.queue.map(x=>x.name);
-    if (!names.length) return;
-
-    google.script.run
-      .withSuccessHandler(function(rows){
-        const map = Object.create(null);
-        (rows||[]).forEach(r => { map[r.name]=r.chipDateISO; });
-        // remove any that are now > today
-        const toDrop = S.queue.filter(q => !eligible(map[q.name]));
-        toDrop.forEach(q => removeByName(q.name));
-      })
-      .getChipDatesForNames(names); // provided in Section 3
-  }
-
-  function startPolling(){
-    stopPolling();
-    S.pollingTimer = setInterval(pruneQueueOnDateChange, 25000); // ~25s
-  }
-  function stopPolling(){
-    if (S.pollingTimer){ clearInterval(S.pollingTimer); S.pollingTimer=0; }
-  }
-
-  // ---- public API ----
-  window.openNotesCarouselPopup = function(){
-    if (!S.overlay) buildOverlay();
-    const last = restoreLastDuration();
-    setDurationPerClient(last);
-
-    fetchJBQueue().then(queue=>{
-      S.queue = queue.slice();
-      S.index = 0;
-      S.paused = false;
-      renderHUD();
-      if (!S.queue.length){
-        S.nameEl && (S.nameEl.textContent='No JB clients due (today or earlier).');
-        setBar(0);
-        return;
-      }
-      goTo(0);
-      startPolling();
-    }).catch(err=>{
-      console.error('fetchJBQueue failed:', err);
-      if (S.nameEl) S.nameEl.textContent = 'Could not load queue';
-      setBar(0);
-    });
-  };
-
-  window.closeNotesCarouselPopup = function(){
-    stopPolling();
-    cancelCountdown();
-    destroyOverlay();
-    if (typeof hideClientNotes === 'function') try{ hideClientNotes(); }catch(_){}
-  };
-
-  // expose manual controls (if you ever want to call from elsewhere)
-  window.notesCarousel = {
-    next: ()=>nextClient(true),
-    prev: ()=>prevClient(true),
-    togglePause,
-    setMinutes: setDurationPerClient,
-    removeByName
-  };
-})();
-
- function insertFocusButtonNextToChangeView() {
-    const btn = document.createElement('button');
-    btn.id = 'jbCycleBtn';
-    btn.textContent = 'FOCUS: Cycle JB Notes';
-    btn.className = 'primary-button';
-    btn.style.marginLeft = '8px';
-btn.onclick = fmOpenFocus;
-
-    // Try to find the green bar label/button that says "CHANGE VIEW"
-    const all = document.querySelectorAll('button, a, span, div');
-    let anchor = null;
-    for (const el of all) {
-      if (!el || !el.textContent) continue;
-      if (el.textContent.trim().toUpperCase() === 'CHANGE VIEW') { anchor = el; break; }
-    }
-    if (anchor && anchor.parentElement) {
-      anchor.parentElement.insertBefore(btn, anchor.nextSibling);
-      return;
-    }
-    // Fallback: titleButtonContainer
-    const fallback = document.getElementById('titleButtonContainer');
-    if (fallback) fallback.appendChild(btn);
-  }
-  document.addEventListener('DOMContentLoaded', insertFocusButtonNextToChangeView);
-
- // Insert FOCUS button next to "CHANGE VIEW" in the green bar
-  (function insertFocusButtonNextToChangeView(){
-    function byText(el, text){ return el && el.textContent && el.textContent.trim().toUpperCase() === text; }
-    function placeButton(anchor){
-      if (!anchor) return;
-      if (document.getElementById('jbFocusBtn')) return; // avoid dupes
-      const btn = document.createElement('button');
-      btn.id = 'jbFocusBtn';
-      btn.textContent = 'FOCUS: Cycle JB Notes';
-      btn.className = 'primary-button';
-      btn.style.marginLeft = '8px';
-btn.addEventListener('click', openNotesCarouselPopup);
-      anchor.insertAdjacentElement('afterend', btn);
-    }
-
-    function tryPlace(){
-      // 1) Try a known id near your green bar controls (adjust if needed)
-      let anchor = document.querySelector('#titleButtonContainer button, #dateCategoryRow button');
-      // 2) If unknown, scan all buttons for exact label "CHANGE VIEW"
-      if (!anchor) {
-        const btns = document.querySelectorAll('button');
-        for (const b of btns){
-          if (byText(b, 'CHANGE VIEW')) { anchor = b; break; }
-        }
-      }
-      if (anchor) placeButton(anchor);
-    }
-
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', tryPlace);
-    } else {
-      tryPlace();
-    }
-  })();
-
-  /* ===== Timer / Progress for auto-advance ===== */
-FM.timer = {
-  intervalId: null,
-  endTs: 0,
-  durationMs: 0
-};
-
-function fmSetDurationFromInput(){
-  const mins = Math.max(0.5, parseFloat(document.getElementById('focusMinutes')?.value || '2'));
-  FM.timer.durationMs = mins * 60 * 1000;
-}
-
-function fmStopTimer(){
-  if (FM.timer.intervalId){
-    clearInterval(FM.timer.intervalId);
-    FM.timer.intervalId = null;
-  }
-  const prog = document.getElementById('focusProg');
-  const cd   = document.getElementById('focusCountdown');
-  if (prog) prog.style.width = '0%';
-  if (cd)   cd.textContent = '—';
-}
-
-function fmStartTimer(){
-  fmStopTimer();
-  fmSetDurationFromInput();
-  FM.timer.endTs = Date.now() + FM.timer.durationMs;
-
-  const prog = document.getElementById('focusProg');
-  const cd   = document.getElementById('focusCountdown');
-
-  function tick(){
-    const now = Date.now();
-    const rem = Math.max(0, FM.timer.endTs - now);
-    const pct = Math.min(100, 100 - (rem / FM.timer.durationMs) * 100);
-    if (prog) prog.style.width = pct.toFixed(1) + '%';
-    if (cd){
-      const s = Math.ceil(rem/1000);
-      cd.textContent = s + 's';
-    }
-    if (rem <= 0){
-      // Auto-advance when full
-      focusAdvance(+1);
-    }
-  }
-  tick();
-  FM.timer.intervalId = setInterval(tick, 200);
-}
-
-
-function focusAdvance(delta){
-  const catSel = document.getElementById('focusCategory');
-  const currentCat = catSel ? catSel.value : 'JB';
-  const curName = (FM.list[FM.idx] && FM.list[FM.idx].name) || null;
-
-  google.script.run.withSuccessHandler(function(rows){
-    const newList = rows || [];
-    let baseIdx = -1;
-    if (curName){
-      baseIdx = newList.findIndex(x => x.name === curName);
-    }
-    FM.list = newList;
-
-    if (!FM.list.length){
-      const host = document.getElementById('focusNotesHost');
-      if (host){
-        host.innerHTML = `<div style="padding:16px;">No ${currentCat} clients with chip ≤ today. Try a different category.</div>`;
-      }
-      document.getElementById('focusClientName').textContent = '—';
-      fmStopTimer();
-      return;
-    }
-
-    if (baseIdx === -1){
-      FM.idx = (delta >= 0) ? 0 : (FM.list.length - 1);
-    } else {
-      FM.idx = (baseIdx + delta + FM.list.length) % FM.list.length;
-    }
-
-    showFocusClient();   // render the new client
-    fmStartTimer();      // restart timer for the new client
-  }).listDueClientsByCategory(currentCat);
-}
-
-// Rewire buttons and category change to restart timer / refresh list
-(function(){
-  const nextBtn = document.getElementById('focusNextBtn');
-  const backBtn = document.getElementById('focusBackBtn');
-  const catSel  = document.getElementById('focusCategory');
-  const minsInp = document.getElementById('focusMinutes');
-
-  if (nextBtn && !nextBtn._rf){
-    nextBtn.addEventListener('click', function(){ focusAdvance(+1); });
-    nextBtn._rf = true;
-  }
-  if (backBtn && !backBtn._rf){
-    backBtn.addEventListener('click', function(){ focusAdvance(-1); });
-    backBtn._rf = true;
-  }
-  if (catSel && !catSel._rf){
-    catSel.addEventListener('change', function(){
-      refreshFocusList(catSel.value, /*andShow=*/true);
-      // showFocusClient() will run via refresh; start/restart timer afterward
-      setTimeout(fmStartTimer, 50);
-    });
-    catSel._rf = true;
-  }
-  if (minsInp && !minsInp._rf){
-    minsInp.addEventListener('change', function(){
-      // Apply new minutes immediately (restart for current client)
-      fmStartTimer();
-    });
-    minsInp._rf = true;
-  }
-})();
-
-// === FOCUS OVERLAY LOGIC (self-contained) ===
-(function(){
-  // DOM ids we already have in your file:
-  // - #focusOverlay, #focusPanel, #focusHeader
-  // - #focusCategory (JB/RB/TEAM/QC/BDAY)
-  // - #focusMinutes (number), #focusCountdown (span), #focusProgWrap/#focusProg
-  // - #focusBackBtn, #focusNextBtn, #focusCloseBtn
-  // - #focusClientName
-  // - #focusNotesHost (the popup body where we will reparent your real notes)
-  // - #workSectionsContainer (your existing visible notes area)
-  // - #clientSelect (your existing select used by showClientNotes)
-
-  // Keep track of list + where the notes DOM came from so we can put it back.
-  const FOCUS = {
-    list: [],        // [{name, chipDateISO}]
-    idx: -1,         // current index in list
-    homeParent: null,
-    homeNext: null,
-    timerId: null,
-    endTs: 0
-  };
-
-  function $(id){ return document.getElementById(id); }
-
-  function moveNotesIntoPopup(){
-    const notes = $('workSectionsContainer');
-    const host  = $('focusNotesHost');
-    if (!notes || !host) return;
-    if (!FOCUS.homeParent){
-      FOCUS.homeParent = notes.parentNode;
-      FOCUS.homeNext   = notes.nextSibling; // may be null
-    }
-    host.innerHTML = '';
-    host.appendChild(notes);
-    notes.style.display = 'flex'; // make sure it's visible in popup
-  }
-
-  function moveNotesBack(){
-    const notes = $('workSectionsContainer');
-    if (!notes || !FOCUS.homeParent) return;
-    if (FOCUS.homeNext) {
-      FOCUS.homeParent.insertBefore(notes, FOCUS.homeNext);
-    } else {
-      FOCUS.homeParent.appendChild(notes);
-    }
-  }
-
-  function setCountdownUI(msLeft, totalMs){
-    const cd  = $('focusCountdown');
-    const bar = $('focusProg');
-    if (cd){
-      const s = Math.max(0, Math.ceil(msLeft/1000));
-      const m = Math.floor(s/60);
-      const r = s % 60;
-      cd.textContent = (m>0 ? (m + 'm ') : '') + r + 's';
-    }
-    if (bar && totalMs > 0){
-      const frac = Math.max(0, Math.min(1, 1 - (msLeft/totalMs)));
-      bar.style.width = (frac*100).toFixed(1) + '%';
-    }
-  }
-
-  function stopTimer(){
-    if (FOCUS.timerId){ clearInterval(FOCUS.timerId); FOCUS.timerId = null; }
-    $('focusProg') && ($('focusProg').style.width = '0%');
-    $('focusCountdown') && ($('focusCountdown').textContent = '—');
-  }
-
-  function startTimer(){
-    stopTimer();
-    const mins = Math.max(0.5, parseFloat(($('focusMinutes')?.value)||'2'));
-    const total = mins * 60 * 1000;
-    FOCUS.endTs = Date.now() + total;
-    FOCUS.timerId = setInterval(function(){
-      const left = FOCUS.endTs - Date.now();
-      if (left <= 0){
-        setCountdownUI(0, total);
-        focusAdvance(+1); // auto-advance
-        return;
-      }
-      setCountdownUI(left, total);
-    }, 200);
-  }
-
-  function showFocusClient(){
-    if (!FOCUS.list.length){ return; }
-    const cur = FOCUS.list[FOCUS.idx];
-    $('focusClientName').textContent = cur.name;
-
-    // Tell your normal UI to load that client, then reparent the same notes DOM into popup
-    const sel = $('clientSelect');
-    if (sel) sel.value = cur.name;
-    if (typeof showClientNotes === 'function') showClientNotes();
-
-    moveNotesIntoPopup();
-  }
-
-  function focusAdvance(delta){
-    if (!FOCUS.list.length) return;
-    FOCUS.idx = (FOCUS.idx + delta + FOCUS.list.length) % FOCUS.list.length;
-    showFocusClient();
-    startTimer();
-  }
-
-  function refreshList(cat, andShow){
-    if (!(window.google && google.script && google.script.run)){
-      // fallback: empty
-      FOCUS.list = [];
-      $('focusNotesHost').innerHTML = '<div style="padding:16px;">Apps Script runtime unavailable.</div>';
-      return;
-    }
-    google.script.run.withSuccessHandler(function(rows){
-      FOCUS.list = Array.isArray(rows) ? rows : [];
-      if (!FOCUS.list.length){
-        $('focusClientName').textContent = '—';
-        $('focusNotesHost').innerHTML =
-          '<div style="padding:16px;">No ' + cat + ' clients with chip ≤ today. Try a different category.</div>';
-        stopTimer();
-        return;
-      }
-      if (andShow){
-        FOCUS.idx = 0;
-        showFocusClient();
-        startTimer();
-      }
-    }).listDueClientsByCategory(cat);
-  }
-
-  // === public open/close ===
-  window.fmOpenFocus = function(){
-    const ov = $('focusOverlay');
-    if (!ov) return;
-    ov.style.display = 'block';
-    const catSel = $('focusCategory');
-    const cat = catSel ? catSel.value : 'JB';
-    refreshList(cat, /*andShow=*/true);
-  };
-
-  window.fmCloseFocus = function(){
-    stopTimer();
-    moveNotesBack();
-    const ov = $('focusOverlay');
-    if (ov) ov.style.display = 'none';
-  };
-
-  // === wire header controls ===
-  (function wire(){
-    const nextBtn = $('focusNextBtn');
-    const backBtn = $('focusBackBtn');
-    const closeBtn = $('focusCloseBtn');
-    const catSel = $('focusCategory');
-    const minsInp = $('focusMinutes');
-
-    nextBtn && nextBtn.addEventListener('click', function(){ focusAdvance(+1); });
-    backBtn && backBtn.addEventListener('click', function(){ focusAdvance(-1); });
-    closeBtn && closeBtn.addEventListener('click', fmCloseFocus);
-    catSel && catSel.addEventListener('change', function(){ refreshList(catSel.value, /*andShow=*/true); });
-    minsInp && minsInp.addEventListener('change', function(){ startTimer(); });
-  })();
-})();
-
-
-// Wire the in-markup FOCUS button to the popup open function
-(function(){
-  function wireFocusBtn(){
-    const btn = document.getElementById('focusBtn');
-    if (!btn) return;
-    btn.addEventListener('click', function(){
-      if (typeof fmOpenFocus === 'function') {
-        fmOpenFocus();
-      } else {
-        console.warn('fmOpenFocus() is not defined yet.');
-      }
-    });
-  }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', wireFocusBtn);
-  } else {
-    wireFocusBtn();
-  }
-})();
-
-
 </script>
 
 
 
-<script>
-  // === Chips helpers (from v393, neutralized & portable) ===
-
-  function normalizeChipDate(input) {
-    if (!input) return '';
-    let s = String(input).trim();
-
-    // mmddyy (e.g., 102625) -> 10/26/25
-    if (/^\d{6}$/.test(s)) {
-      const mm = s.slice(0, 2), dd = s.slice(2, 4), yy = s.slice(4, 6);
-      return `${mm}/${dd}/${yy}`;
-    }
-
-    // yyyy-mm-dd -> mm/dd/yy
-    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-      const [Y, M, D] = s.split('-');
-      return `${M}/${D}/${String(Y).slice(-2)}`;
-    }
-
-    // Try Date() for other human formats
-    const d = new Date(s);
-    if (!Number.isNaN(d.getTime())) {
-      const M = String(d.getMonth() + 1).padStart(2, '0');
-      const D = String(d.getDate()).padStart(2, '0');
-      const Y = String(d.getFullYear()).slice(-2);
-      return `${M}/${D}/${Y}`;
-    }
-    return s; // fallback unchanged
-  }
-
-  // READ-ONLY chip element
-  function createChipElementReadOnly(clientName, initials, dateLike) {
-    const safeInitials = (initials || '').toUpperCase().trim();
-    const safeDate = normalizeChipDate(dateLike || '');
-
-    const chip = document.createElement('span');
-    chip.className = 'chip ' + (safeInitials ? safeInitials : 'EMPTY');
-
-    if (!safeInitials && !safeDate) {
-      const ph = document.createElement('span');
-      ph.className = 'chip-assign';
-      ph.textContent = '(ASSIGN)';
-      chip.appendChild(ph);
-      return chip;
-    }
-
-    if (safeInitials) {
-      const initEl = document.createElement('span');
-      initEl.className = 'chip-initials';
-      initEl.textContent = safeInitials;
-      chip.appendChild(initEl);
-    }
-
-    if (safeInitials && safeDate) {
-      const sepEl = document.createElement('span');
-      sepEl.className = 'chip-sep';
-      sepEl.textContent = ' | ';
-      chip.appendChild(sepEl);
-    }
-
-    if (safeDate) {
-      const dateEl = document.createElement('span');
-      dateEl.className = 'chip-date';
-      dateEl.textContent = safeDate;
-      chip.appendChild(dateEl);
-    }
-
-    return chip;
-  }
-
-  // Convenience: attach a chip to a container
-  function attachChip(container, initials, dateLike) {
-    const el = (typeof container === 'string') ? document.querySelector(container) : container;
-    if (!el) return null;
-    const chip = createChipElementReadOnly('', initials, dateLike);
-    el.appendChild(chip);
-    return chip;
-  }
-</script>
 
 </body>
 </html>
