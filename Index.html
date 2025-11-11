@@ -2783,6 +2783,106 @@ input#clientAutocomplete, select#clientSelect {
 .btn-primary { background: #21a45e; color: #fff; }
 
 
+/* === 2024-12 Layout tightening for recents/header/client pills === */
+.recent-row#recentRow {
+  flex-wrap: nowrap !important;
+  align-items: center;
+  gap: 8px;
+}
+
+#recentRow #recentClientsBar {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+#recentRow #recentClientsBar .recent-pill {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0.35em 0.6em;
+  text-align: center;
+  white-space: nowrap;
+}
+
+#addNewClientBtn {
+  position: static !important;
+  transform: none !important;
+  margin: 0 !important;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35em;
+  padding: 0.45em 0.9em;
+  white-space: nowrap !important;
+  font-size: 1em;
+  line-height: 1.1;
+}
+
+#topClientsAddNewRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: nowrap;
+  position: relative;
+}
+
+#topClientsAddNewRow > * {
+  position: static !important;
+  margin: 0 !important;
+}
+
+#topClientsTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#topClientsFilterDropdown {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+  max-width: min(28vw, 180px);
+  padding: 0.35em 0.9em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+#suggestionsToggleBtn {
+  flex: 0 0 auto;
+  padding: 0.45em 0.75em;
+}
+
+#topClientsDisplay .inline-button.client-button {
+  display: inline-flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  text-align: left;
+  white-space: normal;
+  line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 0.5em 0.75em;
+  gap: 0.25em;
+}
+
+#topClientsDisplay .inline-button.client-button .client-button__label {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+  word-break: break-word;
+  text-overflow: ellipsis;
+}
+
 </style>
 
 
@@ -3549,9 +3649,8 @@ function scheduleSuggestionTextareaFit(textarea) {
 function applySuggestionsVisibility() {
   var blocks = document.querySelectorAll('.toplist-suggestion');
   blocks.forEach(function(b) {
-    b.style.display = window.__suggestionsVisible ? 'block' : 'none';
-        var visible = !!window.__suggestionsVisible;
-    b.style.display = visible ? 'block' : 'none';
+    var visible = !!window.__suggestionsVisible;
+    b.style.display = visible ? 'flex' : 'none';
     if (visible) {
       var ta = b.querySelector('textarea');
       if (ta) scheduleSuggestionTextareaFit(ta);
@@ -7261,8 +7360,10 @@ function showClients(clients, container) {
     // Create a button for the client name
     var clientNameButton = document.createElement('button');
     clientNameButton.className = 'inline-button client-button';
-    clientNameButton.innerText = client.name;
-    clientNameButton.onclick = function() {
+    var clientNameLabel = document.createElement('span');
+    clientNameLabel.className = 'client-button__label';
+    clientNameLabel.textContent = client.name;
+    clientNameButton.appendChild(clientNameLabel);    clientNameButton.onclick = function() {
       selectClientFromButton(client.name);
     };
     clientDiv.appendChild(clientNameButton);
@@ -7907,8 +8008,11 @@ function displayClient(client, container) {
 
   var clientButton = document.createElement('button');
   clientButton.className = 'inline-button client-button';
-  clientButton.innerText = client.name + (client.category ? ' (' + client.category + ')' : '');
-  clientButton.style.cssText = "display:inline-flex; align-items:center;";
+  clientButton.style.cssText = "display:inline-flex; align-items:flex-start;";
+  var clientButtonLabel = document.createElement('span');
+  clientButtonLabel.className = 'client-button__label';
+  clientButtonLabel.textContent = client.name + (client.category ? ' (' + client.category + ')' : '');
+  clientButton.appendChild(clientButtonLabel);
   clientButton.addEventListener('click', function () {
     // prime chip cache so details view shows same chip
     window.__chipForCurrentClient = {
