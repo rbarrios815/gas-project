@@ -6895,33 +6895,101 @@ function extractClientNameFromTask(taskString) {
     return ''; // Return empty string if not found
 }
 
+function normalizeClientNameForMatch(name) {
+  var base = '';
+  if (typeof extractBaseName === 'function') {
+    base = extractBaseName(name || '');
+  } else {
+    base = String(name || '').replace(/\d+$/, '').trim();
+  }
+
+  return String(base || '')
+    .toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function findClientOptionByBaseName(targetName) {
+  var clientSelect = document.getElementById('clientSelect');
+  if (!clientSelect) return null;
+
+  var rawTarget = String(targetName || '').trim();
+  if (!rawTarget) return null;
+
+  var lowerTarget = rawTarget.toLowerCase();
+  var normalizedTarget = normalizeClientNameForMatch(rawTarget);
+  var fallbackByPrefix = null;
+  var fallbackByNormalized = null;
+
+  for (var i = 0; i < clientSelect.options.length; i++) {
+    var option = clientSelect.options[i];
+    var optionText = option.text || option.value || '';
+    var optionClientName = optionText.split(' (')[0].trim();
+    var optionValue = (option.value || '').trim();
+    var lowerOptionName = optionClientName.toLowerCase();
+    var lowerOptionValue = optionValue.toLowerCase();
+
+    if (lowerOptionName === lowerTarget || lowerOptionValue === lowerTarget) {
+      return { option: option, index: i };
+    }
+
+    if (!fallbackByPrefix && lowerTarget.startsWith(lowerOptionName)) {
+      fallbackByPrefix = { option: option, index: i };
+    }
+
+    if (!fallbackByPrefix && lowerOptionName.startsWith(lowerTarget)) {
+      fallbackByPrefix = { option: option, index: i };
+    }
+
+    if (!fallbackByNormalized) {
+      var normalizedOption = normalizeClientNameForMatch(optionClientName);
+      if (normalizedOption && normalizedOption === normalizedTarget) {
+        fallbackByNormalized = { option: option, index: i };
+      }
+    }
+  }
+
+  return fallbackByPrefix || fallbackByNormalized;
+}
+
 // This function will be called when the task button is clicked
 function selectClientFromButton(clientText) {
+  hideClientNotes(); // Call the function when the input is clicked into
 
-        hideClientNotes(); // Call the function when the input is clicked into
+  var match = findClientOptionByBaseName(clientText);
+  if (!match) {
+    console.warn('Client not found in dropdown:', clientText);
+    return;
+  }
 
+  var clientSelect = document.getElementById('clientSelect');
+  if (!clientSelect) return;
 
-    var clientSelect = document.getElementById('clientSelect');
+  clientSelect.selectedIndex = match.index;
 
-    for (var i = 0; i < clientSelect.options.length; i++) {
-        // Extract the client name and category from the dropdown option
-        var optionText = clientSelect.options[i].text;
-        var optionClientName = optionText.split(' (')[0]; // Get the client name before the '('
+  var chosenOption = match.option;
+  var optionValue = chosenOption.value;
+  var optionText = chosenOption.text || optionValue;
 
-        // Check if the client names match (without considering the category)
-        if (clientText.startsWith(optionClientName)) {
-            clientSelect.selectedIndex = i;
-            showClientNotes(); // Refresh client notes if needed
-            if (typeof onClientOpened === 'function') {
-                var openedClientName = ((clientSelect && clientSelect.value) || clientText || '').trim();
-                if (openedClientName) {
-                    onClientOpened(openedClientName);
-                }
-            }
-            scrollToTop(); // Scroll to the top of the page
-            break;
-        }
+  // Mirror the dropdown text in the autocomplete input for consistency
+  var autoInput = document.getElementById('clientAutocomplete');
+  if (autoInput) {
+    autoInput.value = optionText;
+    autoInput.style.color = 'black';
+  }
+
+  showClientNotes(); // Refresh client notes if needed
+
+  if (typeof onClientOpened === 'function') {
+    var canonicalName = (optionValue || optionText || clientText || '').trim();
+    if (canonicalName) {
+      onClientOpened(canonicalName);
     }
+  }
+
+  scrollToTop(); // Scroll to the top of the page
 }
 
 // 1) Paint function
@@ -7069,9 +7137,12 @@ document.addEventListener('DOMContentLoaded', loadRecentBar);
 
 // 3) Whenever a client is opened, log it and refresh the bar
 function onClientOpened(name){
+  var canonical = normalizeClientNameForMatch(name);
+  if (!canonical) return;
+
   google.script.run
     .withSuccessHandler(() => loadRecentBar())
-    .logRecentClient(name, 3);
+    .logRecentClient(canonical, 3);
 }
 
 // If you have a central place that runs when a client is selected, call onClientOpened there.
@@ -9484,19 +9555,6 @@ document.addEventListener('DOMContentLoaded', ensureSuggestionsButtonInToolbar);
     }).join('');
   }
 
-  // When a pill is clicked, do whatever your app already does to open a client:
-  function selectClientFromRecent(name) {
-    // Example: set your dropdown + trigger your existing load
-    const dd = document.getElementById('clientDropdown');
-    if (dd) {
-      dd.value = name;
-      // call your existing loader function if you have one
-      if (typeof onClientSelected === 'function') onClientSelected();
-      // also re-log to bump it to top (optional)
-      onClientOpened(name);
-    }
-  }
-
   // Simple HTML escaper for safety
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -9550,19 +9608,34 @@ document.addEventListener('DOMContentLoaded', ensureSuggestionsButtonInToolbar);
 
   // 4) What happens when a pill is clicked
   function selectClientFromRecent(name) {
-    // Put the name into your dropdown + trigger your existing loader
-    const dd = document.getElementById('clientSelect');
-    if (dd) {
-      dd.value = name;
-      // Mirror the text in your autocomplete input
-      const txt = [...dd.options].find(o => o.value === name)?.text || name;
-      const auto = document.getElementById('clientAutocomplete');
-      if (auto) auto.value = txt;
+    if (typeof selectClientFromButton === 'function') {
+      selectClientFromButton(name);
+      return;
+    }
 
-      if (typeof showClientNotes === 'function') showClientNotes(); // your existing flow
-      onClientOpened(name); // bump to top
-      // Optional: scroll to top where your notes live
-      if (typeof scrollToTop === 'function') scrollToTop();
+    const dd = document.getElementById('clientSelect');
+    if (!dd) return;
+
+    const match = findClientOptionByBaseName(name);
+    if (!match) {
+      console.warn('Recent client not found in dropdown:', name);
+      return;
+    }
+
+    dd.selectedIndex = match.index;
+
+    const auto = document.getElementById('clientAutocomplete');
+    if (auto) {
+      const optionText = match.option.text || match.option.value || name;
+      auto.value = optionText;
+      auto.style.color = 'black';
+    }
+
+    if (typeof showClientNotes === 'function') showClientNotes();
+    if (typeof scrollToTop === 'function') scrollToTop();
+
+    if (typeof onClientOpened === 'function') {
+      onClientOpened(normalizeClientNameForMatch(name));
     }
   }
 
