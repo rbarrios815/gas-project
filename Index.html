@@ -3,7 +3,9 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
+<base target="_top">
 <title>Dashboard</title>
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 <style>
   :root{
     --green1:#12b886;
@@ -1204,27 +1206,7 @@ function loadRecent(done){
 
 
 
-</body>
-</html>
-
-
-
-
-
-
-
-
-
-
-
-
-<!DOCTYPE html>
-<html>
-<head>
-    <base target="_top">
-    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-
-   <style>
+<style>
   :root {
     --background-color: #E6F0FF; /* Default background color */
     --text-color: #000000; /* Default text color - black */
@@ -2971,8 +2953,7 @@ input#clientAutocomplete, select#clientSelect {
 </style>
 
 
-</head>
-<body onload="loadAllHeatmaps()">
+
     <!-- Loading Bar -->
 
   <div id="loadingBarContainer" style="display: none;">
@@ -7387,6 +7368,8 @@ function loadAllHeatmaps() {
     getAndDrawHeatmapData();
     getAndDrawFutureHeatmapData();
 }
+
+document.addEventListener('DOMContentLoaded', loadAllHeatmaps);
 
 
     function drawScatterPlot() {
