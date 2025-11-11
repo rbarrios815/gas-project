@@ -3009,7 +3009,7 @@ input#clientAutocomplete, select#clientSelect {
 
   </div>
 
-  <select id="clientSelect" onchange="showClientNotes()" style="display: none;">
+  <select id="clientSelect" onchange="showClientNotes(); if (typeof onClientOpened === 'function') { var sel = this; var opened = (sel && sel.value) || ''; if (opened) { onClientOpened(opened); } }" style="display: none;">
     <option value="" disabled selected>Select a Client</option>
   </select>
 </div>
@@ -6912,6 +6912,12 @@ function selectClientFromButton(clientText) {
         if (clientText.startsWith(optionClientName)) {
             clientSelect.selectedIndex = i;
             showClientNotes(); // Refresh client notes if needed
+            if (typeof onClientOpened === 'function') {
+                var openedClientName = ((clientSelect && clientSelect.value) || clientText || '').trim();
+                if (openedClientName) {
+                    onClientOpened(openedClientName);
+                }
+            }
             scrollToTop(); // Scroll to the top of the page
             break;
         }
@@ -7097,6 +7103,12 @@ function selectClientFromCalendarTask(clientName) {
         if (clientSelect.options[i].text.includes(clientName)) {
             clientSelect.selectedIndex = i;
             showClientNotes();
+            if (typeof onClientOpened === 'function') {
+                var calendarOpenedName = ((clientSelect && clientSelect.value) || clientName || '').trim();
+                if (calendarOpenedName) {
+                    onClientOpened(calendarOpenedName);
+                }
+            }
             scrollToTop(); // Smooth scroll to the top
             break;
         }
