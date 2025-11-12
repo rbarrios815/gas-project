@@ -3,7 +3,9 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
+<base target="_top">
 <title>Dashboard</title>
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 <style>
   :root{
     --green1:#12b886;
@@ -680,35 +682,6 @@ function showToast(msg, ms=1700){
   setTimeout(() => t.classList.remove('show'), ms);
 }
 
-/** Add a note to "recentList" (simulates Notes Inbox) **/
-function addNote(text){
-  const trimmed = (text || '').trim();
-  const area = document.getElementById('noteInput');
-  if(!trimmed){
-    showToast('Nothing to add');
-    return;
-  }
-  const list = document.getElementById('recentList');
-  const item = document.createElement('div');
-  item.className = 'item';
-  item.innerHTML = `
-    <div class="note"></div>
-    <div class="meta">Saved ${new Date().toLocaleString()}</div>
-  `;
-  item.querySelector('.note').textContent = trimmed;
-  list.prepend(item);
-
-  // Clear textarea after add
-  if(area) area.value = '';
-  showToast('Note saved');
-}
-
-/** Wire up ADD button (manual add) **/
-document.getElementById('addBtn')?.addEventListener('click', () => {
-  const text = document.getElementById('noteInput')?.value || '';
-  addNote(text);
-});
-
 /* =========================
    Web Speech (no triple print)
    =========================
@@ -974,36 +947,55 @@ setState(startOpen);
 
 
 const addBtn = document.getElementById('addBtn');
+let addNotePending = false;
 
+function addNote(textOverride){
+  if (addNotePending) {
+    return;
+  }
 
-function addNote(){
-  const txt = (noteInput.value || '').trim();
-  if (!txt) { addStatus.textContent = ''; return; }
+  const rawText = typeof textOverride === 'string' ? textOverride : (noteInput.value || '');
+  const txt = rawText.trim();
+  if (!txt) {
+    addStatus.textContent = '';
+    return;
+  }
 
+  addNotePending = true;
   startLoading();
   addStatus.textContent = '';
-  addBtn.disabled = true;
+  if (addBtn) {
+    addBtn.disabled = true;
+  }
 
   google.script.run
     .withSuccessHandler(_ => {
-      noteInput.value = '';
-      // Refresh list, then stop loader (inside loadRecent), then re-enable + toast
+      if (noteInput) {
+        noteInput.value = '';
+      }
+
       loadRecent(() => {
-        addBtn.disabled = false;
+        addNotePending = false;
+        if (addBtn) {
+          addBtn.disabled = false;
+        }
         showToast('Note added successfully');
       });
     })
     .withFailureHandler(err => {
       console.log(err);
       stopLoading();
-      addBtn.disabled = false;
+      addNotePending = false;
+      if (addBtn) {
+        addBtn.disabled = false;
+      }
       showToast('Error adding note');
     })
     .inboxAddNote(txt);
 }
 
 
-addBtn.addEventListener('click', addNote);
+addBtn?.addEventListener('click', () => addNote());
 
     /* Recent (5) with assign */
   const recentList = document.getElementById('recentList');
@@ -1214,27 +1206,7 @@ function loadRecent(done){
 
 
 
-</body>
-</html>
-
-
-
-
-
-
-
-
-
-
-
-
-<!DOCTYPE html>
-<html>
-<head>
-    <base target="_top">
-    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-
-   <style>
+<style>
   :root {
     --background-color: #E6F0FF; /* Default background color */
     --text-color: #000000; /* Default text color - black */
@@ -2981,8 +2953,7 @@ input#clientAutocomplete, select#clientSelect {
 </style>
 
 
-</head>
-<body onload="loadAllHeatmaps()">
+
     <!-- Loading Bar -->
 
   <div id="loadingBarContainer" style="display: none;">
@@ -3038,7 +3009,7 @@ input#clientAutocomplete, select#clientSelect {
 
   </div>
 
-  <select id="clientSelect" onchange="showClientNotes()" style="display: none;">
+  <select id="clientSelect" onchange="showClientNotes(); if (typeof onClientOpened === 'function') { var sel = this; var opened = (sel && sel.value) || ''; if (opened) { onClientOpened(opened); } }" style="display: none;">
     <option value="" disabled selected>Select a Client</option>
   </select>
 </div>
@@ -4333,7 +4304,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Force the EMAIL SUMMARY button to be visible immediately
   // (In case any default CSS hides it, this ensures it's displayed.)
-document.getElementById('scrollBottomBtn').style.display = 'inline-block';
+  var scrollBottomBtn = document.getElementById('scrollBottomBtn');
+  if (scrollBottomBtn) {
+    scrollBottomBtn.style.display = 'inline-block';
+  }
 }
 /***** END SNIPPET *****/
 
@@ -6834,47 +6808,59 @@ var suggestions; // Keep this global to store suggestions
 
 function autocompleteClient() {
   var clientSelect = document.getElementById('clientSelect');
+  var inputElement = document.getElementById('clientAutocomplete');
+  if (!clientSelect || !inputElement) {
+    return;
+  }
 
-    var inputElement = document.getElementById('clientAutocomplete');
+  if (!suggestions) {
     suggestions = document.getElementById('autocompleteSuggestions');
-    if (!suggestions) {
-        suggestions = document.createElement('div');
-        suggestions.id = 'autocompleteSuggestions';
-        inputElement.parentNode.appendChild(suggestions);
+  }
+  if (!suggestions) {
+    suggestions = document.createElement('div');
+    suggestions.id = 'autocompleteSuggestions';
+    inputElement.parentNode.appendChild(suggestions);
+  }
+
+  var inputValue = inputElement.value.trim().toLowerCase();
+
+  suggestions.innerHTML = '';
+  suggestions.style.display = 'none';
+
+  if (!inputValue) {
+    return;
+  }
+
+  var rect = inputElement.getBoundingClientRect();
+  var availableHeight = window.innerHeight - rect.bottom;
+  suggestions.style.maxHeight = availableHeight + 'px';
+
+  (clientsData || []).forEach(function(client) {
+    if (!client || !client.rowText || !client.clientName) {
+      return;
     }
 
-    inputElement.addEventListener('input', function() {
-        var inputValue = inputElement.value.toLowerCase();
+    if (client.rowText.includes(inputValue)) {
+      var suggestion = document.createElement('div');
+      var displayText = client.clientName + (client.category ? ' (' + client.category + ')' : '');
+      suggestion.textContent = displayText;
 
-        // Clear current suggestions
+      suggestion.onclick = function() {
+        inputElement.value = displayText;
+        clientSelect.value = client.clientName;
         suggestions.innerHTML = '';
+        suggestions.style.display = 'none';
+        showClientNotes();
+        scrollToTop();
+      };
 
-        // Calculate the available height below the input field
-        var rect = inputElement.getBoundingClientRect();
-        var availableHeight = window.innerHeight - rect.bottom;
+      suggestions.appendChild(suggestion);
+    }
+  });
 
-        // Set the max-height of suggestions to the available height
-        suggestions.style.maxHeight = availableHeight + 'px';
-
-        // Populate suggestions
-        clientsData.forEach(function(client) {
-            if (client.rowText.includes(inputValue) && inputValue) {
-                var suggestion = document.createElement('div');
-                suggestion.innerHTML = client.clientName + (client.category ? ' (' + client.category + ')' : '');
-
-                suggestion.onclick = function() {
-                    inputElement.value = this.innerHTML;
-                    clientSelect.value = client.clientName;
-                    showClientNotes();
-                        scrollToTop(); // Add this line to scroll to the top
-
-                    suggestions.innerHTML = ''; // Hide suggestions after selection
-                };
-
-                suggestions.appendChild(suggestion);
-            }
-        });
-    });
+  if (suggestions.children.length > 0) {
+    suggestions.style.display = 'block';
+  }
 }
 
 
@@ -6909,27 +6895,114 @@ function extractClientNameFromTask(taskString) {
     return ''; // Return empty string if not found
 }
 
+function normalizeClientNameForMatch(name) {
+  var base = '';
+  if (typeof extractBaseName === 'function') {
+    base = extractBaseName(name || '');
+  } else {
+    base = String(name || '').replace(/\d+$/, '').trim();
+  }
+
+  return String(base || '')
+    .toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return base;
+}
+
+function findClientOptionByBaseName(targetName) {
+  var clientSelect = document.getElementById('clientSelect');
+  if (!clientSelect) return null;
+
+  var rawTarget = String(targetName || '').trim();
+  if (!rawTarget) return null;
+
+  var lowerTarget = rawTarget.toLowerCase();
+  var normalizedTarget = normalizeClientNameForMatch(rawTarget);
+  var fallbackByPrefix = null;
+  var fallbackByNormalized = null;
+  var normalizedTarget = normalizeClientNameForMatch(targetName).toLowerCase();
+  if (!normalizedTarget) return null;
+
+  for (var i = 0; i < clientSelect.options.length; i++) {
+    var option = clientSelect.options[i];
+    var optionText = option.text || option.value || '';
+    var optionClientName = optionText.split(' (')[0].trim();
+    var optionValue = (option.value || '').trim();
+    var lowerOptionName = optionClientName.toLowerCase();
+    var lowerOptionValue = optionValue.toLowerCase();
+
+    if (lowerOptionName === lowerTarget || lowerOptionValue === lowerTarget) {
+      return { option: option, index: i };
+    }
+
+    if (!fallbackByPrefix && lowerTarget.startsWith(lowerOptionName)) {
+      fallbackByPrefix = { option: option, index: i };
+    }
+
+    if (!fallbackByPrefix && lowerOptionName.startsWith(lowerTarget)) {
+      fallbackByPrefix = { option: option, index: i };
+    }
+
+    if (!fallbackByNormalized) {
+      var normalizedOption = normalizeClientNameForMatch(optionClientName);
+      if (normalizedOption && normalizedOption === normalizedTarget) {
+        fallbackByNormalized = { option: option, index: i };
+      }
+    }
+  }
+
+  return fallbackByPrefix || fallbackByNormalized;
+    var optionClientName = optionText.split(' (')[0];
+    var normalizedOption = normalizeClientNameForMatch(optionClientName).toLowerCase();
+
+    if (normalizedOption === normalizedTarget) {
+      return { option: option, index: i };
+    }
+  }
+
+  return null;
+}
+
 // This function will be called when the task button is clicked
 function selectClientFromButton(clientText) {
+  hideClientNotes(); // Call the function when the input is clicked into
 
-        hideClientNotes(); // Call the function when the input is clicked into
+  var match = findClientOptionByBaseName(clientText);
+  if (!match) {
+    console.warn('Client not found in dropdown:', clientText);
+    return;
+  }
 
+  var clientSelect = document.getElementById('clientSelect');
+  if (!clientSelect) return;
 
-    var clientSelect = document.getElementById('clientSelect');
+  clientSelect.selectedIndex = match.index;
 
-    for (var i = 0; i < clientSelect.options.length; i++) {
-        // Extract the client name and category from the dropdown option
-        var optionText = clientSelect.options[i].text;
-        var optionClientName = optionText.split(' (')[0]; // Get the client name before the '('
+  var chosenOption = match.option;
+  var optionValue = chosenOption.value;
+  var optionText = chosenOption.text || optionValue;
 
-        // Check if the client names match (without considering the category)
-        if (clientText.startsWith(optionClientName)) {
-            clientSelect.selectedIndex = i;
-            showClientNotes(); // Refresh client notes if needed
-            scrollToTop(); // Scroll to the top of the page
-            break;
-        }
+  // Mirror the dropdown text in the autocomplete input for consistency
+  var autoInput = document.getElementById('clientAutocomplete');
+  if (autoInput) {
+    autoInput.value = optionText;
+    autoInput.style.color = 'black';
+  }
+
+  showClientNotes(); // Refresh client notes if needed
+
+  if (typeof onClientOpened === 'function') {
+    var canonicalName = (optionValue || optionText || clientText || '').trim();
+    var canonicalName = normalizeClientNameForMatch(optionValue || optionText || clientText);
+    if (canonicalName) {
+      onClientOpened(canonicalName);
     }
+  }
+
+  scrollToTop(); // Scroll to the top of the page
 }
 
 // 1) Paint function
@@ -7077,9 +7150,12 @@ document.addEventListener('DOMContentLoaded', loadRecentBar);
 
 // 3) Whenever a client is opened, log it and refresh the bar
 function onClientOpened(name){
+  var canonical = normalizeClientNameForMatch(name);
+  if (!canonical) return;
+
   google.script.run
     .withSuccessHandler(() => loadRecentBar())
-    .logRecentClient(name, 3);
+    .logRecentClient(canonical, 3);
 }
 
 // If you have a central place that runs when a client is selected, call onClientOpened there.
@@ -7111,6 +7187,12 @@ function selectClientFromCalendarTask(clientName) {
         if (clientSelect.options[i].text.includes(clientName)) {
             clientSelect.selectedIndex = i;
             showClientNotes();
+            if (typeof onClientOpened === 'function') {
+                var calendarOpenedName = ((clientSelect && clientSelect.value) || clientName || '').trim();
+                if (calendarOpenedName) {
+                    onClientOpened(calendarOpenedName);
+                }
+            }
             scrollToTop(); // Smooth scroll to the top
             break;
         }
@@ -7385,6 +7467,8 @@ function loadAllHeatmaps() {
     getAndDrawHeatmapData();
     getAndDrawFutureHeatmapData();
 }
+
+document.addEventListener('DOMContentLoaded', loadAllHeatmaps);
 
 
     function drawScatterPlot() {
@@ -9484,19 +9568,6 @@ document.addEventListener('DOMContentLoaded', ensureSuggestionsButtonInToolbar);
     }).join('');
   }
 
-  // When a pill is clicked, do whatever your app already does to open a client:
-  function selectClientFromRecent(name) {
-    // Example: set your dropdown + trigger your existing load
-    const dd = document.getElementById('clientDropdown');
-    if (dd) {
-      dd.value = name;
-      // call your existing loader function if you have one
-      if (typeof onClientSelected === 'function') onClientSelected();
-      // also re-log to bump it to top (optional)
-      onClientOpened(name);
-    }
-  }
-
   // Simple HTML escaper for safety
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -9550,19 +9621,34 @@ document.addEventListener('DOMContentLoaded', ensureSuggestionsButtonInToolbar);
 
   // 4) What happens when a pill is clicked
   function selectClientFromRecent(name) {
-    // Put the name into your dropdown + trigger your existing loader
-    const dd = document.getElementById('clientSelect');
-    if (dd) {
-      dd.value = name;
-      // Mirror the text in your autocomplete input
-      const txt = [...dd.options].find(o => o.value === name)?.text || name;
-      const auto = document.getElementById('clientAutocomplete');
-      if (auto) auto.value = txt;
+    if (typeof selectClientFromButton === 'function') {
+      selectClientFromButton(name);
+      return;
+    }
 
-      if (typeof showClientNotes === 'function') showClientNotes(); // your existing flow
-      onClientOpened(name); // bump to top
-      // Optional: scroll to top where your notes live
-      if (typeof scrollToTop === 'function') scrollToTop();
+    const dd = document.getElementById('clientSelect');
+    if (!dd) return;
+
+    const match = findClientOptionByBaseName(name);
+    if (!match) {
+      console.warn('Recent client not found in dropdown:', name);
+      return;
+    }
+
+    dd.selectedIndex = match.index;
+
+    const auto = document.getElementById('clientAutocomplete');
+    if (auto) {
+      const optionText = match.option.text || match.option.value || name;
+      auto.value = optionText;
+      auto.style.color = 'black';
+    }
+
+    if (typeof showClientNotes === 'function') showClientNotes();
+    if (typeof scrollToTop === 'function') scrollToTop();
+
+    if (typeof onClientOpened === 'function') {
+      onClientOpened(normalizeClientNameForMatch(name));
     }
   }
 
