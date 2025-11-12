@@ -2509,13 +2509,15 @@ input#clientAutocomplete, select#clientSelect {
   position: relative;
   width: 100%;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .autocomplete-field #clientAutocomplete {
   padding-right: 12px !important;
-  flex: 1 1 auto;
+  flex: 1 1 280px;
+  min-width: 0;
 }
 
 #categoryChangeSection {
@@ -2527,10 +2529,18 @@ input#clientAutocomplete, select#clientSelect {
   background: transparent;
   padding: 0;
   margin: 0;
+  flex: 0 1 240px;
+  min-width: 180px;
+  max-width: 100%;
+}
+
+#categoryChangeSection .category-select,
+#categoryChangeSection select {
+  width: 100%;
 }
 
 #categorySelect {
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   min-width: 160px;
   padding: 6px 32px 6px 12px;
   border-radius: 6px;
@@ -4875,7 +4885,7 @@ var fw = document.getElementById('futureWorkSection');
 if (fw) fw.style.display = 'none';
 
 // Keep the rest of the UI behavior unchanged
-document.getElementById('categoryChangeSection').style.display = clientName ? 'block' : 'none';
+document.getElementById('categoryChangeSection').style.display = clientName ? 'flex' : 'none';
 document.getElementById('appointmentInputSection').style.display = 'none';
 document.getElementById('addAppointmentBtn').style.display = displayStyle;
 document.getElementById('labelsAdditionSection').style.display = displayStyle;
@@ -4984,49 +4994,6 @@ function wireCategorySelectChange(){
   });
 
   sel.__wired = true;
-}
-
-/* Call this to programmatically set the dropdown value WITHOUT triggering save */
-function updateCategorySelectValue(newValue){
-  const sel = document.getElementById('categorySelect');
-  if (!sel) return;
-
-  const value = (newValue || '').trim();
-
-  let placeholder = sel.querySelector('option[data-role="placeholder"]');
-  if (!placeholder) {
-    placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.dataset.role = 'placeholder';
-    placeholder.textContent = 'Select a category...';
-    sel.insertBefore(placeholder, sel.firstChild);
-  }
-
-  if (value) {
-    let existing = Array.from(sel.options).find(opt => opt.value === value);
-    if (!existing) {
-      existing = document.createElement('option');
-      existing.value = value;
-      existing.textContent = value;
-      sel.appendChild(existing);
-    }
-    placeholder.textContent = '';
-    placeholder.hidden = true;
-    placeholder.disabled = true;
-    placeholder.selected = false;
-  }
-  else {
-    placeholder.textContent = 'Select a category...';
-    placeholder.hidden = false;
-    placeholder.disabled = false;
-    placeholder.selected = true;
-  }
-
-  __suppressCategoryChange = true;
-  sel.value = value;
-  __currentCategory = value;
-  setTimeout(() => { __suppressCategoryChange = false; }, 0);
-  updateCategoryLabel();
 }
 
 /* Single, tokened pipeline to update category on the server */
@@ -5404,27 +5371,6 @@ function loadCategoriesForClientAfterNotes() {
     .getUniqueCategories();
 }
 
-
-function updateCategorySelectValue(currentCategory) {
-  var sel = document.getElementById('categorySelect');
-  if (!sel) return;
-
-  if (currentCategory) {
-    // If the current category isn't yet in the dropdown (e.g., just created),
-    // temporarily insert it before the sentinel so it's selectable.
-    var exists = Array.from(sel.options)
-      .some(function (o) { return o.value.toLowerCase() === String(currentCategory).toLowerCase(); });
-
-    if (!exists) {
-      var opt = document.createElement('option');
-      opt.value = currentCategory;
-      opt.textContent = currentCategory;
-      var sentinel = sel.querySelector('option[value="__NEW__"]');
-      sel.add(opt, sentinel); // insert before NEW CATEGORY…
-    }
-  }
-  sel.value = currentCategory || '';
-}
 
 function sanitizeSuggestionBulbs() {
   document.querySelectorAll('.toplist-suggestion').forEach(card => {
@@ -8083,26 +8029,60 @@ function displayClient(client, container) {
 
 
 function updateCategorySelectValue(clientCategory) {
-    var categorySelect = document.getElementById('categorySelect');
-    if (clientCategory) {
-        // Ensure the category exists in the dropdown
-        var optionExists = Array.from(categorySelect.options).some(function(option) {
-            return option.value === clientCategory;
-        });
+  var sel = document.getElementById('categorySelect');
+  if (!sel) return;
 
-        // If not, add it to the dropdown
-        if (!optionExists) {
-            var newOption = document.createElement('option');
-            newOption.value = clientCategory;
-            newOption.textContent = clientCategory;
-            categorySelect.appendChild(newOption);
-        }
+  var value = (clientCategory || '').trim();
 
-        // Set the dropdown's value to the client's category
-        categorySelect.value = clientCategory;
-    } else {
-        categorySelect.value = '';
+  var placeholder = sel.querySelector('option[data-role="placeholder"]');
+  if (!placeholder) {
+    placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.dataset.role = 'placeholder';
+    placeholder.textContent = 'Select a category...';
+    sel.insertBefore(placeholder, sel.firstChild);
+  }
+
+  if (value) {
+    var existing = Array.from(sel.options).find(function(option) {
+      return option.value === value;
+    });
+
+    if (!existing) {
+      existing = document.createElement('option');
+      existing.value = value;
+      existing.textContent = value;
+      sel.appendChild(existing);
     }
+
+    placeholder.textContent = '';
+    placeholder.hidden = true;
+    placeholder.disabled = true;
+    placeholder.selected = false;
+  } else {
+    placeholder.textContent = 'Select a category...';
+    placeholder.hidden = false;
+    placeholder.disabled = false;
+    placeholder.selected = true;
+  }
+
+  __suppressCategoryChange = true;
+  sel.value = value;
+
+  if (value && sel.value !== value) {
+    var opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = value;
+    sel.appendChild(opt);
+    sel.value = value;
+  }
+
+  __currentCategory = value;
+  setTimeout(function () { __suppressCategoryChange = false; }, 0);
+
+  if (typeof updateCategoryLabel === 'function') {
+    updateCategoryLabel();
+  }
 }
 
 
