@@ -1274,7 +1274,7 @@ input, button, select {
   font-size: 1em;
 }
 
-#addToCalendarBtn, #addAppointmentBtn {
+#categoryChangeSection, #addToCalendarBtn, #addAppointmentBtn {
   background-color: var(--background-color);
   padding: 20px;
   margin-bottom: 20px;
@@ -1343,9 +1343,8 @@ input, button, select {
   }
 
   #categorySelect {
-    font-size: 1.2em;
-    min-width: 180px;
-    width: auto;
+    font-size: 1.5em;
+    width: 100%; /* Sets the width to 100% of the parent container */
     box-sizing: border-box; /* Ensures padding and borders are included in the width */
 }
 
@@ -1561,13 +1560,14 @@ button:active {
 
 
 #categoryChangeSection {
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  align-items: center;
+  background-color: var(--background-color);
+  padding: 20px;
+  margin-bottom: 20px;
+  border: 1px solid #ccc;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  text-align: center; /* Center-align content within the section */
+    margin: 0 auto; /* Auto margins for horizontal centering */
+
 }
 
 .category-label {
@@ -1579,7 +1579,9 @@ button:active {
   display: block;
   margin: 0;
   width: auto;
-  min-width: 180px;
+    margin: 0 auto; /* Auto margins for horizontal centering */
+
+ 
 }
 
 #appointmentInputSection {
@@ -2502,42 +2504,7 @@ input#clientAutocomplete, select#clientSelect {
 #clientAutocomplete:disabled,
 #clientAutocomplete[readonly] {
   background-color: #90EE90 !important;  /* keep all states consistent */
-
-}
-
-.autocomplete-field {
-  position: relative;
-  width: 100%;
-}
-
-.autocomplete-field #clientAutocomplete {
-  padding-right: 220px !important;
-}
-
-#categoryChangeSection {
-  position: absolute;
-  top: 50%;
-  right: 18px;
-  transform: translateY(-50%);
-  display: none;
-  background: transparent;
-  padding: 0;
-  margin: 0;
-}
-
-#categorySelect {
-  max-width: 45%;
-  min-width: 160px;
-  padding: 6px 32px 6px 12px;
-  border-radius: 6px;
-  border: 1px solid #2f9e44;
-  background-color: #fff;
-  color: #1b4332;
-}
-
-#categorySelect:focus {
-  outline: 2px solid #1E90FF;
-  outline-offset: 1px;
+  
 }
 
 /* Keep suggestions neatly inside the blue box */
@@ -2781,6 +2748,28 @@ input#clientAutocomplete, select#clientSelect {
   display: inline !important;       /* inline so they sit on one line */
 }
 
+.cat-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  max-width: min(42vw, 380px);
+  border: 1px solid #cfcfcf;
+  border-radius: 999px;
+  padding: 4px 28px 4px 10px;
+  background: #fff;
+  height: 32px;
+}
+.cat-input {
+  border: 0; outline: 0; width: 100%;
+  font: inherit; line-height: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cat-input::placeholder { color: #777; }
+.cat-caret {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  font-size: 10px; pointer-events: none;
+}
+
 /* Calendar icon button */
 .calendar-btn {
   border: 0; background: #21a45e; color: #fff; border-radius: 8px;
@@ -2845,13 +2834,20 @@ input#clientAutocomplete, select#clientSelect {
            placeholder="Type Client Name"
            oninput="autocompleteClient()">
 
-          <!-- Category combo + Calendar icon (hidden until a client is selected) -->
+           <!-- Category combo + Calendar icon (hidden until a client is selected) -->
 <div id="catCalWrap" style="display:none; gap:8px; align-items:center; margin-left:auto;">
-  <!-- Moved change-category dropdown inline with autocomplete -->
-  <div id="categoryChangeSection" class="category-inline" style="display:none;">
-    <select id="categorySelect" class="category-select">
-      <option value=""></option>
-    </select>
+  <!-- Category pill (combobox) -->
+  <div class="cat-pill" title="" >
+    <input id="categoryCombo"
+           type="text"
+           placeholder="Select category"
+           list="categoryList"
+           aria-label="Category"
+           aria-expanded="false"
+           aria-autocomplete="list"
+           class="cat-input" />
+    <span class="cat-caret" aria-hidden="true">▼</span>
+    <datalist id="categoryList"></datalist>
   </div>
 
   <!-- Calendar button -->
@@ -2860,18 +2856,7 @@ input#clientAutocomplete, select#clientSelect {
     🗓️
   </button>
 </div>
-    <div class="autocomplete-field">
-      <input type="text" id="clientAutocomplete"
-             placeholder="Type Client Name"
-             oninput="autocompleteClient()">
 
-      <!-- Category combo (hidden until a client is selected) -->
-      <div id="categoryChangeSection" class="category-inline" style="display:none;">
-        <select id="categorySelect" class="category-select">
-          <option value="">Select a category...</option>
-        </select>
-      </div>
-    </div>
 
   </div>
 
@@ -2964,9 +2949,19 @@ input#clientAutocomplete, select#clientSelect {
     <!-- Clients will be displayed here -->
 </div>
 
+<!-- Category update selection, initially hidden until a client is selected -->
+<div id="categoryChangeSection" style="display:none;">
+  <select id="categorySelect" class="category-select">
+    <option value="">Select a category...</option>
+  </select>
+</div>
+
+
+
+
 <br>
 <!-- Button to show appointment scheduling inputs -->
-<button id="addAppointmentBtn" class="secondary-button" onclick="showAppointmentInput()" style="display:none;">🗓️</button>
+<button id="addAppointmentBtn" class="secondary-button" onclick="showAppointmentInput()" style="display:none;">Add APPOINTMENT to Calendar for This Client</button>
 
 <!-- Appointment scheduling inputs, initially hidden -->
 <div id="appointmentInputSection" style="display:none;">
@@ -4873,8 +4868,8 @@ function showClientNotes() {
     // So we don't see old text while the new client data is loading
     document.getElementById('loadedInProgressArea').value = '';
 
-    // Set the autocomplete value based on the dropdown selection (name only)
-    clientAutocomplete.value = clientName ? clientName : '';
+    // Set the autocomplete value based on the dropdown selection
+    clientAutocomplete.value = clientName ? clientSelect.options[clientSelect.selectedIndex].text : '';
 
     if (clientName) {
         clientAutocomplete.style.color = 'black'; // Set text color to black when client is loaded
@@ -4885,7 +4880,7 @@ function showClientNotes() {
     }
 // Reset values and set displays based on selection
 document.getElementById('newPastWork').value = '';
-updateCategorySelectValue('');
+document.getElementById('categorySelect').value = '';
 
 var displayStyle = clientName ? 'block' : 'none';
 
@@ -4898,13 +4893,9 @@ var fw = document.getElementById('futureWorkSection');
 if (fw) fw.style.display = 'none';
 
 // Keep the rest of the UI behavior unchanged
-document.getElementById('categoryChangeSection').style.display = clientName ? 'flex' : 'none';
+document.getElementById('categoryChangeSection').style.display = displayStyle;
 document.getElementById('appointmentInputSection').style.display = 'none';
 document.getElementById('addAppointmentBtn').style.display = displayStyle;
-var catWrap = document.getElementById('catCalWrap');
-if (catWrap) {
-  catWrap.style.display = clientName ? 'inline-flex' : 'none';
-}
 document.getElementById('labelsAdditionSection').style.display = displayStyle;
 document.getElementById('hideClientNotesBtn').style.display = displayStyle; // Show or hide the button
 document.getElementById('notesDisplay').style.display = 'block';
@@ -5004,7 +4995,6 @@ function wireCategorySelectChange(){
   sel.addEventListener('change', function(){
     if (__suppressCategoryChange) return;               // ignore programmatic set
     const newCat = (sel.value || '').trim();
-    updateCategoryLabel();
     // Dedupe: don't call server if the value didn't actually change
     if (newCat === (__currentCategory || '')) return;
     requestCategoryChange(newCat);
@@ -5017,31 +5007,11 @@ function wireCategorySelectChange(){
 function updateCategorySelectValue(newValue){
   const sel = document.getElementById('categorySelect');
   if (!sel) return;
-
-  const value = (newValue || '').trim();
-
-  if (!sel.options.length) {
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = 'Select a category...';
-    sel.appendChild(placeholder);
-  }
-
-  if (value) {
-    let existing = Array.from(sel.options).find(opt => opt.value === value);
-    if (!existing) {
-      existing = document.createElement('option');
-      existing.value = value;
-      existing.textContent = value;
-      sel.appendChild(existing);
-    }
-  }
-
   __suppressCategoryChange = true;
-  sel.value = value;
-  __currentCategory = value;
+  sel.value = (newValue || '');
+  __currentCategory = (newValue || '');  // keep our local notion in sync
+  // release on next tick so real user changes still work
   setTimeout(() => { __suppressCategoryChange = false; }, 0);
-  updateCategoryLabel();
 }
 
 /* Single, tokened pipeline to update category on the server */
@@ -6234,7 +6204,7 @@ function extractBaseName(clientName) {
           for (var i = 0; i < clientSelect.options.length; i++) {
             if (clientSelect.options[i].value === clientName) {
               clientSelect.selectedIndex = i;
-              clientAutocomplete.value = clientName;
+              clientAutocomplete.value = clientSelect.options[i].text;
               break;
             }
           }
@@ -7472,42 +7442,20 @@ function getFormattedDate(offset) {
 }
 
 function updateCategoryLabel() {
+    var clientSelect = document.getElementById('clientSelect');
     var categorySelect = document.getElementById('categorySelect');
-    if (!categorySelect) {
-        return;
-    }
+    var selectedOption = clientSelect.options[clientSelect.selectedIndex];
 
-    if (categorySelect.options.length) {
-        categorySelect.options[0].text = '';
-    }
+    if (clientSelect.value) {
+        // Extract client name and category from the selected option
+        var clientName = selectedOption.value;
+        var clientCategory = selectedOption.textContent.split(' (')[1].slice(0, -1);
 
-    if (!clientSelect || !clientSelect.value) {
-        categorySelect.value = '';
-        return;
-    }
-
-    var selectedOption = null;
-    if (clientSelect && clientSelect.selectedIndex >= 0) {
-        selectedOption = clientSelect.options[clientSelect.selectedIndex];
-    }
-    var clientCategory = '';
-
-    if (selectedOption) {
-        var optionText = selectedOption.textContent || '';
-        var categoryStart = optionText.indexOf(' (');
-        if (categoryStart !== -1 && optionText.trim().endsWith(')')) {
-            clientCategory = optionText.substring(categoryStart + 2, optionText.length - 1);
-        }
-    }
-
-    if (clientCategory) {
-        if (typeof updateCategorySelectValue === 'function') {
-            updateCategorySelectValue(clientCategory);
-        } else {
-            categorySelect.value = clientCategory;
-        }
+        // Updating only the placeholder for the category selection dropdown
+        categorySelect.options[0].text = 'Change Category for ' + clientName + ' (' + clientCategory + ')';
     } else {
-        categorySelect.value = '';
+        // Set the placeholder text when no client is selected
+        categorySelect.options[0].text = 'Select a category...';
     }
 }
 
@@ -7605,7 +7553,7 @@ function populateCategoryDropdown(categories) {
 
   var ph = document.createElement('option');
   ph.value = '';
-  ph.textContent = '';
+  ph.textContent = 'Select a category...';
   sel.appendChild(ph);
 
   (categories || []).forEach(function (cat) {
@@ -7757,7 +7705,6 @@ function hideClientNotes() {
     'workSectionsContainer',
     'pastWorkSection',
     'categoryChangeSection',
-    'catCalWrap',
     'appointmentInputSection',
     'addAppointmentBtn',
     'labelsAdditionSection',
@@ -7793,9 +7740,6 @@ function hideClientNotes() {
   // Clear category selection
   var catSel = document.getElementById('categorySelect');
   if (catSel) catSel.value = '';
-  if (catSel && catSel.options && catSel.options.length) {
-    catSel.options[0].text = '';
-  }
 
   // Clear past work input
   var pastWorkEl = document.getElementById('newPastWork');
@@ -7931,7 +7875,7 @@ function submitNewClientModal(clientName, category) {
                 for (var i = 0; i < clientSelect.options.length; i++) {
                     if (clientSelect.options[i].value === clientName) {
                         clientSelect.selectedIndex = i;
-                        clientAutocomplete.value = clientName;
+                        clientAutocomplete.value = clientSelect.options[i].text;
                         break;
                     }
                 }
@@ -9397,10 +9341,14 @@ function suggestionsContainEmoji(client, emoji) {
 (() => {
   // === STATE ===
   let currentClient = null;
+  let currentCategory = null;
+  let categories = []; // from getUniqueCategories()
+  let saving = false;
 
   // === ELEMENTS ===
-  const categorySection = () => document.getElementById('categoryChangeSection');
-  const catSelect    = () => document.getElementById('categorySelect');
+  const catCalWrap   = () => document.getElementById('catCalWrap');
+  const catInput     = () => document.getElementById('categoryCombo');
+  const catList      = () => document.getElementById('categoryList');
   const calendarBtn  = () => document.getElementById('calendarBtn');
 
   const apptModal    = () => document.getElementById('apptModal');
@@ -9411,37 +9359,140 @@ function suggestionsContainEmoji(client, emoji) {
   const apptTime     = () => document.getElementById('apptTime');
   const apptTitle    = () => document.getElementById('apptTitle');
 
+  // === UTIL ===
+  function setTooltip(el, text) {
+    if (!el) return;
+    el.title = text || '';
+  }
+  function setDisabled(disabled) {
+    catInput().disabled = disabled;
+    calendarBtn().disabled = disabled;
+  }
   function toast(msg) {
     if (window.showToast) { showToast(msg); } else { alert(msg); }
   }
+  function populateDatalist(list) {
+    categories = list || [];
+    catList().innerHTML = '';
+    categories.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c;
+      catList().appendChild(opt);
+    });
+  }
+  function refreshCategoryUI(cat) {
+    currentCategory = cat || '';
+    catInput().value = currentCategory || '';
+    catInput().placeholder = currentCategory ? currentCategory : 'Select category';
+    setTooltip(catInput(), currentCategory || 'Select category');
+  }
+  function showCatUI(show) {
+    catCalWrap().style.display = show ? 'inline-flex' : 'none';
+  }
 
-  function setDisabled(disabled) {
-    const sel = catSelect();
-    if (sel) sel.disabled = disabled;
-    const btn = calendarBtn();
-    if (btn) btn.disabled = disabled;
+  // Debounce helper ~200ms
+  function debounce(fn, wait=200) {
+    let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); };
   }
 
   // === PUBLIC HOOK from your autocomplete selection ===
-  window.onClientSelectedForBar = function(clientName) {
-    currentClient = clientName || null;
-    const wrap = catCalWrap();
-    if (wrap) {
-      wrap.style.display = currentClient ? 'inline-flex' : 'none';
-    }
-    if (!currentClient) {
-      const sel = catSelect();
-      if (sel) {
-        sel.value = '';
-      }
-    const section = categorySection();
-    if (section) {
-      section.style.display = currentClient ? 'block' : 'none';
-    }
-    if (!currentClient) {
-      updateCategorySelectValue('');
-    }
+  // Call this when user selects a client in your existing autocomplete.
+  window.onClientSelectedForBar = function(clientName, displayText) {
+    currentClient = clientName;
+    showCatUI(!!currentClient);
+
+    // keep the full bar’s tooltip showing the full text that might overflow
+    const barEl = document.querySelector('.your-autocomplete-input-selector'); // update if you want
+    if (barEl) setTooltip(barEl, displayText || clientName);
+
+    // get list of categories + current category
+    showLoadingBar && showLoadingBar();
+    setDisabled(true);
+
+    google.script.run
+      .withSuccessHandler(list => {
+        populateDatalist(list);
+        // pull current category quickly (cheapest reliable path)
+        google.script.run.withSuccessHandler(det => {
+          const cat = (det && det.notes && det.notes.length) ? (det.notes[0].category || '') : '';
+          refreshCategoryUI(cat);
+          hideLoadingBar && hideLoadingBar();
+          setDisabled(false);
+        }).withFailureHandler(() => {
+          refreshCategoryUI(''); // unknown
+          hideLoadingBar && hideLoadingBar();
+          setDisabled(false);
+        }).getClientDetails(currentClient);
+      })
+      .withFailureHandler(() => {
+        populateDatalist([]);
+        refreshCategoryUI('');
+        hideLoadingBar && hideLoadingBar();
+        setDisabled(false);
+      })
+      .getUniqueCategories();
   };
+
+  // === SAVE CATEGORY (enter/change) ===
+  function saveCategory(newVal) {
+    if (!currentClient) return;
+    const newCategory = (newVal || '').trim();
+    const prev = currentCategory;
+
+    if (!newCategory || newCategory === prev) {
+      // no change
+      refreshCategoryUI(prev);
+      return;
+    }
+
+    if (saving) return;
+    saving = true;
+
+    showLoadingBar && showLoadingBar();
+    setDisabled(true);
+    catInput().setAttribute('aria-busy', 'true');
+
+    google.script.run
+      .withSuccessHandler(res => {
+        saving = false;
+        catInput().removeAttribute('aria-busy');
+        hideLoadingBar && hideLoadingBar();
+        setDisabled(false);
+
+        if (res && res.ok) {
+          refreshCategoryUI(newCategory);
+          // Update any dependents you show under today's date etc.
+          if (window.fetchAndRenderTopClientsFromDropdown) {
+            try { fetchAndRenderTopClientsFromDropdown(); } catch(e){}
+          }
+        } else {
+          refreshCategoryUI(prev);
+          toast('Category change fail');
+        }
+      })
+      .withFailureHandler(() => {
+        saving = false;
+        catInput().removeAttribute('aria-busy');
+        hideLoadingBar && hideLoadingBar();
+        setDisabled(false);
+        refreshCategoryUI(prev);
+        toast('Category change fail');
+      })
+      .updateClientCategory(currentClient, newCategory);
+  }
+
+  // Input events: Enter = save (type-to-create supported), change = save
+  catInput().addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveCategory(catInput().value);
+    }
+  });
+  catInput().addEventListener('change', () => saveCategory(catInput().value));
+  // Optional debounced “preview” (not saving): keep tooltip updated
+  catInput().addEventListener('input', debounce(() => {
+    setTooltip(catInput(), catInput().value || currentCategory || 'Select category');
+  }, 200));
 
   // === CALENDAR MODAL ===
   function openApptModal() {
@@ -9454,8 +9505,7 @@ function suggestionsContainEmoji(client, emoji) {
     apptModal().style.display = 'none';
   }
 
-  const calBtn = calendarBtn();
-  if (calBtn) calBtn.addEventListener('click', openApptModal);
+  calendarBtn().addEventListener('click', openApptModal);
   apptClose().addEventListener('click', closeApptModal);
   apptCancel().addEventListener('click', closeApptModal);
 
