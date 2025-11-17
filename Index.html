@@ -2505,7 +2505,7 @@ input#clientAutocomplete, select#clientSelect {
   background: transparent;
   border: none;
   border-radius: 0;
-  font-size: inherit;
+  font-size: 0.75em;
   padding: 0;
   margin: 0;
   box-sizing: border-box;
@@ -7899,6 +7899,11 @@ function positionCategoryDropdownOverAutocomplete() {
     var availableWidth = Math.max(insideWidth - prefixWidth - paddingLeft - paddingRight, 120);
     var overlayWidth = Math.min(categoryWidth + paddingLeft + paddingRight, availableWidth);
     var left = inputRect.left - containerRect.left + inset + paddingLeft + prefixWidth;
+
+    // Keep the overlay fully inside the autocomplete input bounds
+    var minLeft = inputRect.left - containerRect.left + inset + paddingLeft;
+    var maxLeft = inputRect.left - containerRect.left + inputRect.width - inset - paddingRight - overlayWidth;
+    left = Math.min(Math.max(left, minLeft), maxLeft);
 
     overlay.style.display = 'flex';
     overlay.style.left = left + 'px';
