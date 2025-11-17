@@ -2490,6 +2490,26 @@ input#clientAutocomplete, select#clientSelect {
   box-shadow: 0 2px 5px rgba(0,0,0,0.06);
 }
 
+.category-overlay {
+  position: absolute;
+  display: none;
+  align-items: center;
+  z-index: 1010;
+  pointer-events: none;
+}
+
+#categoryChangeSection select {
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #1E90FF;
+  border-radius: 6px;
+  font-size: inherit;
+  padding: 0 20px 0 8px;
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
 /* Chips bar when placed inside the autocomplete wrapper */
 .recent-bar.inside-autocomplete {
   display: flex;
@@ -2985,6 +3005,13 @@ input#clientAutocomplete, select#clientSelect {
            placeholder="Type Client Name"
            oninput="autocompleteClient()">
 
+    <!-- Category dropdown overlaid on the category portion of the loaded client -->
+    <div id="categoryChangeSection" class="category-overlay" aria-hidden="true" style="display:none;">
+      <select id="categorySelect" class="category-select">
+        <option value="">Select a category...</option>
+      </select>
+    </div>
+
            <!-- Category combo + Calendar icon (hidden until a client is selected) -->
 <div id="catCalWrap" style="display:none; gap:8px; align-items:center; margin-left:auto;">
   <!-- Category pill (combobox) -->
@@ -3087,16 +3114,6 @@ input#clientAutocomplete, select#clientSelect {
 <div id="categoryClientsDisplay">
     <!-- Clients will be displayed here -->
 </div>
-
-<!-- Category update selection, initially hidden until a client is selected -->
-<div id="categoryChangeSection" style="display:none;">
-  <select id="categorySelect" class="category-select">
-    <option value="">Select a category...</option>
-  </select>
-</div>
-
-
-
 
 <br>
 <!-- Button to show appointment scheduling inputs -->
@@ -5187,6 +5204,8 @@ function showClientNotes() {
 // Reset values and set displays based on selection
 document.getElementById('newPastWork').value = '';
 document.getElementById('categorySelect').value = '';
+setCategoryPlaceholderText('Select a category...');
+hideCategoryOverlay();
 
 var displayStyle = clientName ? 'block' : 'none';
 
@@ -5240,6 +5259,8 @@ displayClientDetails(data);
 
 // Update the category select value based on fetched client data
 updateCategorySelectValue(data.category);
+setCategoryPlaceholderText(data.category || 'Select a category...');
+positionCategoryDropdownOverAutocomplete();
 
         pendingOps--;
         if (pendingOps === 0) {
@@ -5266,12 +5287,16 @@ inputElement.addEventListener('click', function() {
     if (suggestions) {
         suggestions.innerHTML = ''; // Clear existing suggestions
     }
+    hideCategoryOverlay();
 });
 
 // Reset text color when the user types
 inputElement.addEventListener('input', function() {
     inputElement.style.color = ''; // Reset color to default
+    hideCategoryOverlay();
 });
+
+window.addEventListener('resize', positionCategoryDropdownOverAutocomplete);
 
 function setupColumnDropdowns(data) {
     setupColumnBDropdown(data);
@@ -5335,6 +5360,8 @@ function requestCategoryChange(newCategory){
       if (token !== __categoryReqToken) return;
       __currentCategory = newCategory;                       // lock in
       __categoryInFlight = false;
+      setCategoryPlaceholderText(newCategory);
+      positionCategoryDropdownOverAutocomplete();
       try { if (typeof hideLoadingBar === 'function') hideLoadingBar(); } catch(_){}
       // Optional toast near the select
       try {
@@ -7767,19 +7794,98 @@ function getFormattedDate(offset) {
 function updateCategoryLabel() {
     var clientSelect = document.getElementById('clientSelect');
     var categorySelect = document.getElementById('categorySelect');
-    var selectedOption = clientSelect.options[clientSelect.selectedIndex];
+    if (!clientSelect || !categorySelect) return;
 
     if (clientSelect.value) {
-        // Extract client name and category from the selected option
-        var clientName = selectedOption.value;
-        var clientCategory = selectedOption.textContent.split(' (')[1].slice(0, -1);
+        // Extract the category from the visible option text e.g., "Client (Category)"
+        var selectedOption = clientSelect.options[clientSelect.selectedIndex];
+        var match = selectedOption && selectedOption.textContent
+          ? selectedOption.textContent.match(/\(([^()]*)\)\s*$/)
+          : null;
+        var clientCategory = match && match[1] ? match[1] : '';
 
-        // Updating only the placeholder for the category selection dropdown
-        categorySelect.options[0].text = 'Change Category for ' + clientName + ' (' + clientCategory + ')';
+        // Reflect the exact category text in the overlaid dropdown and position it
+        setCategoryPlaceholderText(clientCategory || 'Select a category...');
+        positionCategoryDropdownOverAutocomplete();
     } else {
-        // Set the placeholder text when no client is selected
-        categorySelect.options[0].text = 'Select a category...';
+        // Set the placeholder text when no client is selected and hide the overlay
+        setCategoryPlaceholderText('Select a category...');
+        hideCategoryOverlay();
     }
+}
+
+function setCategoryPlaceholderText(text) {
+    var categorySelect = document.getElementById('categorySelect');
+    if (!categorySelect) return;
+    var label = text || 'Select a category...';
+    var placeholderOption = categorySelect.options[0];
+    if (!placeholderOption) {
+        placeholderOption = document.createElement('option');
+        categorySelect.insertBefore(placeholderOption, categorySelect.firstChild);
+    }
+
+    placeholderOption.text = label;
+    placeholderOption.value = text ? text : '';
+    categorySelect.selectedIndex = 0;
+    updateCategorySelectValue(text || '');
+}
+
+function hideCategoryOverlay() {
+    var overlay = document.getElementById('categoryChangeSection');
+    if (overlay) {
+        overlay.style.display = 'none';
+        overlay.setAttribute('aria-hidden', 'true');
+    }
+}
+
+function positionCategoryDropdownOverAutocomplete() {
+    var overlay = document.getElementById('categoryChangeSection');
+    var categorySelect = document.getElementById('categorySelect');
+    var input = document.getElementById('clientAutocomplete');
+    var clientSelect = document.getElementById('clientSelect');
+    if (!overlay || !categorySelect || !input || !clientSelect) return;
+
+    if (!clientSelect.value) {
+        hideCategoryOverlay();
+        return;
+    }
+
+    var value = input.value || '';
+    var start = value.indexOf('(');
+    var end = value.lastIndexOf(')');
+    if (start === -1 || end === -1 || end <= start) {
+        hideCategoryOverlay();
+        return;
+    }
+
+    var container = input.closest('.client-input-wrap') || input.parentElement;
+    if (!container) return;
+
+    var inputRect = input.getBoundingClientRect();
+    var containerRect = container.getBoundingClientRect();
+    var style = window.getComputedStyle(input);
+
+    var canvas = positionCategoryDropdownOverAutocomplete._canvas || document.createElement('canvas');
+    positionCategoryDropdownOverAutocomplete._canvas = canvas;
+    var ctx = canvas.getContext('2d');
+    ctx.font = style.fontWeight + ' ' + style.fontSize + ' ' + style.fontFamily;
+
+    var prefixWidth = ctx.measureText(value.slice(0, start)).width;
+    var categoryTextWidth = ctx.measureText(value.slice(start, end + 1)).width;
+    var paddingLeft = parseFloat(style.paddingLeft) || 0;
+    var paddingRight = parseFloat(style.paddingRight) || 0;
+    var paddingTop = parseFloat(style.paddingTop) || 0;
+    var paddingBottom = parseFloat(style.paddingBottom) || 0;
+    var availableWidth = Math.max(inputRect.width - prefixWidth - paddingLeft, 40);
+    var overlayWidth = Math.min(categoryTextWidth + paddingRight + 6, availableWidth);
+    var left = inputRect.left - containerRect.left + paddingLeft + prefixWidth;
+
+    overlay.style.display = 'flex';
+    overlay.style.left = left + 'px';
+    overlay.style.top = (inputRect.top - containerRect.top + paddingTop) + 'px';
+    overlay.style.height = Math.max(inputRect.height - paddingTop - paddingBottom, 0) + 'px';
+    overlay.style.width = overlayWidth + 'px';
+    overlay.setAttribute('aria-hidden', 'false');
 }
 
 
@@ -8394,8 +8500,12 @@ function updateCategorySelectValue(clientCategory) {
 
         // Set the dropdown's value to the client's category
         categorySelect.value = clientCategory;
+        setCategoryPlaceholderText(clientCategory);
+        positionCategoryDropdownOverAutocomplete();
     } else {
         categorySelect.value = '';
+        setCategoryPlaceholderText('Select a category...');
+        hideCategoryOverlay();
     }
 }
 
