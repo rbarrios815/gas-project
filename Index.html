@@ -7822,13 +7822,24 @@ function setCategoryPlaceholderText(text) {
     var categorySelect = document.getElementById('categorySelect');
     if (!categorySelect) return;
 
+    var fallbackFromClient = (function() {
+        var clientSel = document.getElementById('clientSelect');
+        if (!clientSel || !clientSel.value || !clientSel.selectedOptions.length) return '';
+        var raw = clientSel.selectedOptions[0].textContent || '';
+        var parts = raw.split(' (');
+        return parts.length > 1 ? parts[1].replace(/\)$/, '') : '';
+    })();
+
     if (categorySelect.options.length === 0) {
         var placeholderOption = document.createElement('option');
         placeholderOption.value = '';
         categorySelect.appendChild(placeholderOption);
     }
 
-    var effectiveText = text || __currentCategory || '';
+    var effectiveText = (text || '').trim() || __currentCategory || fallbackFromClient || '';
+    if (effectiveText) {
+        __currentCategory = effectiveText;
+    }
     categorySelect.options[0].text = effectiveText;
 }
 
