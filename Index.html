@@ -4397,6 +4397,22 @@ function ensureHeaderSpacing() {
 /* === RECENT CHIPS: update only when client notes are HIDDEN (MAX 3) === */
 window.__recentClients = Array.isArray(window.__recentClients) ? window.__recentClients : []; // most-recent-first, max 3
 
+function formatRecentClientName(name) {
+  if (!name) return '';
+
+  const cleaned = String(name)
+    .replace(/\[.*?\]/g, ' ')
+    .replace(/dob[^a-zA-Z]*/gi, ' ');
+
+  const parts = cleaned.match(/[A-Za-z]+/g);
+  if (!parts || !parts.length) return '';
+
+  const firstInitial = parts[0] ? parts[0][0].toUpperCase() : '';
+  const lastName = parts.length > 1 ? parts[parts.length - 1].toUpperCase() : '';
+
+  return lastName ? `${firstInitial} ${lastName}` : firstInitial;
+}
+
 function renderRecentClientsBar(){
   var bar = document.getElementById('recentClientsBar');
   if (!bar) return;
@@ -4405,7 +4421,7 @@ function renderRecentClientsBar(){
   var list = (window.__recentClients || []).slice(0, 3);
 
   bar.innerHTML = list.map(function(name){
-    return '<span class="recent-pill"><span class="rc-name">'+ escapeHTML(String(name || '')) +'</span></span>';
+    return '<span class="recent-pill"><span class="rc-name">'+ escapeHTML(formatRecentClientName(name || '')) +'</span></span>';
   }).join('');
 
   // keep the fixed header spacing correct if anything changes height
@@ -6907,6 +6923,7 @@ function paintRecentBar(list){
   if (!list || !list.length) { wrap.innerHTML = ''; return; }
 
   wrap.innerHTML = list.map(e => {
+    const displayName = formatRecentClientName(e.name);
     const muted = e.columnL ? '' : ' rc-muted';
     const cat   = e.category ? `<span class="rc-cat">${e.category}</span>` : '';
     const chip  = (e.chipInitials || e.chipDate)
@@ -6915,7 +6932,7 @@ function paintRecentBar(list){
     return `
       <div class="recent-pill${muted}" data-name="${e.name}" title="${e.name}">
         ${dot}
-        <span class="rc-name">${e.name}</span>
+        <span class="rc-name">${displayName}</span>
         ${cat}
         ${chip}
       </div>`;
@@ -9348,10 +9365,11 @@ document.addEventListener('DOMContentLoaded', ensureSuggestionsButtonInToolbar);
       const cat = it.category ? `<span class="rc-cat" title="Category">${it.category}</span>` : '';
       const chip = (it.chipInitials || it.chipDate)
           ? `<span class="rc-chip" title="Owner/Date">${(it.chipInitials||'').trim()} ${(it.chipDate||'').trim()}</span>` : '';
+      const displayName = formatRecentClientName(it.name);
       return `
         <button class="recent-pill" onclick="selectClientFromRecent('${escapeHtml(it.name)}')">
           ${dot}
-          <span class="rc-name">${escapeHtml(it.name)}</span>
+          <span class="rc-name">${escapeHtml(displayName)}</span>
           ${cat}
           ${chip}
         </button>
@@ -9412,10 +9430,11 @@ document.addEventListener('DOMContentLoaded', ensureSuggestionsButtonInToolbar);
       const chip = (it.chipInitials || it.chipDate)
         ? `<span class="rc-chip" title="Owner/Date">${escapeHTML(it.chipInitials || '')} ${escapeHTML(it.chipDate || '')}</span>`
         : '';
+      const displayName = formatRecentClientName(it.name);
       return `
         <button class="recent-pill" onclick="selectClientFromRecent('${escapeHTML(it.name)}')">
           ${dot}
-          <span class="rc-name">${escapeHTML(it.name)}</span>
+          <span class="rc-name">${escapeHTML(displayName)}</span>
           ${cat}
           ${chip}
         </button>
