@@ -2494,9 +2494,11 @@ input#clientAutocomplete, select#clientSelect {
   position: absolute;
   display: none;
   align-items: center;
+  justify-content: flex-end;
   z-index: 1010;
   pointer-events: none;
   overflow: hidden;
+  padding: 0;
 }
 
 #categoryChangeSection select {
@@ -2505,15 +2507,17 @@ input#clientAutocomplete, select#clientSelect {
   background: transparent;
   border: none;
   border-radius: 0;
-  font-size: inherit;
-  padding: 0;
+  font-size: 0.7em;
+  line-height: 1;
+  padding: 0 6px;
+  min-height: 0;
+  max-height: 100%;
   margin: 0;
   box-sizing: border-box;
   pointer-events: auto;
   appearance: none;
   outline: none;
   box-shadow: none;
-  line-height: 1.2;
 }
 
 /* Chips bar when placed inside the autocomplete wrapper */
@@ -2758,7 +2762,7 @@ input#clientAutocomplete, select#clientSelect {
 
 /* Ensure the input leaves room for the absolutely-positioned button */
 #clientAutocomplete {
-  padding-right: 130px !important;
+  padding-right: 200px !important;
 }
 
 /* Make sure the blue wrapper keeps the absolute button inside it */
@@ -5194,7 +5198,7 @@ function showClientNotes() {
     document.getElementById('loadedInProgressArea').value = '';
 
     // Set the autocomplete value based on the dropdown selection
-    clientAutocomplete.value = clientName ? clientSelect.options[clientSelect.selectedIndex].text : '';
+    clientAutocomplete.value = clientName ? clientSelect.options[clientSelect.selectedIndex].value : '';
 
     if (clientName) {
         clientAutocomplete.style.color = 'black'; // Set text color to black when client is loaded
@@ -6146,7 +6150,7 @@ function restoreUIState() {
       sel.value = st.client;
       const clientAutocomplete = document.getElementById('clientAutocomplete');
       if (clientAutocomplete && sel.selectedIndex >= 0) {
-        clientAutocomplete.value = sel.options[sel.selectedIndex].text;
+        clientAutocomplete.value = sel.options[sel.selectedIndex].value;
       }
       if (typeof showClientNotes === 'function') showClientNotes();
     }
@@ -6419,18 +6423,17 @@ function refreshUIWithNewCategory(clientName, newCategory) {
 function selectUpdatedClient(clientName, newCategory) {
     var clientSelect = document.getElementById('clientSelect');
     var clientAutocomplete = document.getElementById('clientAutocomplete');
-   var updatedClientText = newCategory ? clientName + ' (' + newCategory + ')' : clientName;
     if (clientSelect) {
         clientSelect.value = clientName;
     }
 
    if (clientAutocomplete) {
-        clientAutocomplete.value = updatedClientText;
+        clientAutocomplete.value = clientName;
         clientAutocomplete.style.color = 'black';
     }
 
     if (typeof currentClientName !== 'undefined') {
-        currentClientName = updatedClientText;
+        currentClientName = clientName;
     }
 
     if (typeof showClientNotes === 'function' && clientSelect) {
@@ -6556,7 +6559,7 @@ function extractBaseName(clientName) {
           for (var i = 0; i < clientSelect.options.length; i++) {
             if (clientSelect.options[i].value === clientName) {
               clientSelect.selectedIndex = i;
-              clientAutocomplete.value = clientSelect.options[i].text;
+              clientAutocomplete.value = clientSelect.options[i].value;
               break;
             }
           }
@@ -7023,7 +7026,7 @@ function autocompleteClient() {
                 suggestion.innerHTML = client.clientName + (client.category ? ' (' + client.category + ')' : '');
 
                 suggestion.onclick = function() {
-                    inputElement.value = this.innerHTML;
+                    inputElement.value = client.clientName;
                     clientSelect.value = client.clientName;
                     showClientNotes();
                         scrollToTop(); // Add this line to scroll to the top
@@ -7841,10 +7844,11 @@ function setCategoryPlaceholderText(text) {
     }
 
     var effectiveText = (text || '').trim() || __currentCategory || fallbackFromClient || '';
+    var displayText = effectiveText || 'Select category';
     if (effectiveText) {
         __currentCategory = effectiveText;
     }
-    categorySelect.options[0].text = effectiveText;
+    categorySelect.options[0].text = displayText;
 }
 
 function hideCategoryOverlay() {
@@ -7867,28 +7871,12 @@ function positionCategoryDropdownOverAutocomplete() {
         return;
     }
 
-    var value = input.value || '';
-    var start = value.lastIndexOf('(');
-    var end = value.lastIndexOf(')');
-    if (start === -1 || end === -1 || end <= start) {
-        hideCategoryOverlay();
-        return;
-    }
-
     var container = input.closest('.client-input-wrap') || input.parentElement;
     if (!container) return;
 
     var inputRect = input.getBoundingClientRect();
     var containerRect = container.getBoundingClientRect();
     var style = window.getComputedStyle(input);
-
-    var canvas = positionCategoryDropdownOverAutocomplete._canvas || document.createElement('canvas');
-    positionCategoryDropdownOverAutocomplete._canvas = canvas;
-    var ctx = canvas.getContext('2d');
-    ctx.font = style.fontWeight + ' ' + style.fontSize + ' ' + style.fontFamily;
-
-    var prefixWidth = ctx.measureText(value.slice(0, start)).width;
-    var categoryWidth = Math.max(ctx.measureText(value.slice(start, end + 1)).width, 0);
     var paddingLeft = parseFloat(style.paddingLeft) || 0;
     var paddingRight = parseFloat(style.paddingRight) || 0;
 
@@ -7896,14 +7884,23 @@ function positionCategoryDropdownOverAutocomplete() {
     var inset = 4;
 
     var insideWidth = Math.max(inputRect.width - inset * 2, 0);
-    var availableWidth = Math.max(insideWidth - prefixWidth - paddingLeft - paddingRight, 120);
-    var overlayWidth = Math.min(categoryWidth + paddingLeft + paddingRight, availableWidth);
-    var left = inputRect.left - containerRect.left + inset + paddingLeft + prefixWidth;
+    var availableWidth = Math.max(insideWidth - paddingLeft - paddingRight, 120);
+    var selectNaturalWidth = Math.max(categorySelect.scrollWidth || 0, 0);
+    var overlayWidth = Math.min(Math.max(selectNaturalWidth + 12, 140), availableWidth);
+    var left = inputRect.left - containerRect.left + inset + insideWidth - overlayWidth - paddingRight;
+
+    // Keep the overlay fully inside the autocomplete input bounds (right aligned)
+    var minLeft = inputRect.left - containerRect.left + inset + paddingLeft;
+    var maxLeft = inputRect.left - containerRect.left + inputRect.width - inset - paddingRight - overlayWidth;
+    left = Math.min(Math.max(left, minLeft), maxLeft);
+
+    var maxOverlayHeight = Math.max(inputRect.height - inset * 2, 0);
 
     overlay.style.display = 'flex';
     overlay.style.left = left + 'px';
     overlay.style.top = (inputRect.top - containerRect.top + inset) + 'px';
-    overlay.style.height = Math.max(inputRect.height - inset * 2, 0) + 'px';
+    overlay.style.height = maxOverlayHeight + 'px';
+    overlay.style.maxHeight = maxOverlayHeight + 'px';
     overlay.style.width = Math.max(overlayWidth, 0) + 'px';
     overlay.setAttribute('aria-hidden', 'false');
 }
@@ -8324,7 +8321,7 @@ function submitNewClientModal(clientName, category) {
                 for (var i = 0; i < clientSelect.options.length; i++) {
                     if (clientSelect.options[i].value === clientName) {
                         clientSelect.selectedIndex = i;
-                        clientAutocomplete.value = clientSelect.options[i].text;
+                        clientAutocomplete.value = clientSelect.options[i].value;
                         break;
                     }
                 }
