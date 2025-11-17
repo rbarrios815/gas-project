@@ -5341,6 +5341,7 @@ function updateCategorySelectValue(newValue){
   __suppressCategoryChange = true;
   sel.value = (newValue || '');
   __currentCategory = (newValue || '');  // keep our local notion in sync
+  setCategoryPlaceholderText(__currentCategory || 'Select a category...');
   // release on next tick so real user changes still work
   setTimeout(() => { __suppressCategoryChange = false; }, 0);
 }
@@ -5360,6 +5361,7 @@ function requestCategoryChange(newCategory){
       if (token !== __categoryReqToken) return;
       __currentCategory = newCategory;                       // lock in
       __categoryInFlight = false;
+      setCategoryPlaceholderText(__currentCategory || 'Select a category...');
       try { if (typeof hideLoadingBar === 'function') hideLoadingBar(); } catch(_){}
       // Optional toast near the select
       try {
@@ -7819,7 +7821,8 @@ function setCategoryPlaceholderText(text) {
         categorySelect.appendChild(placeholderOption);
     }
 
-    categorySelect.options[0].text = text || 'Select a category...';
+    var effectiveText = text || __currentCategory || 'Select a category...';
+    categorySelect.options[0].text = effectiveText;
 }
 
 function hideCategoryOverlay() {
@@ -7863,16 +7866,19 @@ function positionCategoryDropdownOverAutocomplete() {
     ctx.font = style.fontWeight + ' ' + style.fontSize + ' ' + style.fontFamily;
 
     var prefixWidth = ctx.measureText(value.slice(0, start)).width;
-    var categoryWidth = Math.max(ctx.measureText(value.slice(start, end + 1)).width + 12, 140);
+    var categoryWidth = Math.max(ctx.measureText(value.slice(start, end + 1)).width, 0);
     var paddingLeft = parseFloat(style.paddingLeft) || 0;
-    var availableWidth = Math.max(inputRect.width - prefixWidth - paddingLeft, 120);
-    var overlayWidth = Math.min(categoryWidth, availableWidth);
+    var paddingRight = parseFloat(style.paddingRight) || 0;
+    var borderTop = parseFloat(style.borderTopWidth) || 0;
+    var borderBottom = parseFloat(style.borderBottomWidth) || 0;
+    var availableWidth = Math.max(inputRect.width - prefixWidth - paddingLeft - paddingRight, 120);
+    var overlayWidth = Math.min(categoryWidth + paddingLeft + paddingRight, availableWidth);
     var left = inputRect.left - containerRect.left + paddingLeft + prefixWidth;
 
     overlay.style.display = 'flex';
     overlay.style.left = left + 'px';
-    overlay.style.top = (inputRect.top - containerRect.top) + 'px';
-    overlay.style.height = inputRect.height + 'px';
+    overlay.style.top = (inputRect.top - containerRect.top + borderTop) + 'px';
+    overlay.style.height = (inputRect.height - borderTop - borderBottom) + 'px';
     overlay.style.width = overlayWidth + 'px';
     overlay.setAttribute('aria-hidden', 'false');
 }
