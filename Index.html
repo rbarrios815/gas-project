@@ -1686,6 +1686,7 @@ button:active {
     border: 1px solid #ddd;
     display: inline-block; /* or 'block' if you want each label on a new line */
     background-color: #f0f0f0;
+    font-size: 32px;
 }
 
 /* Add this CSS rule to initially hide the label section */
@@ -1732,23 +1733,34 @@ input#clientAutocomplete, select#clientSelect {
 .labels-container {
   display: flex;
   width: 100%;
+  align-items: stretch;
+}
+
+.labels-notes-left {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 #labelsDisplay {
-  flex-basis: 85%; /* Assign 90% of the parent container's width to labels display */
-    font-size: 65%; /* This will set the font size to half of the inherited size */
-
+  font-size: 32px;
 }
 
 #labelsAdditionSection {
-  flex-basis: 15%; /* Assign 10% of the parent container's width to the dropdown */
+  flex: 0 0 15%; /* Keep the controls to no more than 15% of the screen width */
+  max-width: 15%;
   display: none;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 32px;
 }
 
 #labelsDropdown {
   width: 100%; /* Ensure the dropdown fills its container */
   box-sizing: border-box; /* Include padding and borders in the element's total width */
-    font-size: 65%; /* This will set the font size to 65% of the inherited size */
+  font-size: 1em; /* Match the labels/notes sizing */
 
 }
 
@@ -1757,13 +1769,31 @@ input#clientAutocomplete, select#clientSelect {
 #toggleNotesButton {
   background-color: #FFDAB9; /* Peach Puff color, a light orange shade */
   margin-top: 5px;
-  font-size: 65%;
+  font-size: 1em;
   }
 
 .inline-button {
   display: inline-flex; /* Make button an inline-flex element */
   margin: 0; /* Remove auto margins */
   /* Any other specific styles you want these buttons to have */
+}
+
+.labels-buttons-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.labels-buttons-row > button {
+  width: 100%;
+  font-size: 1em;
+}
+
+.labels-chip-slot {
+  display: flex;
+  justify-content: center;
+  font-size: 1em;
 }
 
 
@@ -1889,6 +1919,24 @@ input#clientAutocomplete, select#clientSelect {
 
 #pastWorkSection, #futureWorkSection {
   font-size: 16px;
+}
+
+.past-work-wrapper {
+  position: relative;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.past-work-wrapper .past-work-textarea {
+  padding-right: 200px;
+}
+
+.past-work-wrapper .update-team-task-btn {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  margin: 0;
 }
 
 .client-button {
@@ -2974,8 +3022,13 @@ input#clientAutocomplete, select#clientSelect {
 
 
 <div class="labels-container">
-  <div id="labelsDisplay">
-    <!-- Labels will be displayed here -->
+  <div class="labels-notes-left">
+    <div id="labelsDisplay">
+      <!-- Labels will be displayed here -->
+    </div>
+    <div id="notesDisplay">
+        <!-- Notes will be displayed here -->
+    </div>
   </div>
   <div id="labelsAdditionSection">
        <select id="labelsDropdown" onchange="addLabelToClient(this.value)" style="width: 100%;">
@@ -2983,9 +3036,11 @@ input#clientAutocomplete, select#clientSelect {
       <!-- Options will be dynamically populated here -->
       <option value="NEW LABEL">NEW LABEL</option>
     </select>
-   
-   
-   
+
+    <div id="labelsButtonsRow" class="labels-buttons-row"></div>
+
+
+
 
   </div>
 </div>
@@ -2994,34 +3049,15 @@ input#clientAutocomplete, select#clientSelect {
 
 
 
-
-
-<!-- The rest of your HTML remains unchanged -->
-
-
-<!-- Labels display section -->
-
-
-<!-- Notes display, shown after client selection -->
-<div id="notesDisplay">
-    <!-- Notes will be displayed here -->
-</div>
-
-<!-- Rest of your code... -->
-
-
-
-              <!-- Notes will be displayed here -->
-
   <div id="workSectionsContainer" style="display: flex; flex-direction: row; justify-content: space-between; align-items: stretch;">
 
     
     <!-- Past Work submission -->
-<div id="pastWorkSection" style="flex: 1 1 100%; padding-right: 0; display: none; flex-direction: column; justify-content: flex-end; width: 100%; max-width: 100%;">
-        <textarea id="newPastWork" class="past-work-textarea"></textarea>
-        <br>
-        <button class="update-team-task-btn" onclick="submitPastWork()">Submit Note</button>
-        <br>
+    <div id="pastWorkSection" style="flex: 1 1 100%; padding-right: 0; display: none; flex-direction: column; justify-content: flex-end; width: 100%; max-width: 100%;">
+        <div class="past-work-wrapper">
+          <textarea id="newPastWork" class="past-work-textarea"></textarea>
+          <button class="update-team-task-btn" onclick="submitPastWork()">Submit Note</button>
+        </div>
 <!-- In-Progress (Loaded) with left-side bulb -->
 <div class="inprogress-bulb-row" style="background-color:#90EE90; padding:10px; border:1px solid #ccc; border-radius:4px; display:flex; align-items:flex-start; gap:10px;">
   <span aria-hidden="true" style="font-size:1.25em; line-height:1; margin-top:4px;">💡</span>
@@ -5745,7 +5781,7 @@ REPLACE ENTIRE toggleNotesVisibility FUNCTION WITH THIS
 REPLACE ENTIRE toggleNotesVisibility FUNCTION WITH THIS
 ***************************************/
 function toggleNotesVisibility() {
-  // Capture previous state to detect a click on the "LESS" button
+  // Capture previous state to detect a click on the "-" button
   var wasExpanded = !!notesExpanded;
 
   // Flip the global boolean
@@ -5762,11 +5798,11 @@ function toggleNotesVisibility() {
 
   var toggleButton = document.getElementById('toggleNotesButton');
   if (toggleButton) {
-    // If expanded now, the button should read LESS; if collapsed, MORE
-    toggleButton.innerText = notesExpanded ? 'LESS' : 'MORE';
+    // If expanded now, the button should read -; if collapsed, +
+    toggleButton.innerText = notesExpanded ? '-' : '+';
   }
 
-  // If the user just clicked the LESS button (i.e., was expanded → now collapsed),
+  // If the user just clicked the - button (i.e., was expanded → now collapsed),
   // scroll to the top.
   if (wasExpanded && !notesExpanded) {
     // Use the global helper (defined below). If you have your own scrollToTop already, this will call it.
@@ -5918,27 +5954,23 @@ function displayNotes(notes) {
   unhighlightedWrap.style.gap = '5px';
   container.appendChild(unhighlightedWrap);
 
-  // === BUTTON ROW (MORE/LESS + ✏️) ===
+  // === BUTTON ROW (moved beside the label dropdown) ===
   var buttonRow = document.createElement('div');
-  buttonRow.style.display = 'inline-flex';
-  buttonRow.style.alignSelf = 'center';
-  buttonRow.style.alignItems = 'center';
-  buttonRow.style.margin = '6px 0';
-  buttonRow.style.gap = '0';
+  buttonRow.className = 'labels-buttons-row';
 
   var toggleBtn = document.createElement('button');
   toggleBtn.id = 'toggleNotesButton';
   toggleBtn.onclick = toggleNotesVisibility;
-  toggleBtn.style.fontSize = '0.66em';
-  toggleBtn.innerText = 'MORE';
+  toggleBtn.style.fontSize = '1em';
+  toggleBtn.innerText = '+';
 
   var editBtn = document.createElement('button');
   editBtn.id = 'editNotesButton';
   editBtn.className = 'secondary-button inline-button';
   editBtn.title = 'Edit notes';
   editBtn.setAttribute('aria-label', 'Edit notes');
-  editBtn.style.fontSize = '0.66em';
-  editBtn.style.marginLeft = '6px';
+  editBtn.style.fontSize = '1em';
+  editBtn.style.marginLeft = '0';
   editBtn.innerHTML = '✏️';
   editBtn.onclick = function (e) {
     e.stopPropagation();
@@ -5955,7 +5987,30 @@ function displayNotes(notes) {
 
   buttonRow.appendChild(toggleBtn);
   buttonRow.appendChild(editBtn);
-  container.appendChild(buttonRow);
+
+  var chipSlot = document.createElement('div');
+  chipSlot.className = 'labels-chip-slot';
+
+  var chipInfo = window.__chipForCurrentClient || { initials: "", date: "" };
+  var currentClientId = document.getElementById('clientSelect').value || "";
+  if (currentClientId) {
+    var chipEl = createChipElement(
+      currentClientId,
+      (chipInfo.initials || "").toUpperCase(),
+      chipInfo.date || ""
+    );
+    chipSlot.appendChild(chipEl);
+  }
+
+  var labelsButtonsRow = document.getElementById('labelsButtonsRow');
+  if (labelsButtonsRow) {
+    labelsButtonsRow.innerHTML = '';
+    labelsButtonsRow.appendChild(buttonRow);
+    labelsButtonsRow.appendChild(chipSlot);
+  } else {
+    container.appendChild(buttonRow);
+    container.appendChild(chipSlot);
+  }
 
   // === HIGHLIGHTED (newest 3 blocks) ===
   var highlightedWrap = document.createElement('div');
@@ -5986,17 +6041,6 @@ function displayNotes(notes) {
       div.style.backgroundColor = 'yellow';
       highlightedWrap.appendChild(div);
 
-      // CHIP only on the newest block (the very last one)
-      if (i === lastIdx) {
-        var chipInfo = window.__chipForCurrentClient || { initials: "", date: "" };
-        var chipEl = createChipElement(
-          document.getElementById('clientSelect').value || "",
-          (chipInfo.initials || "").toUpperCase(),
-          chipInfo.date || ""
-        );
-        div.appendChild(chipEl);
-      }
-
     } else {
       // Older blocks → hidden by default; toggled by MORE/LESS
       div.classList.add('older-note');
@@ -6005,10 +6049,10 @@ function displayNotes(notes) {
     }
   });
 
-// Always show the row; only hide the MORE/LESS button if no older blocks
+// Always show the row; only hide the toggle button if no older blocks
 var hasOlder = unhighlightedWrap.children.length > 0;
 toggleBtn.style.display = hasOlder ? 'inline-block' : 'none';
-buttonRow.style.display = 'inline-flex'; // keep the row visible so ✏️ stays
+buttonRow.style.display = 'flex'; // keep the row visible so ✏️ stays
 
 
   notesDisplay.appendChild(container);
