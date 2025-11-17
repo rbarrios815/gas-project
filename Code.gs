@@ -2812,3 +2812,52 @@ function getChipStateForClients(clientNames) {
 }
 
 
+
+
+
+
+/** === Siri → Google Sheets Bridge: Column A note, Column C timestamp ===
+ * Appends note in Col A, leaves Col B blank, puts timestamp in Col C.
+ */
+const SHEET_ID = "1rzejdmR0hatqESPp9MroCwT229QGM0oB2G9mELaL4Ps";
+const TARGET_SHEET = "NOTES INBOX";
+const COL_NOTE = 1; // A
+const COL_BLANK = 2; // B
+const COL_TIME = 3; // C
+
+function doPost(e) {
+  try {
+    if (!e || !e.postData || !e.postData.contents) {
+      return _json({ ok: false, error: "No postData received" });
+    }
+    const body = JSON.parse(e.postData.contents);
+    const note = (body && body.note != null) ? String(body.note).trim() : "";
+    if (!note) return _json({ ok: false, error: "Missing 'note' value" });
+
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const sh = ss.getSheetByName(TARGET_SHEET);
+    if (!sh) return _json({ ok: false, error: `Sheet not found: ${TARGET_SHEET}` });
+
+    const nextRow = sh.getLastRow() + 1;
+    const now = new Date();
+    sh.getRange(nextRow, COL_NOTE, 1, 3).setValues([[note, "", now]]);
+
+    return _json({
+      ok: true,
+      addedTo: `${TARGET_SHEET}!A${nextRow}:C${nextRow}`,
+      note,
+      timestampISO: now.toISOString()
+    });
+  } catch (err) {
+    return _json({ ok: false, error: String(err) });
+  }
+}
+
+function _json(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+
+
+
