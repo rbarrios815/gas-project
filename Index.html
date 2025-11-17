@@ -2255,7 +2255,8 @@ input#clientAutocomplete, select#clientSelect {
   font-size: inherit;   /* match the date + bulb size */
   width: auto;          /* optional */
   margin-left: 5px;     /* keep the small gap from nearby controls */
-  padding: 4px 16px 4px 6px; /* keep the box snug while leaving room for the arrow */
+  padding: 3px 10px 3px 6px; /* keep the box snug while leaving room for the arrow */
+  white-space: nowrap;
 }
 
 
@@ -3669,8 +3670,7 @@ function formatTopClientsDates() {
     longDate: now.toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',
-      day: 'numeric',
-      year: 'numeric'
+      day: 'numeric'
     }).toUpperCase(),
     shortDate: now.toLocaleDateString('en-US', {
       month: '2-digit',
@@ -3730,7 +3730,9 @@ function fitTopClientsHeaderControls(preferShortFormat) {
 
   var baseSize = parseFloat(container.dataset.baseFontSize || getComputedStyle(container).fontSize) || 16;
   container.dataset.baseFontSize = baseSize;
-  var minSize = 10;
+  var minSize = 8;
+  var baseGap = parseFloat(container.dataset.baseGap || getComputedStyle(container).columnGap || 12);
+  container.dataset.baseGap = baseGap;
 
   function applySize(px) {
     var val = px + 'px';
@@ -3738,6 +3740,8 @@ function fitTopClientsHeaderControls(preferShortFormat) {
     dateEl.style.fontSize = val;
     dd.style.fontSize = val;
     bulb.style.fontSize = val;
+    var gapPx = Math.max(4, baseGap * (px / baseSize));
+    container.style.columnGap = gapPx + 'px';
   }
 
   function tryDate(text) {
@@ -3761,6 +3765,14 @@ function fitTopClientsHeaderControls(preferShortFormat) {
   var fitsLong = tryDate(firstChoice);
   if (!fitsLong && firstChoice !== shortDate) {
     tryDate(shortDate);
+  }
+
+  // Final guard: if space is still tight, lock to the compact date and minimum size
+  // so the dropdown and bulb never overlap the date text.
+  if (container.scrollWidth > container.clientWidth) {
+    dateEl.textContent = shortDate;
+    applySize(minSize);
+    updateDropdownWidthToFit(dd);
   }
 }
 
