@@ -2497,6 +2497,7 @@ input#clientAutocomplete, select#clientSelect {
   z-index: 1010;
   pointer-events: none;
   overflow: hidden;
+  padding: 0;
 }
 
 #categoryChangeSection select {
@@ -2505,15 +2506,17 @@ input#clientAutocomplete, select#clientSelect {
   background: transparent;
   border: none;
   border-radius: 0;
-  font-size: 0.75em;
-  padding: 0;
+  font-size: 0.7em;
+  line-height: 1;
+  padding: 0 6px;
+  min-height: 0;
+  max-height: 100%;
   margin: 0;
   box-sizing: border-box;
   pointer-events: auto;
   appearance: none;
   outline: none;
   box-shadow: none;
-  line-height: 1.2;
 }
 
 /* Chips bar when placed inside the autocomplete wrapper */
@@ -7905,10 +7908,13 @@ function positionCategoryDropdownOverAutocomplete() {
     var maxLeft = inputRect.left - containerRect.left + inputRect.width - inset - paddingRight - overlayWidth;
     left = Math.min(Math.max(left, minLeft), maxLeft);
 
+    var maxOverlayHeight = Math.max(inputRect.height - inset * 2, 0);
+
     overlay.style.display = 'flex';
     overlay.style.left = left + 'px';
     overlay.style.top = (inputRect.top - containerRect.top + inset) + 'px';
-    overlay.style.height = Math.max(inputRect.height - inset * 2, 0) + 'px';
+    overlay.style.height = maxOverlayHeight + 'px';
+    overlay.style.maxHeight = maxOverlayHeight + 'px';
     overlay.style.width = Math.max(overlayWidth, 0) + 'px';
     overlay.setAttribute('aria-hidden', 'false');
 }
