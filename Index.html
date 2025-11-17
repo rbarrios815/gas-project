@@ -4426,8 +4426,11 @@ function renderRecentClientsBar(){
   var bar = document.getElementById('recentClientsBar');
   if (!bar) return;
 
-  // Enforce exactly 3 max at render time as well
-  var list = (window.__recentClients || []).slice(0, 3);
+  // Desktop can show up to 3 recents; on narrow/mobile viewports, cap at 2
+  var maxRecents = (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 640px)').matches) ? 2 : 3;
+
+  // Enforce the viewport-specific cap at render time as well
+  var list = (window.__recentClients || []).slice(0, maxRecents);
 
   bar.innerHTML = list.map(function(name){
     return '<span class="recent-pill"><span class="rc-name">'+ escapeHTML(formatRecentClientName(name || '')) +'</span></span>';
@@ -4438,6 +4441,11 @@ function renderRecentClientsBar(){
 
   // After drawing chips, fit the whole row to one line
   if (typeof fitRecentRowOneLine === 'function') fitRecentRowOneLine();
+}
+
+// Repaint the recent chips when the viewport crosses the mobile breakpoint
+if (typeof window !== 'undefined' && window.addEventListener) {
+  window.addEventListener('resize', renderRecentClientsBar);
 }
 
 function updateRecentsOnHide(clientName){
