@@ -2800,6 +2800,57 @@ input#clientAutocomplete, select#clientSelect {
   display: inline !important;       /* inline so they sit on one line */
 }
 
+/* === Keep all four recent items shrinking together ====================== */
+#recentRow { 
+  font-size: 1rem;                 /* shared base size for the bar */
+}
+
+/* Let every direct child shrink (3 recents + NEW CLIENT) */
+#recentRow > * {
+  flex-shrink: 1;
+  font-size: 1em !important;      /* keep siblings on the same scale */
+}
+
+#recentRow .recent-bar.inside-autocomplete {
+  flex-wrap: nowrap;               /* JS will shrink font-size instead of wrapping */
+  min-width: 0;                    /* allow chips to contract */
+}
+
+/* Prevent chip text from overflowing when the bar shrinks */
+#recentRow .recent-pill {
+  min-width: 0;
+}
+
+#recentRow .recent-pill .rc-name {
+  display: block;
+  min-width: 0;
+  overflow: visible;            /* never hide behind ellipses */
+  text-overflow: clip;          /* rely on font shrink instead */
+}
+
+/* Keep pill text bound to the shared row font size */
+#recentRow .recent-pill,
+#recentRow .recent-pill .rc-name {
+  font-size: 1em !important;
+}
+
+/* NEW CLIENT shrinks with the row and keeps em-based padding */
+#addNewClientBtn,
+#addNewClientBtn.recent-add-btn {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 1em !important;       /* lock to row sizing */
+  padding: 0.45em 0.9em;
+  gap: 0.35em;
+  margin-right: 0 !important;      /* avoid forced overflow */
+  white-space: nowrap !important;  /* stay on one line; shrink instead */
+}
+
+#addNewClientBtn span {
+  display: inline-block !important;
+  font-size: 1em !important;       /* keep both words the same scale */
+}
+
 .cat-pill {
   position: relative;
   display: inline-flex;
@@ -4403,8 +4454,25 @@ function ensureHeaderSpacing() {
     setTimeout(adjustBodyMarginTop, 0);
   } catch (e) {}
 }
-/* === RECENT CHIPS: update only when client notes are HIDDEN (MAX 3) === */
-window.__recentClients = Array.isArray(window.__recentClients) ? window.__recentClients : []; // most-recent-first, max 3
+/* === RECENT CHIPS: update only when client notes are HIDDEN (cache 4, show up to 3) === */
+// Keep an extra slot in memory so we can drop the active client and still show up to 3 recents
+var RECENT_CACHE_LIMIT = 4;
+window.__recentClients = Array.isArray(window.__recentClients) ? window.__recentClients : []; // most-recent-first, max 4
+
+function getActiveClientName() {
+  // Prefer the tracked autocomplete text, then fall back to the select/dropdown
+  if (typeof currentClientName !== 'undefined' && currentClientName) {
+    return String(currentClientName).trim();
+  }
+
+  var select = document.getElementById('clientSelect');
+  if (select && select.value) return String(select.value).trim();
+
+  var auto = document.getElementById('clientAutocomplete');
+  if (auto && auto.value) return String(auto.value).trim();
+
+  return '';
+}
 
 function formatRecentClientName(name) {
   if (!name) return '';
@@ -4429,8 +4497,12 @@ function renderRecentClientsBar(){
   // Desktop can show up to 3 recents; on narrow/mobile viewports, cap at 2
   var maxRecents = (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 640px)').matches) ? 2 : 3;
 
-  // Enforce the viewport-specific cap at render time as well
-  var list = (window.__recentClients || []).slice(0, maxRecents);
+  // Enforce the viewport-specific cap at render time as well, excluding the active client
+  var active = getActiveClientName();
+  var activeNorm = active ? active.toLowerCase() : '';
+  var list = (window.__recentClients || []).filter(function(name){
+    return !activeNorm || String(name).toLowerCase() !== activeNorm;
+  }).slice(0, maxRecents);
 
   bar.innerHTML = list.map(function(name){
     return '<span class="recent-pill"><span class="rc-name">'+ escapeHTML(formatRecentClientName(name || '')) +'</span></span>';
@@ -4460,8 +4532,8 @@ function updateRecentsOnHide(clientName){
   // add to the front
   arr.unshift(clientName);
 
-  // cap at 3
-  window.__recentClients = arr.slice(0, 3);
+  // cap at cache limit so we can drop the active client and still show 3 recents
+  window.__recentClients = arr.slice(0, RECENT_CACHE_LIMIT);
 
   // persist (merge with current UI state if available)
   try {
@@ -4488,7 +4560,7 @@ function updateRecentsOnHide(clientName){
     if (typeof restoreUIState === 'function') {
       var st = restoreUIState();
       if (st && Array.isArray(st.recents)) {
-        window.__recentClients = st.recents.slice(0, 3);
+        window.__recentClients = st.recents.slice(0, RECENT_CACHE_LIMIT);
         renderRecentClientsBar();
         return;
       }
@@ -4498,7 +4570,7 @@ function updateRecentsOnHide(clientName){
       if (raw) {
         var arr = JSON.parse(raw);
         if (Array.isArray(arr)) {
-          window.__recentClients = arr.slice(0, 3);
+          window.__recentClients = arr.slice(0, RECENT_CACHE_LIMIT);
           renderRecentClientsBar();
         }
       }
@@ -4535,7 +4607,7 @@ function fitRecentRowOneLine() {
   // Early exit: if it already fits, keep the big size
   if (row.scrollWidth <= available) return;
 
-  var minPx = 8;                  // allow tighter shrink before wrapping
+  var minPx = 6;                  // allow tighter shrink before wrapping
   var lo = minPx, hi = row.__baseFontPx, best = lo;
 
   // Binary search for the largest font-size that still fits
@@ -5067,6 +5139,11 @@ function showClientNotes() {
     if (clientName) {
         clientAutocomplete.style.color = 'black'; // Set text color to black when client is loaded
         currentClientName = clientAutocomplete.value; // Store the current client name
+
+        // Log the open client so the recent buttons stay populated on first load
+        if (typeof onClientOpened === 'function') {
+            onClientOpened(clientName);
+        }
     } else {
         clientAutocomplete.style.color = ''; // Default color
         currentClientName = '';
@@ -7953,7 +8030,7 @@ function hideClientNotes() {
         return String(n).toLowerCase() !== norm;
       });
       window.__recentClients.unshift(justHiddenClient);
-      window.__recentClients = window.__recentClients.slice(0, 3);
+      window.__recentClients = window.__recentClients.slice(0, RECENT_CACHE_LIMIT);
       if (typeof renderRecentClientsBar === 'function') renderRecentClientsBar();
     }
   }
