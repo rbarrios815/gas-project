@@ -339,13 +339,6 @@ html { font-size: 200%; }
   white-space: nowrap; /* single line */
 }
 
-/* Keep pills and the NEW CLIENT button on the same baseline and prevent wrapping */
-.recent-pill,
-#addNewClientBtn {
-  flex: 0 0 auto;
-  white-space: nowrap;
-}
-
 
 .assigned-chip-slot { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
 
@@ -2173,29 +2166,6 @@ input#clientAutocomplete, select#clientSelect {
     position: absolute;
     right: 0;
     margin: 0; /* Remove any auto-margins that might shift the buttons */
-}
-
-/* Keep the filtered clients controls on a single line with responsive sizing */
-#topClientsAddNewRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: nowrap;
-  white-space: nowrap;
-  position: static;
-}
-
-#topClientsAddNewRow .title-text {
-  flex: 0 1 auto;
-  min-width: 0;
-  font-size: clamp(14px, 2vw, 18px);
-}
-
-#topClientsAddNewRow #topClientsFilterDropdown,
-#topClientsAddNewRow #suggestionsToggleBtn {
-  position: static;
-  flex: 0 0 auto;
-  font-size: clamp(12px, 1.8vw, 16px);
 }
 
 /* SNIPPET #1: STAR ANIMATION CSS - REPLACEMENT */
@@ -4267,30 +4237,22 @@ function ensureHeaderSpacing() {
 /* === RECENT CHIPS: update only when client notes are HIDDEN (MAX 3) === */
 window.__recentClients = Array.isArray(window.__recentClients) ? window.__recentClients : []; // most-recent-first, max 3
 
-function renderRecentClientsBar(options){
+function renderRecentClientsBar(){
   var bar = document.getElementById('recentClientsBar');
   if (!bar) return;
-
-  options = options || {};
-  var useInitials = !!options.useInitials;
 
   // Enforce exactly 3 max at render time as well
   var list = (window.__recentClients || []).slice(0, 3);
 
   bar.innerHTML = list.map(function(name){
-    var full = String(name || '');
-    var trimmed = full.trim();
-    var display = useInitials ? (trimmed ? trimmed.charAt(0).toUpperCase() : '') : full;
-    return '<span class="recent-pill" data-full-name="'+ escapeHTML(full) +'" data-mode="'+ (useInitials ? 'initials' : 'full') +'"><span class="rc-name">'+ escapeHTML(display) +'</span></span>';
+    return '<span class="recent-pill"><span class="rc-name">'+ escapeHTML(String(name || '')) +'</span></span>';
   }).join('');
-
-  bar.dataset.mode = useInitials ? 'initials' : 'full';
 
   // keep the fixed header spacing correct if anything changes height
   if (typeof ensureHeaderSpacing === 'function') ensureHeaderSpacing();
 
   // After drawing chips, fit the whole row to one line
-  if (!options.skipFit && typeof fitRecentRowOneLine === 'function') fitRecentRowOneLine();
+  if (typeof fitRecentRowOneLine === 'function') fitRecentRowOneLine();
 }
 
 function updateRecentsOnHide(clientName){
@@ -4362,7 +4324,6 @@ function fitRecentRowOneLine() {
   if (!wrap || !row) return;
 
   var csRow = getComputedStyle(row);
-  var bar   = document.getElementById('recentClientsBar');
 
   // Remember the natural base font once, so we never "grow" beyond it.
   if (!row.__baseFontPx) {
@@ -4375,25 +4336,13 @@ function fitRecentRowOneLine() {
   var padRight = parseFloat(getComputedStyle(wrap).paddingRight) || 0;
   var available = Math.max(0, wrapRect.width - padLeft - padRight - 2 /*safety*/);
 
-  // If we're currently showing initials but the space is now generous, try restoring full names.
-  if (bar && bar.dataset.mode === 'initials') {
-    renderRecentClientsBar({ useInitials: false, skipFit: true });
-    row.style.fontSize = row.__baseFontPx + 'px';
-    if (row.scrollWidth > available) {
-      // Not enough room—switch back to initials before continuing the fit.
-      renderRecentClientsBar({ useInitials: true, skipFit: true });
-    }
-  }
-
-  var usingInitials = bar && bar.dataset.mode === 'initials';
-
   // Start from the natural base each time we evaluate
   row.style.fontSize = row.__baseFontPx + 'px';
 
   // Early exit: if it already fits, keep the big size
   if (row.scrollWidth <= available) return;
 
-  var minPx = 8;                  // allow extra shrink before abbreviating
+  var minPx = 10;                 // don't go below 10px (tweak if you want)
   var lo = minPx, hi = row.__baseFontPx, best = lo;
 
   // Binary search for the largest font-size that still fits
@@ -4410,13 +4359,6 @@ function fitRecentRowOneLine() {
   }
 
   row.style.fontSize = Math.min(best, row.__baseFontPx) + 'px';
-
-  // If we hit the minimum and still don't fit, fall back to initials
-  var stillTooWide = row.scrollWidth > available;
-  if (stillTooWide && !usingInitials) {
-    renderRecentClientsBar({ useInitials: true, skipFit: true });
-    requestAnimationFrame(fitRecentRowOneLine);
-  }
 }
 
 // Re-fit on window resize and after first paint
