@@ -2168,6 +2168,46 @@ input#clientAutocomplete, select#clientSelect {
     margin: 0; /* Remove any auto-margins that might shift the buttons */
 }
 
+/* Inline controls: date + dropdown + bulb stay on one line with matching size */
+#topClientsControlRow {
+    gap: 12px;
+    flex-wrap: nowrap;
+    align-items: center;
+    width: 100%;
+    font-size: 1.25em;
+}
+
+#topClientsControlRow .title-text {
+    font-size: inherit;
+    font-weight: bold;
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+    min-width: 0;
+    flex-shrink: 1;
+}
+
+#topClientsControlRow select,
+#topClientsControlRow button {
+    font-size: inherit;
+    line-height: 1.2;
+    padding: 4px 10px;
+    height: auto;
+    flex: 0 0 auto;
+}
+
+/* Keep controls inline instead of absolutely positioned */
+#topClientsControlRow button {
+    position: static;
+    margin: 0;
+}
+
+#topClientsControlRow select {
+    position: static;
+    min-width: 0;
+    flex: 0 0 auto;
+}
+
 /* SNIPPET #1: STAR ANIMATION CSS - REPLACEMENT */
 .star-animation {
   position: fixed;
@@ -2191,7 +2231,7 @@ input#clientAutocomplete, select#clientSelect {
 
 /* SNIPPET TO ADD A GAP BETWEEN THE EMAIL SUMMARY BUTTON ROW 
    AND THE ADD NEW CLIENT BUTTON ROW */
-#dateCategoryRow {
+#topClientsControlRow {
   margin-bottom: 20px; /* Adjust as needed to create more or less space */
 }
 
@@ -2214,9 +2254,12 @@ input#clientAutocomplete, select#clientSelect {
   cursor: default;
 
   /* Keep only what you still want */
-  font-size: 1em;    /* optional: keep your sizing */
-  width: auto;       /* optional */
-  margin-left: 5px;  /* keep the small gap from nearby controls */
+  font-size: inherit;   /* match the date + bulb size */
+  width: auto;          /* optional */
+  margin-left: 5px;     /* keep the small gap from nearby controls */
+  padding: 3px 18px 3px 6px; /* keep the box snug while leaving room for the arrow (mobile arrow is wider) */
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 
@@ -2984,40 +3027,35 @@ input#clientAutocomplete, select#clientSelect {
 <!-- Removed the 'button-container' div -->
 <!-- Container for title and buttons -->
 <div id="titleButtonContainer" class="title-button-container">
-    <!-- First Row: Date and Category Button -->
-    <div class="row" id="dateCategoryRow">
+    <!-- Inline row: Date + filter dropdown + bulb -->
+    <div class="row" id="topClientsControlRow">
         <div id="dateTitle" class="title-text"></div>
-        <!-- SNIPPET A: REPLACEMENT BUTTON -->
-<button id="scrollBottomBtn" class="secondary-button" onclick="scrollToBottomInOneSecond()">SCROLL DOWN</button>
 
+        <!-- FILTER DROPDOWN (unchanged) -->
+        <select id="topClientsFilterDropdown">
+            <option value="JB">JB</option>
+            <option value="RB">RB</option>
+            <option value="QC">QC</option>
+            <option value="TEAM">TEAM</option>
+            <option value="BDAY">BDAY</option>
+            <option value="BRIEFCASE">💼</option>
+            <option value="STAR">⭐</option>
+            <option value="GRADCAP">🎓</option>
+            <option value="PHONE">📞</option>
+        </select>
+
+        <!-- NEW: SUGGESTIONS button inline with the dropdown -->
+        <button id="suggestionsToggleBtn" type="button" class="secondary-button" onclick="toggleSuggestions()">
+            💡
+        </button>
     </div>
-
-    <!-- Under #scrollBottomBtn -->
-
 
     <!-- Second Row: Top Clients Title and Add New Client Button -->
     <div class="row" id="topClientsAddNewRow">
-  <div id="topClientsTitle" class="title-text"></div>
-
-  <!-- FILTER DROPDOWN (unchanged) -->
-  <select id="topClientsFilterDropdown">
-  <option value="JB">JB</option>
-  <option value="RB">RB</option>
-  <option value="QC">QC</option>
-    <option value="TEAM">TEAM</option>
-    <option value="BDAY">BDAY</option>
-    <option value="BRIEFCASE">💼</option>
-    <option value="STAR">⭐</option>
-    <option value="GRADCAP">🎓</option>
-    <option value="PHONE">📞</option>
-  </select>
-
-  <!-- NEW: SUGGESTIONS button inline with the dropdown -->
-  <button id="suggestionsToggleBtn" type="button" class="secondary-button" onclick="toggleSuggestions()">
-    💡
-  </button>
-
-</div>
+        <div id="topClientsTitle" class="title-text"></div>
+        <!-- SNIPPET A: REPLACEMENT BUTTON -->
+        <button id="scrollBottomBtn" class="secondary-button" onclick="scrollToBottomInOneSecond()">SCROLL DOWN</button>
+    </div>
 
 </div>
 
@@ -3591,19 +3629,15 @@ function syncClientsListToDropdown(){
   } catch(_) {}
 
   // Stamp today’s date header and clear the title (your existing UI behavior)
-  (function setToday(){
-    var now = new Date();
-    var opts = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
-    var formatted = now.toLocaleDateString('en-US', opts).toUpperCase();
-    var dt = document.getElementById('dateTitle');
-    if (dt) dt.innerText = formatted;
-  })();
+  stampTodayDateTitle();
   (function clearTitle(){
     var titleEl = document.getElementById('topClientsTitle');
     if (!titleEl) return;
     titleEl.innerText = '';
     titleEl.style.display = 'none';
   })();
+
+  fitTopClientsHeaderControls();
 
 // Drive the render using a single, token-protected fetch
 fetchAndRenderTopClientsFromDropdown();
@@ -3632,6 +3666,138 @@ function setFilterAndSync(value) {
   syncClientsListToDropdown();
 })();
 
+// ===== Header helpers: keep the date, dropdown, and bulb in sync on one row =====
+function formatTopClientsDates() {
+  var now = new Date();
+  return {
+    longDate: now.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
+    }).toUpperCase(),
+    shortDate: now.toLocaleDateString('en-US', {
+      month: '2-digit',
+      day: '2-digit',
+      year: '2-digit'
+    })
+  };
+}
+
+function stampTodayDateTitle() {
+  var dt = document.getElementById('dateTitle');
+  var dates = formatTopClientsDates();
+  if (dt) {
+    dt.dataset.longDate = dates.longDate;
+    dt.dataset.shortDate = dates.shortDate;
+    dt.innerText = dates.longDate;
+  }
+  return dates;
+}
+
+function updateDropdownWidthToFit(dd) {
+  if (!dd) return;
+  var label = '';
+  if (dd.selectedIndex >= 0 && dd.options[dd.selectedIndex]) {
+    label = dd.options[dd.selectedIndex].text || '';
+  }
+  label = label || dd.value || '';
+
+  var cs = getComputedStyle(dd);
+  var font = [cs.fontWeight, cs.fontSize, cs.fontFamily].join(' ');
+  var canvas = updateDropdownWidthToFit.__canvas || (updateDropdownWidthToFit.__canvas = document.createElement('canvas'));
+  var ctx = canvas.getContext('2d');
+  ctx.font = font;
+
+  var textWidth = ctx.measureText(label).width;
+  var paddingLeft = parseFloat(cs.paddingLeft) || 0;
+  var paddingRight = parseFloat(cs.paddingRight) || 0;
+  var arrowAllowance = Math.max(24, (parseFloat(cs.fontSize) || 16) * 1.6); // space for the native arrow + mobile buffer
+
+  var px = Math.ceil(textWidth + paddingLeft + paddingRight + arrowAllowance);
+  dd.style.width = px + 'px';
+  dd.style.minWidth = px + 'px';
+}
+
+function fitTopClientsHeaderControls(preferShortFormat) {
+  var container = document.getElementById('topClientsControlRow');
+  var dateEl = document.getElementById('dateTitle');
+  var dd = document.getElementById('topClientsFilterDropdown');
+  var bulb = document.getElementById('suggestionsToggleBtn');
+  if (!container || !dateEl || !dd || !bulb) return;
+
+  var dates = formatTopClientsDates();
+  var longDate = (dateEl.dataset && dateEl.dataset.longDate) || dates.longDate;
+  var shortDate = (dateEl.dataset && dateEl.dataset.shortDate) || dates.shortDate;
+
+  // ensure dataset stays current
+  dateEl.dataset.longDate = longDate;
+  dateEl.dataset.shortDate = shortDate;
+
+  var baseSize = parseFloat(container.dataset.baseFontSize || getComputedStyle(container).fontSize) || 16;
+  container.dataset.baseFontSize = baseSize;
+  var minSize = 8;
+  var baseGap = parseFloat(container.dataset.baseGap || getComputedStyle(container).columnGap || 12);
+  container.dataset.baseGap = baseGap;
+
+  function applySize(px) {
+    var val = px + 'px';
+    container.style.fontSize = val;
+    dateEl.style.fontSize = val;
+    dd.style.fontSize = val;
+    bulb.style.fontSize = val;
+    var gapPx = Math.max(4, baseGap * (px / baseSize));
+    container.style.columnGap = gapPx + 'px';
+  }
+
+  function tryDate(text) {
+    dateEl.textContent = text;
+    var size = baseSize;
+    applySize(size);
+    updateDropdownWidthToFit(dd);
+
+    var fits = container.scrollWidth <= container.clientWidth;
+    while (!fits && size > minSize) {
+      size = Math.max(minSize, size - 0.5);
+      applySize(size);
+      updateDropdownWidthToFit(dd);
+      fits = container.scrollWidth <= container.clientWidth;
+      if (size === minSize) break;
+    }
+    return fits;
+  }
+
+  var firstChoice = preferShortFormat ? shortDate : longDate;
+  var fitsLong = tryDate(firstChoice);
+  if (!fitsLong && firstChoice !== shortDate) {
+    tryDate(shortDate);
+  }
+
+  // Final guard: if space is still tight, lock to the compact date and minimum size
+  // so the dropdown and bulb never overlap the date text.
+  if (container.scrollWidth > container.clientWidth) {
+    dateEl.textContent = shortDate;
+    applySize(minSize);
+    updateDropdownWidthToFit(dd);
+  }
+}
+
+window.addEventListener('resize', function(){
+  fitTopClientsHeaderControls();
+});
+
+window.addEventListener('load', function(){
+  var dd = document.getElementById('topClientsFilterDropdown');
+  if (dd) {
+    updateDropdownWidthToFit(dd);
+    dd.addEventListener('change', function(){
+      updateDropdownWidthToFit(dd);
+      fitTopClientsHeaderControls();
+    });
+  }
+  stampTodayDateTitle();
+  fitTopClientsHeaderControls();
+});
+
 
 
 
@@ -3646,11 +3812,7 @@ function applyDefaultJBFilter() {
 
   // Seed the date header and title immediately
   (function seedHeaders(){
-    var now = new Date();
-    var opts = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
-    var formatted = now.toLocaleDateString('en-US', opts).toUpperCase();
-    var dt = document.getElementById('dateTitle');
-    if (dt) dt.innerText = formatted;
+    stampTodayDateTitle();
 
     var tt = document.getElementById('topClientsTitle');
     if (tt) {
@@ -3658,6 +3820,8 @@ function applyDefaultJBFilter() {
       tt.style.display = 'none';
     }
   })();
+
+  fitTopClientsHeaderControls();
 
 setFilterAndSync('JB'); // uses the canonical path
 
@@ -4175,14 +4339,10 @@ function escapeHtmlForTasks(s) {
 document.addEventListener('DOMContentLoaded', function() {
     showLoadingBar(); // Show the loading bar
     /***** SNIPPET: IMMEDIATELY SHOW DATE & EMAIL SUMMARY BUTTON *****/
-{
+{ 
   // Get today's date in short format
-  var now = new Date();
-  var opts = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
-  var formattedDate = now.toLocaleDateString('en-US', opts).toUpperCase();
-  
-  // Set the #dateTitle text right away
-  document.getElementById('dateTitle').innerText = formattedDate;
+  stampTodayDateTitle();
+  fitTopClientsHeaderControls();
 
   // Force the EMAIL SUMMARY button to be visible immediately
   // (In case any default CSS hides it, this ensures it's displayed.)
@@ -6250,18 +6410,16 @@ function displayFilteredClients(filter) {
         hideLoadingBar(); // Hide loading indication
 
         // Get today's date in the required format
-        var today = new Date();
-        var options = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
-        var formattedDate = today.toLocaleDateString('en-US', options).toUpperCase();
+        var formattedDates = stampTodayDateTitle();
 
         // Initialize titles
-        var dateTitle = '';
+        var dateTitle = formattedDates.longDate;
         var topClientsTitle = '';
 
         // Set titles based on the filter
       // SNIPPET: ALWAYS SHOW DATE
 // Set topClientsTitle based on the filter, but ALWAYS set dateTitle to today's date
-dateTitle = formattedDate; 
+dateTitle = formattedDates.longDate;
 switch (filter) {
     case 'strictPast':
         topClientsTitle = 'TOP CLIENTS:';
@@ -6290,6 +6448,8 @@ switch (filter) {
 document.getElementById('dateTitle').innerText = dateTitle;
 document.getElementById('topClientsTitle').innerText = '';
 document.getElementById('topClientsTitle').style.display = 'none';
+
+        fitTopClientsHeaderControls();
 
     }).getTopClients(); // Your server-side function to fetch top clients
 }
@@ -6368,11 +6528,7 @@ function chipDateToTimeForSort(chipDateStr){
   (B) The "NEW" function (for initial page load)
 **********************************************/function showTopClientsOnLoad(clients, filterKey) {
   // 1) Stamp the date + clear the title (your existing UI bits)
-  var today = new Date();
-  var options = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
-  var formattedDate = today.toLocaleDateString('en-US', options).toUpperCase();
-  var dateEl = document.getElementById('dateTitle');
-  if (dateEl) dateEl.innerText = formattedDate;
+  stampTodayDateTitle();
 
   (function clearInitialTitle(){
     var titleEl = document.getElementById('topClientsTitle');
@@ -6380,6 +6536,8 @@ function chipDateToTimeForSort(chipDateStr){
     titleEl.innerText = '';
     titleEl.style.display = 'none';
   })();
+
+  fitTopClientsHeaderControls();
 
   // 2) Resolve filter from dropdown if not passed; default to JB
   var dd = document.getElementById('topClientsFilterDropdown');
