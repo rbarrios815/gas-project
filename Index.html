@@ -1743,6 +1743,8 @@ input#clientAutocomplete, select#clientSelect {
 #labelsAdditionSection {
   flex-basis: 15%; /* Assign 10% of the parent container's width to the dropdown */
   display: none;
+  flex-direction: column;
+  gap: 8px;
 }
 
 #labelsDropdown {
@@ -1764,6 +1766,17 @@ input#clientAutocomplete, select#clientSelect {
   display: inline-flex; /* Make button an inline-flex element */
   margin: 0; /* Remove auto margins */
   /* Any other specific styles you want these buttons to have */
+}
+
+.labels-buttons-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.labels-buttons-row > button {
+  width: 100%;
 }
 
 
@@ -2983,9 +2996,11 @@ input#clientAutocomplete, select#clientSelect {
       <!-- Options will be dynamically populated here -->
       <option value="NEW LABEL">NEW LABEL</option>
     </select>
-   
-   
-   
+
+    <div id="labelsButtonsRow" class="labels-buttons-row"></div>
+
+
+
 
   </div>
 </div>
@@ -5745,7 +5760,7 @@ REPLACE ENTIRE toggleNotesVisibility FUNCTION WITH THIS
 REPLACE ENTIRE toggleNotesVisibility FUNCTION WITH THIS
 ***************************************/
 function toggleNotesVisibility() {
-  // Capture previous state to detect a click on the "LESS" button
+  // Capture previous state to detect a click on the "-" button
   var wasExpanded = !!notesExpanded;
 
   // Flip the global boolean
@@ -5762,11 +5777,11 @@ function toggleNotesVisibility() {
 
   var toggleButton = document.getElementById('toggleNotesButton');
   if (toggleButton) {
-    // If expanded now, the button should read LESS; if collapsed, MORE
-    toggleButton.innerText = notesExpanded ? 'LESS' : 'MORE';
+    // If expanded now, the button should read -; if collapsed, +
+    toggleButton.innerText = notesExpanded ? '-' : '+';
   }
 
-  // If the user just clicked the LESS button (i.e., was expanded → now collapsed),
+  // If the user just clicked the - button (i.e., was expanded → now collapsed),
   // scroll to the top.
   if (wasExpanded && !notesExpanded) {
     // Use the global helper (defined below). If you have your own scrollToTop already, this will call it.
@@ -5918,19 +5933,15 @@ function displayNotes(notes) {
   unhighlightedWrap.style.gap = '5px';
   container.appendChild(unhighlightedWrap);
 
-  // === BUTTON ROW (MORE/LESS + ✏️) ===
+  // === BUTTON ROW (moved beside the label dropdown) ===
   var buttonRow = document.createElement('div');
-  buttonRow.style.display = 'inline-flex';
-  buttonRow.style.alignSelf = 'center';
-  buttonRow.style.alignItems = 'center';
-  buttonRow.style.margin = '6px 0';
-  buttonRow.style.gap = '0';
+  buttonRow.className = 'labels-buttons-row';
 
   var toggleBtn = document.createElement('button');
   toggleBtn.id = 'toggleNotesButton';
   toggleBtn.onclick = toggleNotesVisibility;
   toggleBtn.style.fontSize = '0.66em';
-  toggleBtn.innerText = 'MORE';
+  toggleBtn.innerText = '+';
 
   var editBtn = document.createElement('button');
   editBtn.id = 'editNotesButton';
@@ -5938,7 +5949,7 @@ function displayNotes(notes) {
   editBtn.title = 'Edit notes';
   editBtn.setAttribute('aria-label', 'Edit notes');
   editBtn.style.fontSize = '0.66em';
-  editBtn.style.marginLeft = '6px';
+  editBtn.style.marginLeft = '0';
   editBtn.innerHTML = '✏️';
   editBtn.onclick = function (e) {
     e.stopPropagation();
@@ -5955,7 +5966,14 @@ function displayNotes(notes) {
 
   buttonRow.appendChild(toggleBtn);
   buttonRow.appendChild(editBtn);
-  container.appendChild(buttonRow);
+
+  var labelsButtonsRow = document.getElementById('labelsButtonsRow');
+  if (labelsButtonsRow) {
+    labelsButtonsRow.innerHTML = '';
+    labelsButtonsRow.appendChild(buttonRow);
+  } else {
+    container.appendChild(buttonRow);
+  }
 
   // === HIGHLIGHTED (newest 3 blocks) ===
   var highlightedWrap = document.createElement('div');
@@ -6005,10 +6023,10 @@ function displayNotes(notes) {
     }
   });
 
-// Always show the row; only hide the MORE/LESS button if no older blocks
+// Always show the row; only hide the toggle button if no older blocks
 var hasOlder = unhighlightedWrap.children.length > 0;
 toggleBtn.style.display = hasOlder ? 'inline-block' : 'none';
-buttonRow.style.display = 'inline-flex'; // keep the row visible so ✏️ stays
+buttonRow.style.display = 'flex'; // keep the row visible so ✏️ stays
 
 
   notesDisplay.appendChild(container);
