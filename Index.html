@@ -2800,6 +2800,57 @@ input#clientAutocomplete, select#clientSelect {
   display: inline !important;       /* inline so they sit on one line */
 }
 
+/* === Keep all four recent items shrinking together ====================== */
+#recentRow { 
+  font-size: 1rem;                 /* shared base size for the bar */
+}
+
+/* Let every direct child shrink (3 recents + NEW CLIENT) */
+#recentRow > * {
+  flex-shrink: 1;
+  font-size: 1em !important;      /* keep siblings on the same scale */
+}
+
+#recentRow .recent-bar.inside-autocomplete {
+  flex-wrap: nowrap;               /* JS will shrink font-size instead of wrapping */
+  min-width: 0;                    /* allow chips to contract */
+}
+
+/* Prevent chip text from overflowing when the bar shrinks */
+#recentRow .recent-pill {
+  min-width: 0;
+}
+
+#recentRow .recent-pill .rc-name {
+  display: block;
+  min-width: 0;
+  overflow: visible;            /* never hide behind ellipses */
+  text-overflow: clip;          /* rely on font shrink instead */
+}
+
+/* Keep pill text bound to the shared row font size */
+#recentRow .recent-pill,
+#recentRow .recent-pill .rc-name {
+  font-size: 1em !important;
+}
+
+/* NEW CLIENT shrinks with the row and keeps em-based padding */
+#addNewClientBtn,
+#addNewClientBtn.recent-add-btn {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 1em !important;       /* lock to row sizing */
+  padding: 0.45em 0.9em;
+  gap: 0.35em;
+  margin-right: 0 !important;      /* avoid forced overflow */
+  white-space: nowrap !important;  /* stay on one line; shrink instead */
+}
+
+#addNewClientBtn span {
+  display: inline-block !important;
+  font-size: 1em !important;       /* keep both words the same scale */
+}
+
 .cat-pill {
   position: relative;
   display: inline-flex;
@@ -4535,7 +4586,7 @@ function fitRecentRowOneLine() {
   // Early exit: if it already fits, keep the big size
   if (row.scrollWidth <= available) return;
 
-  var minPx = 8;                  // allow tighter shrink before wrapping
+  var minPx = 6;                  // allow tighter shrink before wrapping
   var lo = minPx, hi = row.__baseFontPx, best = lo;
 
   // Binary search for the largest font-size that still fits
