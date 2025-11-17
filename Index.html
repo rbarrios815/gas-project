@@ -7891,19 +7891,20 @@ function positionCategoryDropdownOverAutocomplete() {
     var categoryWidth = Math.max(ctx.measureText(value.slice(start, end + 1)).width, 0);
     var paddingLeft = parseFloat(style.paddingLeft) || 0;
     var paddingRight = parseFloat(style.paddingRight) || 0;
-    var paddingTop = parseFloat(style.paddingTop) || 0;
-    var paddingBottom = parseFloat(style.paddingBottom) || 0;
-    var borderTop = parseFloat(style.borderTopWidth) || 0;
-    var borderBottom = parseFloat(style.borderBottomWidth) || 0;
-    var availableWidth = Math.max(inputRect.width - prefixWidth - paddingLeft - paddingRight, 120);
+
+    // Leave a sliver of the green autocomplete background visible all around the overlay
+    var inset = 4;
+
+    var insideWidth = Math.max(inputRect.width - inset * 2, 0);
+    var availableWidth = Math.max(insideWidth - prefixWidth - paddingLeft - paddingRight, 120);
     var overlayWidth = Math.min(categoryWidth + paddingLeft + paddingRight, availableWidth);
-    var left = inputRect.left - containerRect.left + paddingLeft + prefixWidth;
+    var left = inputRect.left - containerRect.left + inset + paddingLeft + prefixWidth;
 
     overlay.style.display = 'flex';
     overlay.style.left = left + 'px';
-    overlay.style.top = (inputRect.top - containerRect.top + borderTop + paddingTop) + 'px';
-    overlay.style.height = Math.max(inputRect.height - borderTop - borderBottom - paddingTop - paddingBottom, 0) + 'px';
-    overlay.style.width = overlayWidth + 'px';
+    overlay.style.top = (inputRect.top - containerRect.top + inset) + 'px';
+    overlay.style.height = Math.max(inputRect.height - inset * 2, 0) + 'px';
+    overlay.style.width = Math.max(overlayWidth, 0) + 'px';
     overlay.setAttribute('aria-hidden', 'false');
 }
 
