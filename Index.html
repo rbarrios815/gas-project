@@ -2257,7 +2257,7 @@ input#clientAutocomplete, select#clientSelect {
   font-size: inherit;   /* match the date + bulb size */
   width: auto;          /* optional */
   margin-left: 5px;     /* keep the small gap from nearby controls */
-  padding: 3px 10px 3px 6px; /* keep the box snug while leaving room for the arrow */
+  padding: 3px 18px 3px 6px; /* keep the box snug while leaving room for the arrow (mobile arrow is wider) */
   white-space: nowrap;
   flex: 0 0 auto;
 }
@@ -3711,7 +3711,7 @@ function updateDropdownWidthToFit(dd) {
   var textWidth = ctx.measureText(label).width;
   var paddingLeft = parseFloat(cs.paddingLeft) || 0;
   var paddingRight = parseFloat(cs.paddingRight) || 0;
-  var arrowAllowance = 24; // space for the native arrow + small buffer
+  var arrowAllowance = Math.max(24, (parseFloat(cs.fontSize) || 16) * 1.6); // space for the native arrow + mobile buffer
 
   var px = Math.ceil(textWidth + paddingLeft + paddingRight + arrowAllowance);
   dd.style.width = px + 'px';
