@@ -3008,7 +3008,7 @@ input#clientAutocomplete, select#clientSelect {
     <!-- Category dropdown overlaid on the category portion of the loaded client -->
     <div id="categoryChangeSection" class="category-overlay" aria-hidden="true" style="display:none;">
       <select id="categorySelect" class="category-select">
-        <option value="">Select a category...</option>
+        <option value=""></option>
       </select>
     </div>
 
@@ -5204,7 +5204,7 @@ function showClientNotes() {
 // Reset values and set displays based on selection
 document.getElementById('newPastWork').value = '';
 document.getElementById('categorySelect').value = '';
-setCategoryPlaceholderText('Select a category...');
+setCategoryPlaceholderText('');
 hideCategoryOverlay();
 
 var displayStyle = clientName ? 'block' : 'none';
@@ -5259,7 +5259,7 @@ displayClientDetails(data);
 
 // Update the category select value based on fetched client data
 updateCategorySelectValue(data.category);
-setCategoryPlaceholderText(data.category || 'Select a category...');
+setCategoryPlaceholderText(data.category || __currentCategory || '');
 positionCategoryDropdownOverAutocomplete();
 
         pendingOps--;
@@ -5328,6 +5328,8 @@ function wireCategorySelectChange(){
     const newCat = (sel.value || '').trim();
     // Dedupe: don't call server if the value didn't actually change
     if (newCat === (__currentCategory || '')) return;
+    setCategoryPlaceholderText(newCat || '');
+    positionCategoryDropdownOverAutocomplete();
     requestCategoryChange(newCat);
   });
 
@@ -5341,6 +5343,8 @@ function updateCategorySelectValue(newValue){
   __suppressCategoryChange = true;
   sel.value = (newValue || '');
   __currentCategory = (newValue || '');  // keep our local notion in sync
+  setCategoryPlaceholderText(__currentCategory || '');
+  positionCategoryDropdownOverAutocomplete();
   // release on next tick so real user changes still work
   setTimeout(() => { __suppressCategoryChange = false; }, 0);
 }
@@ -5360,6 +5364,8 @@ function requestCategoryChange(newCategory){
       if (token !== __categoryReqToken) return;
       __currentCategory = newCategory;                       // lock in
       __categoryInFlight = false;
+      setCategoryPlaceholderText(__currentCategory || '');
+      positionCategoryDropdownOverAutocomplete();
       try { if (typeof hideLoadingBar === 'function') hideLoadingBar(); } catch(_){}
       // Optional toast near the select
       try {
@@ -7797,14 +7803,17 @@ function updateCategoryLabel() {
     if (clientSelect.value) {
         // Extract client name and category from the selected option
         var clientName = selectedOption.value;
-        var clientCategory = selectedOption.textContent.split(' (')[1].slice(0, -1);
+        var rawText = selectedOption && selectedOption.textContent ? selectedOption.textContent : '';
+        var split = rawText.split(' (');
+        var clientCategory = split.length > 1 ? split[1].slice(0, -1) : '';
+        var effectiveCategory = clientCategory || __currentCategory || '';
 
         // Overlay the dropdown with the current category so it sits on top of the "(Category)" text
-        setCategoryPlaceholderText(clientCategory || 'Select a category...');
+        setCategoryPlaceholderText(effectiveCategory);
         positionCategoryDropdownOverAutocomplete();
     } else {
         // Set the placeholder text when no client is selected and hide the overlay
-        setCategoryPlaceholderText('Select a category...');
+        setCategoryPlaceholderText('');
         hideCategoryOverlay();
     }
 }
@@ -7819,7 +7828,8 @@ function setCategoryPlaceholderText(text) {
         categorySelect.appendChild(placeholderOption);
     }
 
-    categorySelect.options[0].text = text || 'Select a category...';
+    var effectiveText = text || __currentCategory || '';
+    categorySelect.options[0].text = effectiveText;
 }
 
 function hideCategoryOverlay() {
@@ -7863,16 +7873,19 @@ function positionCategoryDropdownOverAutocomplete() {
     ctx.font = style.fontWeight + ' ' + style.fontSize + ' ' + style.fontFamily;
 
     var prefixWidth = ctx.measureText(value.slice(0, start)).width;
-    var categoryWidth = Math.max(ctx.measureText(value.slice(start, end + 1)).width + 12, 140);
+    var categoryWidth = Math.max(ctx.measureText(value.slice(start, end + 1)).width, 0);
     var paddingLeft = parseFloat(style.paddingLeft) || 0;
-    var availableWidth = Math.max(inputRect.width - prefixWidth - paddingLeft, 120);
-    var overlayWidth = Math.min(categoryWidth, availableWidth);
+    var paddingRight = parseFloat(style.paddingRight) || 0;
+    var borderTop = parseFloat(style.borderTopWidth) || 0;
+    var borderBottom = parseFloat(style.borderBottomWidth) || 0;
+    var availableWidth = Math.max(inputRect.width - prefixWidth - paddingLeft - paddingRight, 120);
+    var overlayWidth = Math.min(categoryWidth + paddingLeft + paddingRight, availableWidth);
     var left = inputRect.left - containerRect.left + paddingLeft + prefixWidth;
 
     overlay.style.display = 'flex';
     overlay.style.left = left + 'px';
-    overlay.style.top = (inputRect.top - containerRect.top) + 'px';
-    overlay.style.height = inputRect.height + 'px';
+    overlay.style.top = (inputRect.top - containerRect.top + borderTop) + 'px';
+    overlay.style.height = (inputRect.height - borderTop - borderBottom) + 'px';
     overlay.style.width = overlayWidth + 'px';
     overlay.setAttribute('aria-hidden', 'false');
 }
@@ -7971,7 +7984,7 @@ function populateCategoryDropdown(categories) {
 
   var ph = document.createElement('option');
   ph.value = '';
-  ph.textContent = 'Select a category...';
+  ph.textContent = __currentCategory || '';
   sel.appendChild(ph);
 
   (categories || []).forEach(function (cat) {
@@ -8473,27 +8486,38 @@ function displayClient(client, container) {
 
 function updateCategorySelectValue(clientCategory) {
     var categorySelect = document.getElementById('categorySelect');
-    if (clientCategory) {
-        // Ensure the category exists in the dropdown
+    if (!categorySelect) return;
+
+    var normalizedCategory = (clientCategory || '').trim();
+
+    // Ensure the category exists in the dropdown
+    if (normalizedCategory) {
         var optionExists = Array.from(categorySelect.options).some(function(option) {
-            return option.value === clientCategory;
+            return option.value === normalizedCategory;
         });
 
         // If not, add it to the dropdown
         if (!optionExists) {
             var newOption = document.createElement('option');
-            newOption.value = clientCategory;
-            newOption.textContent = clientCategory;
+            newOption.value = normalizedCategory;
+            newOption.textContent = normalizedCategory;
             categorySelect.appendChild(newOption);
         }
 
-        // Set the dropdown's value to the client's category
-        categorySelect.value = clientCategory;
-        setCategoryPlaceholderText(clientCategory);
+        __suppressCategoryChange = true;
+        categorySelect.value = normalizedCategory;
+        __suppressCategoryChange = false;
+
+        __currentCategory = normalizedCategory;
+        setCategoryPlaceholderText(__currentCategory);
         positionCategoryDropdownOverAutocomplete();
     } else {
+        __suppressCategoryChange = true;
         categorySelect.value = '';
-        setCategoryPlaceholderText('Select a category...');
+        __suppressCategoryChange = false;
+
+        __currentCategory = '';
+        setCategoryPlaceholderText(__currentCategory);
         hideCategoryOverlay();
     }
 }
