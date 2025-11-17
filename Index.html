@@ -2168,6 +2168,40 @@ input#clientAutocomplete, select#clientSelect {
     margin: 0; /* Remove any auto-margins that might shift the buttons */
 }
 
+/* Inline controls: date + dropdown + bulb stay on one line with matching size */
+#topClientsControlRow {
+    gap: 12px;
+    flex-wrap: nowrap;
+    align-items: center;
+}
+
+#topClientsControlRow .title-text {
+    font-size: 1.25em;
+    font-weight: bold;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+#topClientsControlRow select,
+#topClientsControlRow button {
+    font-size: 1.25em;
+    line-height: 1.2;
+    padding: 6px 10px;
+    height: auto;
+}
+
+/* Keep controls inline instead of absolutely positioned */
+#topClientsControlRow button {
+    position: static;
+    margin: 0;
+}
+
+#topClientsControlRow select {
+    position: static;
+}
+
 /* SNIPPET #1: STAR ANIMATION CSS - REPLACEMENT */
 .star-animation {
   position: fixed;
@@ -2191,7 +2225,7 @@ input#clientAutocomplete, select#clientSelect {
 
 /* SNIPPET TO ADD A GAP BETWEEN THE EMAIL SUMMARY BUTTON ROW 
    AND THE ADD NEW CLIENT BUTTON ROW */
-#dateCategoryRow {
+#topClientsControlRow {
   margin-bottom: 20px; /* Adjust as needed to create more or less space */
 }
 
@@ -2214,9 +2248,9 @@ input#clientAutocomplete, select#clientSelect {
   cursor: default;
 
   /* Keep only what you still want */
-  font-size: 1em;    /* optional: keep your sizing */
-  width: auto;       /* optional */
-  margin-left: 5px;  /* keep the small gap from nearby controls */
+  font-size: 1.25em;    /* match the date + bulb size */
+  width: auto;          /* optional */
+  margin-left: 5px;     /* keep the small gap from nearby controls */
 }
 
 
@@ -2984,40 +3018,35 @@ input#clientAutocomplete, select#clientSelect {
 <!-- Removed the 'button-container' div -->
 <!-- Container for title and buttons -->
 <div id="titleButtonContainer" class="title-button-container">
-    <!-- First Row: Date and Category Button -->
-    <div class="row" id="dateCategoryRow">
+    <!-- Inline row: Date + filter dropdown + bulb -->
+    <div class="row" id="topClientsControlRow">
         <div id="dateTitle" class="title-text"></div>
-        <!-- SNIPPET A: REPLACEMENT BUTTON -->
-<button id="scrollBottomBtn" class="secondary-button" onclick="scrollToBottomInOneSecond()">SCROLL DOWN</button>
 
+        <!-- FILTER DROPDOWN (unchanged) -->
+        <select id="topClientsFilterDropdown">
+            <option value="JB">JB</option>
+            <option value="RB">RB</option>
+            <option value="QC">QC</option>
+            <option value="TEAM">TEAM</option>
+            <option value="BDAY">BDAY</option>
+            <option value="BRIEFCASE">💼</option>
+            <option value="STAR">⭐</option>
+            <option value="GRADCAP">🎓</option>
+            <option value="PHONE">📞</option>
+        </select>
+
+        <!-- NEW: SUGGESTIONS button inline with the dropdown -->
+        <button id="suggestionsToggleBtn" type="button" class="secondary-button" onclick="toggleSuggestions()">
+            💡
+        </button>
     </div>
-
-    <!-- Under #scrollBottomBtn -->
-
 
     <!-- Second Row: Top Clients Title and Add New Client Button -->
     <div class="row" id="topClientsAddNewRow">
-  <div id="topClientsTitle" class="title-text"></div>
-
-  <!-- FILTER DROPDOWN (unchanged) -->
-  <select id="topClientsFilterDropdown">
-  <option value="JB">JB</option>
-  <option value="RB">RB</option>
-  <option value="QC">QC</option>
-    <option value="TEAM">TEAM</option>
-    <option value="BDAY">BDAY</option>
-    <option value="BRIEFCASE">💼</option>
-    <option value="STAR">⭐</option>
-    <option value="GRADCAP">🎓</option>
-    <option value="PHONE">📞</option>
-  </select>
-
-  <!-- NEW: SUGGESTIONS button inline with the dropdown -->
-  <button id="suggestionsToggleBtn" type="button" class="secondary-button" onclick="toggleSuggestions()">
-    💡
-  </button>
-
-</div>
+        <div id="topClientsTitle" class="title-text"></div>
+        <!-- SNIPPET A: REPLACEMENT BUTTON -->
+        <button id="scrollBottomBtn" class="secondary-button" onclick="scrollToBottomInOneSecond()">SCROLL DOWN</button>
+    </div>
 
 </div>
 
