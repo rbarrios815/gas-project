@@ -1733,24 +1733,28 @@ input#clientAutocomplete, select#clientSelect {
 .labels-container {
   display: flex;
   width: 100%;
+  align-items: stretch;
 }
 
 #labelsDisplay {
   flex-basis: 85%; /* Assign 90% of the parent container's width to labels display */
   font-size: 32px;
+  max-width: 85%;
 }
 
 #labelsAdditionSection {
-  flex-basis: 15%; /* Assign 10% of the parent container's width to the dropdown */
+  flex: 0 0 15%; /* Keep the controls to no more than 15% of the screen width */
+  max-width: 15%;
   display: none;
   flex-direction: column;
   gap: 8px;
+  font-size: 32px;
 }
 
 #labelsDropdown {
   width: 100%; /* Ensure the dropdown fills its container */
   box-sizing: border-box; /* Include padding and borders in the element's total width */
-  font-size: 65%; /* This will set the font size to 65% of the inherited size */
+  font-size: 1em; /* Match the labels/notes sizing */
 
 }
 
@@ -1759,7 +1763,7 @@ input#clientAutocomplete, select#clientSelect {
 #toggleNotesButton {
   background-color: #FFDAB9; /* Peach Puff color, a light orange shade */
   margin-top: 5px;
-  font-size: 65%;
+  font-size: 1em;
   }
 
 .inline-button {
@@ -1777,11 +1781,13 @@ input#clientAutocomplete, select#clientSelect {
 
 .labels-buttons-row > button {
   width: 100%;
+  font-size: 1em;
 }
 
 .labels-chip-slot {
   display: flex;
   justify-content: center;
+  font-size: 1em;
 }
 
 
@@ -5945,7 +5951,7 @@ function displayNotes(notes) {
   var toggleBtn = document.createElement('button');
   toggleBtn.id = 'toggleNotesButton';
   toggleBtn.onclick = toggleNotesVisibility;
-  toggleBtn.style.fontSize = '0.66em';
+  toggleBtn.style.fontSize = '1em';
   toggleBtn.innerText = '+';
 
   var editBtn = document.createElement('button');
@@ -5953,7 +5959,7 @@ function displayNotes(notes) {
   editBtn.className = 'secondary-button inline-button';
   editBtn.title = 'Edit notes';
   editBtn.setAttribute('aria-label', 'Edit notes');
-  editBtn.style.fontSize = '0.66em';
+  editBtn.style.fontSize = '1em';
   editBtn.style.marginLeft = '0';
   editBtn.innerHTML = '✏️';
   editBtn.onclick = function (e) {
