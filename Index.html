@@ -4454,8 +4454,25 @@ function ensureHeaderSpacing() {
     setTimeout(adjustBodyMarginTop, 0);
   } catch (e) {}
 }
-/* === RECENT CHIPS: update only when client notes are HIDDEN (MAX 3) === */
-window.__recentClients = Array.isArray(window.__recentClients) ? window.__recentClients : []; // most-recent-first, max 3
+/* === RECENT CHIPS: update only when client notes are HIDDEN (cache 4, show up to 3) === */
+// Keep an extra slot in memory so we can drop the active client and still show up to 3 recents
+var RECENT_CACHE_LIMIT = 4;
+window.__recentClients = Array.isArray(window.__recentClients) ? window.__recentClients : []; // most-recent-first, max 4
+
+function getActiveClientName() {
+  // Prefer the tracked autocomplete text, then fall back to the select/dropdown
+  if (typeof currentClientName !== 'undefined' && currentClientName) {
+    return String(currentClientName).trim();
+  }
+
+  var select = document.getElementById('clientSelect');
+  if (select && select.value) return String(select.value).trim();
+
+  var auto = document.getElementById('clientAutocomplete');
+  if (auto && auto.value) return String(auto.value).trim();
+
+  return '';
+}
 
 function formatRecentClientName(name) {
   if (!name) return '';
@@ -4480,8 +4497,12 @@ function renderRecentClientsBar(){
   // Desktop can show up to 3 recents; on narrow/mobile viewports, cap at 2
   var maxRecents = (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 640px)').matches) ? 2 : 3;
 
-  // Enforce the viewport-specific cap at render time as well
-  var list = (window.__recentClients || []).slice(0, maxRecents);
+  // Enforce the viewport-specific cap at render time as well, excluding the active client
+  var active = getActiveClientName();
+  var activeNorm = active ? active.toLowerCase() : '';
+  var list = (window.__recentClients || []).filter(function(name){
+    return !activeNorm || String(name).toLowerCase() !== activeNorm;
+  }).slice(0, maxRecents);
 
   bar.innerHTML = list.map(function(name){
     return '<span class="recent-pill"><span class="rc-name">'+ escapeHTML(formatRecentClientName(name || '')) +'</span></span>';
@@ -4511,8 +4532,8 @@ function updateRecentsOnHide(clientName){
   // add to the front
   arr.unshift(clientName);
 
-  // cap at 3
-  window.__recentClients = arr.slice(0, 3);
+  // cap at cache limit so we can drop the active client and still show 3 recents
+  window.__recentClients = arr.slice(0, RECENT_CACHE_LIMIT);
 
   // persist (merge with current UI state if available)
   try {
@@ -4539,7 +4560,7 @@ function updateRecentsOnHide(clientName){
     if (typeof restoreUIState === 'function') {
       var st = restoreUIState();
       if (st && Array.isArray(st.recents)) {
-        window.__recentClients = st.recents.slice(0, 3);
+        window.__recentClients = st.recents.slice(0, RECENT_CACHE_LIMIT);
         renderRecentClientsBar();
         return;
       }
@@ -4549,7 +4570,7 @@ function updateRecentsOnHide(clientName){
       if (raw) {
         var arr = JSON.parse(raw);
         if (Array.isArray(arr)) {
-          window.__recentClients = arr.slice(0, 3);
+          window.__recentClients = arr.slice(0, RECENT_CACHE_LIMIT);
           renderRecentClientsBar();
         }
       }
@@ -8009,7 +8030,7 @@ function hideClientNotes() {
         return String(n).toLowerCase() !== norm;
       });
       window.__recentClients.unshift(justHiddenClient);
-      window.__recentClients = window.__recentClients.slice(0, 3);
+      window.__recentClients = window.__recentClients.slice(0, RECENT_CACHE_LIMIT);
       if (typeof renderRecentClientsBar === 'function') renderRecentClientsBar();
     }
   }
