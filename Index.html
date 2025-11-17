@@ -1915,6 +1915,24 @@ input#clientAutocomplete, select#clientSelect {
   font-size: 16px;
 }
 
+.past-work-wrapper {
+  position: relative;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.past-work-wrapper .past-work-textarea {
+  padding-right: 200px;
+}
+
+.past-work-wrapper .update-team-task-btn {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  margin: 0;
+}
+
 .client-button {
     font-weight: normal;
 }
@@ -3043,11 +3061,11 @@ input#clientAutocomplete, select#clientSelect {
 
     
     <!-- Past Work submission -->
-<div id="pastWorkSection" style="flex: 1 1 100%; padding-right: 0; display: none; flex-direction: column; justify-content: flex-end; width: 100%; max-width: 100%;">
-        <textarea id="newPastWork" class="past-work-textarea"></textarea>
-        <br>
-        <button class="update-team-task-btn" onclick="submitPastWork()">Submit Note</button>
-        <br>
+    <div id="pastWorkSection" style="flex: 1 1 100%; padding-right: 0; display: none; flex-direction: column; justify-content: flex-end; width: 100%; max-width: 100%;">
+        <div class="past-work-wrapper">
+          <textarea id="newPastWork" class="past-work-textarea"></textarea>
+          <button class="update-team-task-btn" onclick="submitPastWork()">Submit Note</button>
+        </div>
 <!-- In-Progress (Loaded) with left-side bulb -->
 <div class="inprogress-bulb-row" style="background-color:#90EE90; padding:10px; border:1px solid #ccc; border-radius:4px; display:flex; align-items:flex-start; gap:10px;">
   <span aria-hidden="true" style="font-size:1.25em; line-height:1; margin-top:4px;">💡</span>
