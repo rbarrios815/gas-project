@@ -2226,6 +2226,45 @@ input#clientAutocomplete, select#clientSelect {
     margin: 0; /* Remove any auto-margins that might shift the buttons */
 }
 
+/* Keep the filtered clients controls on a single line with responsive sizing */
+#topClientsAddNewRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  position: static;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+#topClientsAddNewRow .title-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: clamp(12px, 1.8vw, 16px);
+  line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#topClientsAddNewRow #topClientsFilterDropdown,
+#topClientsAddNewRow #suggestionsToggleBtn {
+  position: static;
+  flex: 0 0 auto;
+  font-size: clamp(11px, 1.6vw, 15px);
+  line-height: 1.1;
+  padding: 4px 8px;
+}
+
+/* Keep the lightbulb tightly sized next to the dropdown */
+#topClientsAddNewRow #suggestionsToggleBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  padding-inline: 6px;
+}
+
 /* SNIPPET #1: STAR ANIMATION CSS - REPLACEMENT */
 .star-animation {
   position: fixed;
