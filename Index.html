@@ -2505,7 +2505,7 @@ input#clientAutocomplete, select#clientSelect {
   border: 1px solid #1E90FF;
   border-radius: 6px;
   font-size: inherit;
-  padding: 0 28px 0 10px;
+  padding: 0 20px 0 8px;
   box-sizing: border-box;
   pointer-events: auto;
 }
@@ -5360,6 +5360,8 @@ function requestCategoryChange(newCategory){
       if (token !== __categoryReqToken) return;
       __currentCategory = newCategory;                       // lock in
       __categoryInFlight = false;
+      setCategoryPlaceholderText(newCategory);
+      positionCategoryDropdownOverAutocomplete();
       try { if (typeof hideLoadingBar === 'function') hideLoadingBar(); } catch(_){}
       // Optional toast near the select
       try {
@@ -7792,14 +7794,17 @@ function getFormattedDate(offset) {
 function updateCategoryLabel() {
     var clientSelect = document.getElementById('clientSelect');
     var categorySelect = document.getElementById('categorySelect');
-    var selectedOption = clientSelect.options[clientSelect.selectedIndex];
+    if (!clientSelect || !categorySelect) return;
 
     if (clientSelect.value) {
-        // Extract client name and category from the selected option
-        var clientName = selectedOption.value;
-        var clientCategory = selectedOption.textContent.split(' (')[1].slice(0, -1);
+        // Extract the category from the visible option text e.g., "Client (Category)"
+        var selectedOption = clientSelect.options[clientSelect.selectedIndex];
+        var match = selectedOption && selectedOption.textContent
+          ? selectedOption.textContent.match(/\(([^()]*)\)\s*$/)
+          : null;
+        var clientCategory = match && match[1] ? match[1] : '';
 
-        // Overlay the dropdown with the current category so it sits on top of the "(Category)" text
+        // Reflect the exact category text in the overlaid dropdown and position it
         setCategoryPlaceholderText(clientCategory || 'Select a category...');
         positionCategoryDropdownOverAutocomplete();
     } else {
@@ -7812,14 +7817,17 @@ function updateCategoryLabel() {
 function setCategoryPlaceholderText(text) {
     var categorySelect = document.getElementById('categorySelect');
     if (!categorySelect) return;
-
-    if (categorySelect.options.length === 0) {
-        var placeholderOption = document.createElement('option');
-        placeholderOption.value = '';
-        categorySelect.appendChild(placeholderOption);
+    var label = text || 'Select a category...';
+    var placeholderOption = categorySelect.options[0];
+    if (!placeholderOption) {
+        placeholderOption = document.createElement('option');
+        categorySelect.insertBefore(placeholderOption, categorySelect.firstChild);
     }
 
-    categorySelect.options[0].text = text || 'Select a category...';
+    placeholderOption.text = label;
+    placeholderOption.value = text ? text : '';
+    categorySelect.selectedIndex = 0;
+    updateCategorySelectValue(text || '');
 }
 
 function hideCategoryOverlay() {
@@ -7863,16 +7871,19 @@ function positionCategoryDropdownOverAutocomplete() {
     ctx.font = style.fontWeight + ' ' + style.fontSize + ' ' + style.fontFamily;
 
     var prefixWidth = ctx.measureText(value.slice(0, start)).width;
-    var categoryWidth = Math.max(ctx.measureText(value.slice(start, end + 1)).width + 12, 140);
+    var categoryTextWidth = ctx.measureText(value.slice(start, end + 1)).width;
     var paddingLeft = parseFloat(style.paddingLeft) || 0;
-    var availableWidth = Math.max(inputRect.width - prefixWidth - paddingLeft, 120);
-    var overlayWidth = Math.min(categoryWidth, availableWidth);
+    var paddingRight = parseFloat(style.paddingRight) || 0;
+    var paddingTop = parseFloat(style.paddingTop) || 0;
+    var paddingBottom = parseFloat(style.paddingBottom) || 0;
+    var availableWidth = Math.max(inputRect.width - prefixWidth - paddingLeft, 40);
+    var overlayWidth = Math.min(categoryTextWidth + paddingRight + 6, availableWidth);
     var left = inputRect.left - containerRect.left + paddingLeft + prefixWidth;
 
     overlay.style.display = 'flex';
     overlay.style.left = left + 'px';
-    overlay.style.top = (inputRect.top - containerRect.top) + 'px';
-    overlay.style.height = inputRect.height + 'px';
+    overlay.style.top = (inputRect.top - containerRect.top + paddingTop) + 'px';
+    overlay.style.height = Math.max(inputRect.height - paddingTop - paddingBottom, 0) + 'px';
     overlay.style.width = overlayWidth + 'px';
     overlay.setAttribute('aria-hidden', 'false');
 }
