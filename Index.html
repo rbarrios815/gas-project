@@ -228,6 +228,36 @@ html { font-size: 200%; }
   min-height: 550px;   /* was 150px */
 }
 
+/* === Title + filter rows: keep tidy on narrow windows =================== */
+#titleButtonContainer .row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+#titleButtonContainer .row > * {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 820px) {
+  #titleButtonContainer .row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  #titleButtonContainer .row > * {
+    width: 100%;
+  }
+
+  #topClientsFilterDropdown,
+  #scrollBottomBtn,
+  #suggestionsToggleBtn {
+    width: auto;
+    align-self: flex-start;
+  }
+}
+
 /* Double common px-based text */
 #dashBody .btn                { font-size: 44px; }  /* was 11px */
 #dashBody #recentList .note   { font-size: 64px; }  /* was 16px */
@@ -1895,6 +1925,34 @@ input#clientAutocomplete, select#clientSelect {
     font-weight: normal;
 }
 
+/* Keep client header rows on one line and shrink gracefully */
+.task-display .client-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  flex-wrap: nowrap;
+}
+
+.task-display .client-button {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  justify-content: flex-start;
+}
+
+@media (max-width: 720px) {
+  .task-display .client-header-row {
+    flex-wrap: wrap;
+  }
+
+  .task-display .client-button {
+    width: 100%;
+  }
+}
+
 /* Top Clients list buttons only */
 #topClientsDisplay .inline-button,
 #topClientsDisplay .client-button,
@@ -3325,7 +3383,18 @@ function fitAllSuggestionRows() {
 window.addEventListener('resize', function(){
   fitClientInputNow();
   fitAllSuggestionRows();
+  fitTopClientButtons();
 });
+
+/* === Keep Top Clients buttons on one line by shrinking text ============== */
+function fitTopClientButtons(){
+  var buttons = document.querySelectorAll('#topClientsDisplay .client-button');
+  buttons.forEach(function(btn){
+    fitElementTextToOneLine(btn, { minPx: 12 });
+  });
+}
+
+window.addEventListener('load', fitTopClientButtons);
 
 
 /* === REPLACEMENT: Slow-grow (to ~90%), finish to 100, then shrink & hide === */
@@ -3483,6 +3552,9 @@ sanitizeSuggestionBulbs();
 
 if (typeof wireToplistSuggestionTextareas === 'function') wireToplistSuggestionTextareas();
 if (typeof applySuggestionsVisibility === 'function') applySuggestionsVisibility();
+
+// Ensure client buttons fit on a single line after render
+fitTopClientButtons();
 
 // run one more time after visibility toggles could hide/show blocks
 sanitizeSuggestionBulbs();
@@ -7919,12 +7991,12 @@ function displayClient(client, container) {
 
   /* ── Top row: Client button ONLY (no day-of-week dropdown in Top Clients list) ── */
   var topRow = document.createElement('div');
-  topRow.style.cssText = "display:flex; align-items:center;";
+  topRow.className = 'client-header-row';
 
   var clientButton = document.createElement('button');
   clientButton.className = 'inline-button client-button';
   clientButton.innerText = client.name + (client.category ? ' (' + client.category + ')' : '');
-  clientButton.style.cssText = "display:inline-flex; align-items:center;";
+  clientButton.style.cssText = "display:inline-flex; align-items:center; justify-content:flex-start;";
   clientButton.addEventListener('click', function () {
     // prime chip cache so details view shows same chip
     window.__chipForCurrentClient = {
@@ -7936,6 +8008,9 @@ function displayClient(client, container) {
   topRow.appendChild(clientButton);
 
   clientDiv.appendChild(topRow);
+
+  // Shrink long client names so the button stays on one line
+  requestAnimationFrame(function(){ fitElementTextToOneLine(clientButton, { minPx: 12 }); });
 
   /* ── Notes highlight section (read-only in list) ── */
   var allC = [];
