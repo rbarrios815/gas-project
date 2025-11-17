@@ -7014,9 +7014,19 @@ function selectClientFromButton(clientText) {
 function paintRecentBar(list){
   const wrap = document.getElementById('recentClientsBar');
   if (!wrap) return;
-  if (!list || !list.length) { wrap.innerHTML = ''; return; }
+  const active = (typeof getActiveClientName === 'function') ? getActiveClientName() : '';
+  const activeNorm = active ? String(active).trim().toLowerCase() : '';
 
-  wrap.innerHTML = list.map(e => {
+  const filtered = (list || []).filter(e => {
+    const nm = (e && e.name) ? String(e.name).trim().toLowerCase() : '';
+    return !activeNorm || nm !== activeNorm;
+  });
+
+  if (!filtered.length) { wrap.innerHTML = ''; return; }
+
+  const renderList = filtered.slice(0, 3);
+
+  wrap.innerHTML = renderList.map(e => {
     const displayName = formatRecentClientName(e.name);
     const muted = e.columnL ? '' : ' rc-muted';
     const cat   = e.category ? `<span class="rc-cat">${e.category}</span>` : '';
@@ -7059,12 +7069,12 @@ function loadRecentBar() {
   // Fast: use cached metadata
   google.script.run
     .withSuccessHandler(list => paintRecentBar(list))
-    .getRecentClients(3, false);
+    .getRecentClients(4, false);
 
   // Optional: refresh metadata in a second pass so chips/categories are up to date
   google.script.run
     .withSuccessHandler(list => paintRecentBar(list))
-    .getRecentClients(3, true);
+    .getRecentClients(4, true);
 }
 
 // Kick it off as soon as DOM is ready
@@ -7074,7 +7084,7 @@ document.addEventListener('DOMContentLoaded', loadRecentBar);
 function onClientOpened(name){
   google.script.run
     .withSuccessHandler(() => loadRecentBar())
-    .logRecentClient(name, 3);
+    .logRecentClient(name, 4);
 }
 
 // If you have a central place that runs when a client is selected, call onClientOpened there.
