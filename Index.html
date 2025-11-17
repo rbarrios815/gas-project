@@ -2496,6 +2496,7 @@ input#clientAutocomplete, select#clientSelect {
   align-items: center;
   z-index: 1010;
   pointer-events: none;
+  overflow: hidden;
 }
 
 #categoryChangeSection select {
@@ -2506,9 +2507,13 @@ input#clientAutocomplete, select#clientSelect {
   border-radius: 0;
   font-size: inherit;
   padding: 0;
+  margin: 0;
   box-sizing: border-box;
   pointer-events: auto;
   appearance: none;
+  outline: none;
+  box-shadow: none;
+  line-height: 1.2;
 }
 
 /* Chips bar when placed inside the autocomplete wrapper */
@@ -5121,6 +5126,7 @@ function populateClientDropdown(clients) {
         var option = document.createElement('option');
         option.value = client.clientName;
         option.textContent = client.clientName + (client.category ? ' (' + client.category + ')' : '');
+        option.dataset.category = client.category || '';
         clientSelect.appendChild(option);
     });
     hideLoadingBar(); // Hide the loading bar after populating the dropdown
@@ -7074,7 +7080,7 @@ function selectClientFromButton(clientText) {
     for (var i = 0; i < clientSelect.options.length; i++) {
         // Extract the client name and category from the dropdown option
         var optionText = clientSelect.options[i].text;
-        var optionClientName = optionText.split(' (')[0]; // Get the client name before the '('
+        var optionClientName = clientSelect.options[i].value || optionText.split(' (')[0]; // Prefer the raw value to ignore categories
 
         // Check if the client names match (without considering the category)
         if (clientText.startsWith(optionClientName)) {
@@ -7802,11 +7808,9 @@ function updateCategoryLabel() {
     var selectedOption = clientSelect.options[clientSelect.selectedIndex];
 
     if (clientSelect.value) {
-        // Extract client name and category from the selected option
+        // Extract client name and category without relying on parentheses in the client name
         var clientName = selectedOption.value;
-        var rawText = selectedOption && selectedOption.textContent ? selectedOption.textContent : '';
-        var split = rawText.split(' (');
-        var clientCategory = split.length > 1 ? split[1].slice(0, -1) : '';
+        var clientCategory = selectedOption.dataset ? (selectedOption.dataset.category || '') : '';
         var effectiveCategory = clientCategory || __currentCategory || '';
 
         // Overlay the dropdown with the current category so it sits on top of the "(Category)" text
@@ -7826,9 +7830,8 @@ function setCategoryPlaceholderText(text) {
     var fallbackFromClient = (function() {
         var clientSel = document.getElementById('clientSelect');
         if (!clientSel || !clientSel.value || !clientSel.selectedOptions.length) return '';
-        var raw = clientSel.selectedOptions[0].textContent || '';
-        var parts = raw.split(' (');
-        return parts.length > 1 ? parts[1].replace(/\)$/, '') : '';
+        var opt = clientSel.selectedOptions[0];
+        return opt && opt.dataset ? (opt.dataset.category || '') : '';
     })();
 
     if (categorySelect.options.length === 0) {
@@ -7865,7 +7868,7 @@ function positionCategoryDropdownOverAutocomplete() {
     }
 
     var value = input.value || '';
-    var start = value.indexOf('(');
+    var start = value.lastIndexOf('(');
     var end = value.lastIndexOf(')');
     if (start === -1 || end === -1 || end <= start) {
         hideCategoryOverlay();
@@ -7888,6 +7891,8 @@ function positionCategoryDropdownOverAutocomplete() {
     var categoryWidth = Math.max(ctx.measureText(value.slice(start, end + 1)).width, 0);
     var paddingLeft = parseFloat(style.paddingLeft) || 0;
     var paddingRight = parseFloat(style.paddingRight) || 0;
+    var paddingTop = parseFloat(style.paddingTop) || 0;
+    var paddingBottom = parseFloat(style.paddingBottom) || 0;
     var borderTop = parseFloat(style.borderTopWidth) || 0;
     var borderBottom = parseFloat(style.borderBottomWidth) || 0;
     var availableWidth = Math.max(inputRect.width - prefixWidth - paddingLeft - paddingRight, 120);
@@ -7896,8 +7901,8 @@ function positionCategoryDropdownOverAutocomplete() {
 
     overlay.style.display = 'flex';
     overlay.style.left = left + 'px';
-    overlay.style.top = (inputRect.top - containerRect.top + borderTop) + 'px';
-    overlay.style.height = (inputRect.height - borderTop - borderBottom) + 'px';
+    overlay.style.top = (inputRect.top - containerRect.top + borderTop + paddingTop) + 'px';
+    overlay.style.height = Math.max(inputRect.height - borderTop - borderBottom - paddingTop - paddingBottom, 0) + 'px';
     overlay.style.width = overlayWidth + 'px';
     overlay.setAttribute('aria-hidden', 'false');
 }
