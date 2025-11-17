@@ -1686,6 +1686,7 @@ button:active {
     border: 1px solid #ddd;
     display: inline-block; /* or 'block' if you want each label on a new line */
     background-color: #f0f0f0;
+    font-size: 32px;
 }
 
 /* Add this CSS rule to initially hide the label section */
@@ -1736,8 +1737,7 @@ input#clientAutocomplete, select#clientSelect {
 
 #labelsDisplay {
   flex-basis: 85%; /* Assign 90% of the parent container's width to labels display */
-    font-size: 65%; /* This will set the font size to half of the inherited size */
-
+  font-size: 32px;
 }
 
 #labelsAdditionSection {
@@ -1750,7 +1750,7 @@ input#clientAutocomplete, select#clientSelect {
 #labelsDropdown {
   width: 100%; /* Ensure the dropdown fills its container */
   box-sizing: border-box; /* Include padding and borders in the element's total width */
-    font-size: 65%; /* This will set the font size to 65% of the inherited size */
+  font-size: 65%; /* This will set the font size to 65% of the inherited size */
 
 }
 
@@ -1777,6 +1777,11 @@ input#clientAutocomplete, select#clientSelect {
 
 .labels-buttons-row > button {
   width: 100%;
+}
+
+.labels-chip-slot {
+  display: flex;
+  justify-content: center;
 }
 
 
@@ -5967,12 +5972,28 @@ function displayNotes(notes) {
   buttonRow.appendChild(toggleBtn);
   buttonRow.appendChild(editBtn);
 
+  var chipSlot = document.createElement('div');
+  chipSlot.className = 'labels-chip-slot';
+
+  var chipInfo = window.__chipForCurrentClient || { initials: "", date: "" };
+  var currentClientId = document.getElementById('clientSelect').value || "";
+  if (currentClientId) {
+    var chipEl = createChipElement(
+      currentClientId,
+      (chipInfo.initials || "").toUpperCase(),
+      chipInfo.date || ""
+    );
+    chipSlot.appendChild(chipEl);
+  }
+
   var labelsButtonsRow = document.getElementById('labelsButtonsRow');
   if (labelsButtonsRow) {
     labelsButtonsRow.innerHTML = '';
     labelsButtonsRow.appendChild(buttonRow);
+    labelsButtonsRow.appendChild(chipSlot);
   } else {
     container.appendChild(buttonRow);
+    container.appendChild(chipSlot);
   }
 
   // === HIGHLIGHTED (newest 3 blocks) ===
@@ -6003,17 +6024,6 @@ function displayNotes(notes) {
       div.classList.add('latest-note');
       div.style.backgroundColor = 'yellow';
       highlightedWrap.appendChild(div);
-
-      // CHIP only on the newest block (the very last one)
-      if (i === lastIdx) {
-        var chipInfo = window.__chipForCurrentClient || { initials: "", date: "" };
-        var chipEl = createChipElement(
-          document.getElementById('clientSelect').value || "",
-          (chipInfo.initials || "").toUpperCase(),
-          chipInfo.date || ""
-        );
-        div.appendChild(chipEl);
-      }
 
     } else {
       // Older blocks → hidden by default; toggled by MORE/LESS
