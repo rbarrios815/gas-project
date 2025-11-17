@@ -5328,6 +5328,8 @@ function wireCategorySelectChange(){
     const newCat = (sel.value || '').trim();
     // Dedupe: don't call server if the value didn't actually change
     if (newCat === (__currentCategory || '')) return;
+    setCategoryPlaceholderText(newCat || '');
+    positionCategoryDropdownOverAutocomplete();
     requestCategoryChange(newCat);
   });
 
@@ -5342,6 +5344,7 @@ function updateCategorySelectValue(newValue){
   sel.value = (newValue || '');
   __currentCategory = (newValue || '');  // keep our local notion in sync
   setCategoryPlaceholderText(__currentCategory || '');
+  positionCategoryDropdownOverAutocomplete();
   // release on next tick so real user changes still work
   setTimeout(() => { __suppressCategoryChange = false; }, 0);
 }
@@ -5362,6 +5365,7 @@ function requestCategoryChange(newCategory){
       __currentCategory = newCategory;                       // lock in
       __categoryInFlight = false;
       setCategoryPlaceholderText(__currentCategory || '');
+      positionCategoryDropdownOverAutocomplete();
       try { if (typeof hideLoadingBar === 'function') hideLoadingBar(); } catch(_){}
       // Optional toast near the select
       try {
@@ -7799,10 +7803,13 @@ function updateCategoryLabel() {
     if (clientSelect.value) {
         // Extract client name and category from the selected option
         var clientName = selectedOption.value;
-        var clientCategory = selectedOption.textContent.split(' (')[1].slice(0, -1);
+        var rawText = selectedOption && selectedOption.textContent ? selectedOption.textContent : '';
+        var split = rawText.split(' (');
+        var clientCategory = split.length > 1 ? split[1].slice(0, -1) : '';
+        var effectiveCategory = clientCategory || __currentCategory || '';
 
         // Overlay the dropdown with the current category so it sits on top of the "(Category)" text
-        setCategoryPlaceholderText(clientCategory || '');
+        setCategoryPlaceholderText(effectiveCategory);
         positionCategoryDropdownOverAutocomplete();
     } else {
         // Set the placeholder text when no client is selected and hide the overlay
