@@ -2654,6 +2654,13 @@ input#clientAutocomplete, select#clientSelect {
   display: none !important;
 }
 
+/* Mobile: show only the first two recent clients to keep the row compact */
+@media (max-width: 640px) {
+  #recentClientsBar .recent-pill:nth-child(n+3) {
+    display: none !important;
+  }
+}
+
 /* keep the pill compact now that only the name shows */
 #recentClientsBar .recent-pill {
   gap: 0.25rem;
