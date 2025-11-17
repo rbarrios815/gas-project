@@ -2193,6 +2193,7 @@ input#clientAutocomplete, select#clientSelect {
     line-height: 1.2;
     padding: 4px 10px;
     height: auto;
+    flex: 0 0 auto;
 }
 
 /* Keep controls inline instead of absolutely positioned */
@@ -2204,6 +2205,7 @@ input#clientAutocomplete, select#clientSelect {
 #topClientsControlRow select {
     position: static;
     min-width: 0;
+    flex: 0 0 auto;
 }
 
 /* SNIPPET #1: STAR ANIMATION CSS - REPLACEMENT */
@@ -2257,6 +2259,7 @@ input#clientAutocomplete, select#clientSelect {
   margin-left: 5px;     /* keep the small gap from nearby controls */
   padding: 3px 10px 3px 6px; /* keep the box snug while leaving room for the arrow */
   white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 
@@ -3708,9 +3711,11 @@ function updateDropdownWidthToFit(dd) {
   var textWidth = ctx.measureText(label).width;
   var paddingLeft = parseFloat(cs.paddingLeft) || 0;
   var paddingRight = parseFloat(cs.paddingRight) || 0;
-  var arrowAllowance = 18; // space for the native arrow
+  var arrowAllowance = 24; // space for the native arrow + small buffer
 
-  dd.style.width = Math.ceil(textWidth + paddingLeft + paddingRight + arrowAllowance) + 'px';
+  var px = Math.ceil(textWidth + paddingLeft + paddingRight + arrowAllowance);
+  dd.style.width = px + 'px';
+  dd.style.minWidth = px + 'px';
 }
 
 function fitTopClientsHeaderControls(preferShortFormat) {
