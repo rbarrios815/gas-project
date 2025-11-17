@@ -1539,31 +1539,6 @@ button:active {
     display: inline-block; /* Make the input an inline-block element */
     margin-top: 10px; /* Add some top margin for spacing */
 }
-
-.selected-client-summary {
-  display: none;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  margin-top: 6px;
-}
-
-.selected-client-name {
-  font-size: 1.25rem;
-  font-weight: 700;
-  line-height: 1.2;
-  color: #1b1b1b;
-}
-
-.selected-client-chip-slot {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.selected-client-chip-slot .chip {
-  margin-left: 0;
-}
 #pastWorkSection {
   background-color: #D3D3D3; /* Existing styles */
   /* ... other styles ... */
@@ -2859,34 +2834,28 @@ input#clientAutocomplete, select#clientSelect {
            placeholder="Type Client Name"
            oninput="autocompleteClient()">
 
-    <!-- Selected client summary: shows the display name + chip -->
-    <div id="selectedClientSummary" class="selected-client-summary" aria-live="polite">
-      <div id="selectedClientDisplayName" class="selected-client-name" aria-label="Selected client"></div>
-      <div id="selectedClientChipSlot" class="selected-client-chip-slot" role="list"></div>
-    </div>
+           <!-- Category combo + Calendar icon (hidden until a client is selected) -->
+<div id="catCalWrap" style="display:none; gap:8px; align-items:center; margin-left:auto;">
+  <!-- Category pill (combobox) -->
+  <div class="cat-pill" title="" >
+    <input id="categoryCombo"
+           type="text"
+           placeholder="Select category"
+           list="categoryList"
+           aria-label="Category"
+           aria-expanded="false"
+           aria-autocomplete="list"
+           class="cat-input" />
+    <span class="cat-caret" aria-hidden="true">▼</span>
+    <datalist id="categoryList"></datalist>
+  </div>
 
-    <!-- Category combo + Calendar icon (hidden until a client is selected) -->
-    <div id="catCalWrap" style="display:none; gap:8px; align-items:center; margin-left:auto;">
-      <!-- Category pill (combobox) -->
-      <div class="cat-pill" title="" >
-        <input id="categoryCombo"
-               type="text"
-               placeholder="Select category"
-               list="categoryList"
-               aria-label="Category"
-               aria-expanded="false"
-               aria-autocomplete="list"
-               class="cat-input" />
-        <span class="cat-caret" aria-hidden="true">▼</span>
-        <datalist id="categoryList"></datalist>
-      </div>
-
-      <!-- Calendar button -->
-      <button id="calendarBtn" class="calendar-btn" title="Open calendar">
-        <!-- simple calendar glyph -->
-        🗓️
-      </button>
-    </div>
+  <!-- Calendar button -->
+  <button id="calendarBtn" class="calendar-btn" title="Open calendar">
+    <!-- simple calendar glyph -->
+    🗓️
+  </button>
+</div>
 
 
   </div>
@@ -4965,8 +4934,6 @@ displayClientDetails(data);
 
 // Update the category select value based on fetched client data
 updateCategorySelectValue(data.category);
-
-updateSelectedClientChipSummary();
 
         pendingOps--;
         if (pendingOps === 0) {
@@ -7769,7 +7736,6 @@ function hideClientNotes() {
 
   // Clear chip data (columns P and Q)
   window.__chipForCurrentClient = { initials: '', date: '' };
-  updateSelectedClientChipSummary();
 
   // Clear category selection
   var catSel = document.getElementById('categorySelect');
@@ -8947,49 +8913,6 @@ function createChipElementReadOnly(clientName, initials, mmddyy) {
 
 
 
-function updateSelectedClientChipSummary() {
-  var summary = document.getElementById('selectedClientSummary');
-  var nameEl = document.getElementById('selectedClientDisplayName');
-  var slot = document.getElementById('selectedClientChipSlot');
-  if (!summary || !nameEl || !slot) return;
-
-  var clientSelect = document.getElementById('clientSelect');
-  var clientAutocomplete = document.getElementById('clientAutocomplete');
-
-  var clientName = '';
-  var displayName = '';
-
-  if (clientSelect && clientSelect.value) {
-    clientName = clientSelect.value;
-    if (clientSelect.selectedIndex >= 0) {
-      displayName = clientSelect.options[clientSelect.selectedIndex].text || clientName;
-    } else {
-      displayName = clientName;
-    }
-  } else if (clientAutocomplete && clientAutocomplete.value) {
-    clientName = clientAutocomplete.value;
-    displayName = clientAutocomplete.value;
-  }
-
-  if (!clientName) {
-    summary.style.display = 'none';
-    nameEl.textContent = '';
-    slot.innerHTML = '';
-    return;
-  }
-
-  nameEl.textContent = displayName;
-
-  slot.innerHTML = '';
-  var chipInfo = window.__chipForCurrentClient || { initials: '', date: '' };
-  var chipEl = createChipElement(clientName, chipInfo.initials || '', chipInfo.date || '');
-  chipEl.classList.add('selected-client-chip');
-  slot.appendChild(chipEl);
-
-  summary.style.display = 'flex';
-}
-
-
 // === REPLACEMENT: Auto-save chip editor (no Save/Cancel buttons) ===
 function openChipEditor(anchorEl, clientName, initials, mmddyy) {
   closeAnyChipEditor(); // ensure only one editor open
@@ -9059,12 +8982,7 @@ function openChipEditor(anchorEl, clientName, initials, mmddyy) {
                     (d.getFullYear()%100).toString().padStart(2,'0');
       }
 
-      window.__chipForCurrentClient = {
-        initials: (newInitials || '').toUpperCase(),
-        date: newMmddyy || ''
-      };
       renderChipInto(anchorEl, clientName, newInitials, newMmddyy);
-      updateSelectedClientChipSummary();
       closeAnyChipEditor();
       // ---- NEW: ensure BOTH chip instances refresh ----
 try {

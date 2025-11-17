@@ -1,301 +1,14 @@
-var ALLOWED_USERS = ['jbgreatfamily1@gmail.com', 'rbarrios815@gmail.com', 'domlozano7@gmail.com', 'rbarrio1nd@gmail.com', 'rbarrio1@alumni.nd.edu', 'barriosgreatfamily1@gmail.com'];
-
 function doGet(e) {
-  if (isShortcutRequest_(e)) {
-    try {
-      requireAllowedUser_();
-      return handleShortcutRequest_(e, 'GET');
-    } catch (err) {
-      return createShortcutErrorResponse_(err);
-    }
-  }
-
   var userEmail = Session.getActiveUser().getEmail(); // Ensure it gets the active user
   Logger.log("Detected User Email: " + userEmail); // Debugging - logs detected email
 
-  if (isUserAllowed_(userEmail)) {
+  var allowedUsers = ['jbgreatfamily1@gmail.com', 'rbarrios815@gmail.com', 'domlozano7@gmail.com', 'rbarrio1nd@gmail.com', 'rbarrio1@alumni.nd.edu','barriosgreatfamily1@gmail.com']; 
+
+  if (allowedUsers.includes(userEmail)) {
     return HtmlService.createHtmlOutputFromFile('Index');
   } else {
     return HtmlService.createHtmlOutput("Sorry, you do not have access to this app.<br>Your detected email: " + userEmail);
   }
-}
-
-function doPost(e) {
-  try {
-    requireAllowedUser_();
-    return handleShortcutRequest_(e, 'POST');
-  } catch (err) {
-    return createShortcutErrorResponse_(err);
-  }
-}
-
-function isShortcutRequest_(e) {
-  if (!e) return false;
-  if (e.parameter && typeof e.parameter.action !== 'undefined') return true;
-  if (e.postData && e.postData.contents) return true;
-  return false;
-}
-
-function isUserAllowed_(email) {
-  return email && ALLOWED_USERS.indexOf(email) !== -1;
-}
-
-function requireAllowedUser_() {
-  var email = Session.getActiveUser().getEmail();
-  if (!isUserAllowed_(email)) {
-    throw new Error('Access denied. Detected email: ' + (email || ''));
-  }
-  return email;
-}
-
-function createShortcutErrorResponse_(err) {
-  var message = err && err.message ? err.message : String(err);
-  var email = Session.getActiveUser().getEmail();
-  var body = {
-    ok: false,
-    error: message,
-    email: email || ''
-  };
-  return ContentService.createTextOutput(JSON.stringify(body)).setMimeType(ContentService.MimeType.JSON);
-}
-
-function handleShortcutRequest_(e, method) {
-  try {
-    var payload = buildShortcutPayload_(e, method);
-    var action = String(payload.action || '').trim().toLowerCase();
-    if (!action) {
-      throw new Error('Missing action parameter.');
-    }
-
-    var data;
-    switch (action) {
-      case 'searchclients':
-      case 'search-client':
-      case 'search_clients':
-        data = shortcutSearchClients_(payload);
-        break;
-      case 'updatechip':
-      case 'update_chip':
-        data = shortcutUpdateChip_(payload);
-        break;
-      case 'addclient':
-      case 'add_client':
-        data = shortcutAddClient_(payload);
-        break;
-      default:
-        throw new Error('Unsupported action: ' + action);
-    }
-
-    return ContentService.createTextOutput(JSON.stringify({
-      ok: true,
-      action: action,
-      data: data
-    })).setMimeType(ContentService.MimeType.JSON);
-  } catch (error) {
-    return createShortcutErrorResponse_(error);
-  }
-}
-
-function buildShortcutPayload_(e, method) {
-  var payload = {};
-  if (e && e.parameter) {
-    Object.keys(e.parameter).forEach(function(key) {
-      var value = e.parameter[key];
-      payload[key] = Array.isArray(value) ? value[0] : value;
-    });
-  }
-
-  if (method === 'POST' && e && e.postData && e.postData.contents) {
-    var content = e.postData.contents;
-    var type = (e.postData.type || '').toLowerCase();
-    var parsed = null;
-
-    if (type.indexOf('application/json') !== -1) {
-      try {
-        parsed = JSON.parse(content);
-      } catch (jsonErr) {
-        throw new Error('Invalid JSON body: ' + jsonErr.message);
-      }
-    } else if (type.indexOf('application/x-www-form-urlencoded') !== -1) {
-      content.split('&').forEach(function(part) {
-        if (!part) return;
-        var bits = part.split('=');
-        var k = decodeURIComponent(bits[0]);
-        var v = bits.length > 1 ? decodeURIComponent(bits[1].replace(/\+/g, ' ')) : '';
-        payload[k] = v;
-      });
-    } else {
-      try {
-        parsed = JSON.parse(content);
-      } catch (err) {
-        payload.body = content;
-      }
-    }
-
-    if (parsed && typeof parsed === 'object') {
-      Object.keys(parsed).forEach(function(k) {
-        payload[k] = parsed[k];
-      });
-    }
-  }
-
-  return payload;
-}
-
-function shortcutSearchClients_(payload) {
-  var query = String(payload.query || payload.q || payload.name || '').trim();
-  var limit = parseInt(payload.limit, 10);
-  if (!limit || limit < 1) {
-    limit = 10;
-  }
-
-  if (!query) {
-    return { query: '', matches: [] };
-  }
-
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
-  if (!sheet) {
-    throw new Error("Sheet 'DASHBOARD 8.0' not found");
-  }
-
-  var lastRow = sheet.getLastRow();
-  if (lastRow < 2) {
-    return { query: query, matches: [] };
-  }
-
-  var tz = Session.getScriptTimeZone();
-  var values = sheet.getRange(2, 1, lastRow - 1, 17).getValues();
-  var needle = query.toLowerCase();
-  var seen = {};
-  var matches = [];
-
-  values.forEach(function(row) {
-    var rawName = row[0];
-    if (!rawName) return;
-
-    var cleanName = String(rawName).replace(/\d+$/, '').trim();
-    if (!cleanName) return;
-
-    var normalized = cleanName.toLowerCase();
-    if (normalized.indexOf(needle) === -1) {
-      if (!cleanName.toLowerCase().split(/\s+/).some(function(part){ return part.indexOf(needle) === 0; })) {
-        return;
-      }
-    }
-
-    var category = row[5] ? String(row[5]).trim() : '';
-    var chipInitials = row[15] ? String(row[15]).trim() : '';
-    var chipDateRaw = row[16];
-    var chipDate = '';
-    if (chipDateRaw) {
-      var d = chipDateRaw instanceof Date ? chipDateRaw : new Date(chipDateRaw);
-      if (!isNaN(d.getTime())) {
-        chipDate = Utilities.formatDate(d, tz, 'MM/dd/yy');
-      } else {
-        chipDate = String(chipDateRaw);
-      }
-    }
-
-    if (!seen[normalized]) {
-      var entry = {
-        name: cleanName,
-        category: category,
-        chipInitials: chipInitials,
-        chipDate: chipDate
-      };
-      matches.push(entry);
-      seen[normalized] = entry;
-    } else {
-      var existing = seen[normalized];
-      if (!existing.category && category) existing.category = category;
-      if (!existing.chipInitials && chipInitials) existing.chipInitials = chipInitials;
-      if (!existing.chipDate && chipDate) existing.chipDate = chipDate;
-    }
-  });
-
-  matches.sort(function(a, b) {
-    var aName = a.name.toLowerCase();
-    var bName = b.name.toLowerCase();
-    var aIndex = aName.indexOf(needle);
-    var bIndex = bName.indexOf(needle);
-    if (aIndex === -1) aIndex = 999;
-    if (bIndex === -1) bIndex = 999;
-    if (aIndex !== bIndex) return aIndex - bIndex;
-    return aName.localeCompare(bName);
-  });
-
-  if (matches.length > limit) {
-    matches = matches.slice(0, limit);
-  }
-
-  return { query: query, matches: matches };
-}
-
-function shortcutUpdateChip_(payload) {
-  var name = String(payload.client || payload.clientName || payload.name || '').replace(/\d+$/, '').trim();
-  if (!name) {
-    throw new Error('Missing client name.');
-  }
-
-  var initials = String(payload.initials || payload.owner || '').trim().toUpperCase();
-  var dateInput = payload.followUpDate || payload.date || payload.chipDate || '';
-
-  updateClientChip(name, initials, dateInput);
-
-  var state = getChipStateForClients([name]);
-  var normalized = name.replace(/\u00A0/g, ' ').trim().toLowerCase();
-  var chipState = state[normalized] || {};
-
-  return {
-    client: name,
-    initials: chipState.initials || initials || '',
-    chipDate: chipState.dateMMDDYY || ''
-  };
-}
-
-function shortcutAddClient_(payload) {
-  var name = String(payload.client || payload.clientName || payload.name || '').replace(/\s+/g, ' ').trim();
-  if (!name) {
-    throw new Error('Missing client name.');
-  }
-
-  var category = String(payload.category || payload.bucket || '').trim();
-  if (!category) {
-    category = 'NONE';
-  }
-
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
-  if (!sheet) {
-    throw new Error("Sheet 'DASHBOARD 8.0' not found");
-  }
-
-  var lastRow = sheet.getLastRow();
-  if (lastRow >= 2) {
-    var existingNames = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
-    var target = name.replace(/\d+$/, '').trim().toLowerCase();
-    for (var i = 0; i < existingNames.length; i++) {
-      var existing = String(existingNames[i][0] || '').replace(/\d+$/, '').trim().toLowerCase();
-      if (existing && existing === target) {
-        throw new Error('Client already exists: ' + name);
-      }
-    }
-  }
-
-  var columnCount = sheet.getLastColumn();
-  var row = new Array(columnCount);
-  for (var j = 0; j < columnCount; j++) {
-    row[j] = '';
-  }
-  row[0] = name;
-  row[5] = category;
-
-  sheet.appendRow(row);
-
-  return {
-    added: true,
-    client: name,
-    category: category
-  };
 }
 
 
@@ -1697,6 +1410,36 @@ function updateClientData(clientName, newData) {
     }
 }
 
+ /* Update Column L ("In Progress") for the given client.
+ * Mirrors updateInProgress but exposes a concise name for the client UI.
+ * Returns a small payload so the frontend can trust the saved value.
+ */
+function updateClientColumnL(clientName, newValue) {
+  var name = String(clientName || '').trim();
+  if (!name) {
+    throw new Error('Missing clientName.');
+  }
+
+  var text = newValue == null ? '' : String(newValue);
+
+  // Reuse the normalized lookup logic that already strips trailing digits.
+  updateInProgress(name, text);
+
+  // Keep recent-clients metadata in sync (ignore failures – best effort only).
+  try {
+    logRecentClient(name, 5);
+  } catch (err) {
+    console.warn('logRecentClient failed inside updateClientColumnL:', err);
+  }
+
+  return {
+    ok: true,
+    client: name,
+    value: text
+  };
+}
+
+
 // Example of function to handle quadrant selection
 function selectQuadrant(clientType, timeFrame) {
     // Assuming you have a function to call your Google Apps Script with parameters
@@ -2840,7 +2583,7 @@ function logRecentClient(clientName, cap) {
 
   var up = PropertiesService.getUserProperties();
   var key = 'recentClients';
-  var capSize = Math.max(1, cap || 12);
+  var capSize = Math.max(1, cap || 3);
 
   var existing = [];
   try {
@@ -2898,7 +2641,7 @@ function getRecentClients(limit, refreshMetadata) {
     up.setProperty(key, JSON.stringify(list)); // keep cache fresh
   }
 
-  var lim = Math.max(1, limit || 12);
+  var lim = Math.max(1, limit || 3);
   return list.slice(0, lim);
 }
 
@@ -3068,254 +2811,53 @@ function getChipStateForClients(clientNames) {
   return map;
 }
 
-/** DASHBOARD 8.0 backend for the Notes Carousel **/
 
-/** Returns [{name, category, chipDateISO}] for all rows (filter client-side). */
-function getClientsForCarouselWithChipDates(){
-  const ss = SpreadsheetApp.getActive();
-  const sh = ss.getSheetByName('DASHBOARD 8.0');   // <-- your sheet
-  const NAME_COL = 1;                               // A (name)
-  const CAT_COL  = 6;                               // F (category: JB/RB/QC/…)
-  const CHIP_COL = 17;                              // Q (chip date)  <-- updated
-  if (!sh) return [];
 
-  const last = sh.getLastRow();
-  if (last < 2) return [];
 
-  const maxCol = Math.max(NAME_COL, CAT_COL, CHIP_COL);
-  const rng = sh.getRange(2, 1, last - 1, maxCol);
-  const values = rng.getValues();
 
-  const out = [];
-  for (let i = 0; i < values.length; i++){
-    const row = values[i];
-    const name = String(row[NAME_COL-1] || '').trim();
-    const category = String(row[CAT_COL-1] || '').trim();
-    const chip = row[CHIP_COL-1];
-    if (!name) continue;
-    out.push({ name, category, chipDateISO: toISO(chip) });
-  }
-  return out;
-}
 
-/** For live pruning: return fresh chip dates only for specific names. */
-function getChipDatesForNames(names){
-  names = (names || []).map(String);
-  const want = {};
-  names.forEach(n => want[n.toLowerCase()] = true);
+/** === Siri → Google Sheets Bridge: Column A note, Column C timestamp ===
+ * Appends note in Col A, leaves Col B blank, puts timestamp in Col C.
+ */
+const SHEET_ID = "1rzejdmR0hatqESPp9MroCwT229QGM0oB2G9mELaL4Ps";
+const TARGET_SHEET = "NOTES INBOX";
+const COL_NOTE = 1; // A
+const COL_BLANK = 2; // B
+const COL_TIME = 3; // C
 
-  const ss = SpreadsheetApp.getActive();
-  const sh = ss.getSheetByName('DASHBOARD 8.0');   // <-- your sheet
-  const NAME_COL = 1;                               // A
-  const CHIP_COL = 17;                              // Q  <-- updated
-  if (!sh) return [];
-
-  const last = sh.getLastRow();
-  if (last < 2) return [];
-
-  const maxCol = Math.max(NAME_COL, CHIP_COL);
-  const rng = sh.getRange(2, 1, last - 1, maxCol);
-  const values = rng.getValues();
-
-  const out = [];
-  for (let i = 0; i < values.length; i++){
-    const row = values[i];
-    const name = String(row[NAME_COL-1] || '').trim();
-    if (!name || !want[name.toLowerCase()]) continue;
-    const chip = row[CHIP_COL-1];
-    out.push({ name, chipDateISO: toISO(chip) });
-  }
-  return out;
-}
-
-/** Helper: best-effort to ISO (yyyy-mm-dd). */
-function toISO(v){
-  if (!v) return '';
-  if (Object.prototype.toString.call(v) === '[object Date]' && !isNaN(v)){
-    return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  }
-  // try to parse text like MM/DD/YY or MM/DD/YYYY
-  const m = String(v).match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/);
-  if (m){
-    let [_, mm, dd, yy] = m;
-    yy = (yy.length === 2) ? (2000 + parseInt(yy,10)) : parseInt(yy,10);
-    const d = new Date(yy, parseInt(mm,10)-1, parseInt(dd,10));
-    if (!isNaN(d)) return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  }
-  return '';
-}
-
-/**************************************
- * JB Notes Cycling Helpers (Server) — Read-only chip policy
- * Sheet: "DASHBOARD 8.0"
- * A: Name, F: Category, Q: Chip Date (MM/dd/yy)
- **************************************/
-
-function _parseChipDate_(v) {
-  if (!v) return null;
-  if (Object.prototype.toString.call(v) === '[object Date]') return v;
+function doPost(e) {
   try {
-    var parts = String(v).trim().split(/[\/\-\.]/);
-    if (parts.length >= 3) {
-      var mm = parseInt(parts[0], 10) - 1;
-      var dd = parseInt(parts[1], 10);
-      var yy = parts[2].length === 2 ? 2000 + parseInt(parts[2], 10) : parseInt(parts[2], 10);
-      return new Date(yy, mm, dd);
+    if (!e || !e.postData || !e.postData.contents) {
+      return _json({ ok: false, error: "No postData received" });
     }
-  } catch (e) {}
-  var d = new Date(v);
-  return isNaN(d.getTime()) ? null : d;
-}
+    const body = JSON.parse(e.postData.contents);
+    const note = (body && body.note != null) ? String(body.note).trim() : "";
+    if (!note) return _json({ ok: false, error: "Missing 'note' value" });
 
-/**
- * Returns JB clients whose chip date (Q) is blank or <= today, oldest first (blanks first).
- * Does NOT modify chip dates (read-only).
- */
-function listJBCycleClients() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName('DASHBOARD 8.0');
-  var last = sh.getLastRow();
-  if (last < 2) return [];
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const sh = ss.getSheetByName(TARGET_SHEET);
+    if (!sh) return _json({ ok: false, error: `Sheet not found: ${TARGET_SHEET}` });
 
-  var data = sh.getRange(2, 1, last - 1, sh.getLastColumn()).getValues();
-  var today = new Date(); today.setHours(0,0,0,0);
+    const nextRow = sh.getLastRow() + 1;
+    const now = new Date();
+    sh.getRange(nextRow, COL_NOTE, 1, 3).setValues([[note, "", now]]);
 
-  var NAME_COL = 1;     // A
-  var CAT_COL  = 6;     // F
-  var CHIP_COL = 17;    // Q
-
-  var out = [];
-  for (var i = 0; i < data.length; i++) {
-    var row = data[i];
-    if (String(row[CAT_COL - 1]).trim().toUpperCase() !== 'JB') continue;
-
-    var nm = String(row[NAME_COL - 1]).trim();
-    if (!nm) continue;
-
-    var chip = _parseChipDate_(row[CHIP_COL - 1]);
-    if (!chip) {
-      out.push({ name: nm, row: i + 2, chipDate: '' });
-      continue;
-    }
-    var chipDay = new Date(chip.getTime()); chipDay.setHours(0,0,0,0);
-    if (chipDay.getTime() <= today.getTime()) {
-      out.push({ name: nm, row: i + 2, chipDate: Utilities.formatDate(chip, Session.getScriptTimeZone(), 'MM/dd/yy') });
-    }
+    return _json({
+      ok: true,
+      addedTo: `${TARGET_SHEET}!A${nextRow}:C${nextRow}`,
+      note,
+      timestampISO: now.toISOString()
+    });
+  } catch (err) {
+    return _json({ ok: false, error: String(err) });
   }
-
-  out.sort(function(a, b) {
-    if (!a.chipDate && !b.chipDate) return 0;
-    if (!a.chipDate) return -1;
-    if (!b.chipDate) return 1;
-    var ad = _parseChipDate_(a.chipDate), bd = _parseChipDate_(b.chipDate);
-    return ad - bd;
-  });
-
-  return out;
 }
 
-/** Get distinct category values (Column F), sorted A→Z, for the category dropdown in Focus Mode. */
-function listDistinctCategories() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName('DASHBOARD 8.0');
-  var last = sh.getLastRow();
-  if (last < 2) return [];
-  var vals = sh.getRange(2, 6, last - 1, 1).getValues().map(function(r){ return String(r[0] || '').trim(); });
-  var set = {};
-  vals.forEach(function(v){ if (v) set[v] = true; });
-  return Object.keys(set).sort();
+function _json(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
-/** Update a client's Category (Column F). Does NOT touch chip (Column Q). */
-function setClientCategory(clientName, newCategory) {
-  if (!clientName) throw new Error('No client name provided');
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName('DASHBOARD 8.0');
-  var last = sh.getLastRow();
-  if (last < 2) return false;
 
-  var names = sh.getRange(2, 1, last - 1, 1).getValues();
-  var targetRow = -1;
-  var find = String(clientName).trim
-}
-
-/**************************************
- * FOCUS MODE: Update Category (Col F)
- * Sheet: "DASHBOARD 8.0"
- * A: Name, F: Category
- **************************************/
-function updateClientCategory(clientName, newCategory) {
-  if (!clientName || !newCategory) throw new Error('Missing clientName or newCategory');
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName('DASHBOARD 8.0');
-  var last = sh.getLastRow();
-  if (last < 2) return false;
-
-  var NAME_COL = 1; // A
-  var CAT_COL  = 6; // F
-
-  var names = sh.getRange(2, NAME_COL, last - 1, 1).getValues();
-  var targetRow = -1, find = String(clientName).trim().toLowerCase();
-
-  for (var i=0; i<names.length; i++){
-    var nm = String(names[i][0]||'').trim().toLowerCase();
-    if (nm === find) { targetRow = i + 2; break; }
-  }
-  if (targetRow === -1) return false;
-
-  sh.getRange(targetRow, CAT_COL).setValue(String(newCategory).trim());
-  return true;
-}
-
-/**
- * listDueClientsByCategory(category)
- * Returns [{ name, chipDateISO }] for rows in "DASHBOARD 8.0"
- * where column F == category and chip date (col Q) is <= today (oldest first).
- */
-function listDueClientsByCategory(category) {
-  var ss = SpreadsheetApp.getActive();
-  var sh = ss.getSheetByName('DASHBOARD 8.0');
-  if (!sh) return [];
-
-  var NAME_COL = 1;  // A
-  var CAT_COL  = 6;  // F
-  var CHIP_COL = 17; // Q
-  var last = sh.getLastRow();
-  if (last < 2) return [];
-
-  var maxCol = Math.max(NAME_COL, CAT_COL, CHIP_COL);
-  var values = sh.getRange(2, 1, last - 1, maxCol).getValues();
-
-  // midnight "today" in script timezone
-  var tz = Session.getScriptTimeZone() || 'America/Chicago';
-  var today = new Date();
-  today.setHours(0,0,0,0);
-
-  var want = String(category || '').trim().toUpperCase();
-  var out = [];
-
-  for (var i = 0; i < values.length; i++) {
-    var name = String(values[i][NAME_COL - 1] || '').trim();
-    var cat  = String(values[i][CAT_COL  - 1] || '').trim().toUpperCase();
-    var raw  = values[i][CHIP_COL - 1];
-    if (!name || !cat || !raw) continue;
-    if (cat !== want) continue;
-
-    var d = _parseChipDate_(raw); // uses your existing helper
-    if (!d) continue;
-    var dd = new Date(d); dd.setHours(0,0,0,0);
-    if (dd.getTime() <= today.getTime()) {
-      out.push({
-        name: name,
-        chipDateISO: Utilities.formatDate(d, tz, "yyyy-MM-dd'T'HH:mm:ssXXX")
-      });
-    }
-  }
-
-  out.sort(function(a, b) {
-    return new Date(a.chipDateISO).getTime() - new Date(b.chipDateISO).getTime();
-  });
-  return out;
-}
 
 
