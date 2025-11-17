@@ -1,14 +1,301 @@
+var ALLOWED_USERS = ['jbgreatfamily1@gmail.com', 'rbarrios815@gmail.com', 'domlozano7@gmail.com', 'rbarrio1nd@gmail.com', 'rbarrio1@alumni.nd.edu', 'barriosgreatfamily1@gmail.com'];
+
 function doGet(e) {
+  if (isShortcutRequest_(e)) {
+    try {
+      requireAllowedUser_();
+      return handleShortcutRequest_(e, 'GET');
+    } catch (err) {
+      return createShortcutErrorResponse_(err);
+    }
+  }
+
   var userEmail = Session.getActiveUser().getEmail(); // Ensure it gets the active user
   Logger.log("Detected User Email: " + userEmail); // Debugging - logs detected email
 
-  var allowedUsers = ['jbgreatfamily1@gmail.com', 'rbarrios815@gmail.com', 'domlozano7@gmail.com', 'rbarrio1nd@gmail.com', 'rbarrio1@alumni.nd.edu','barriosgreatfamily1@gmail.com']; 
-
-  if (allowedUsers.includes(userEmail)) {
+  if (isUserAllowed_(userEmail)) {
     return HtmlService.createHtmlOutputFromFile('Index');
   } else {
     return HtmlService.createHtmlOutput("Sorry, you do not have access to this app.<br>Your detected email: " + userEmail);
   }
+}
+
+function doPost(e) {
+  try {
+    requireAllowedUser_();
+    return handleShortcutRequest_(e, 'POST');
+  } catch (err) {
+    return createShortcutErrorResponse_(err);
+  }
+}
+
+function isShortcutRequest_(e) {
+  if (!e) return false;
+  if (e.parameter && typeof e.parameter.action !== 'undefined') return true;
+  if (e.postData && e.postData.contents) return true;
+  return false;
+}
+
+function isUserAllowed_(email) {
+  return email && ALLOWED_USERS.indexOf(email) !== -1;
+}
+
+function requireAllowedUser_() {
+  var email = Session.getActiveUser().getEmail();
+  if (!isUserAllowed_(email)) {
+    throw new Error('Access denied. Detected email: ' + (email || ''));
+  }
+  return email;
+}
+
+function createShortcutErrorResponse_(err) {
+  var message = err && err.message ? err.message : String(err);
+  var email = Session.getActiveUser().getEmail();
+  var body = {
+    ok: false,
+    error: message,
+    email: email || ''
+  };
+  return ContentService.createTextOutput(JSON.stringify(body)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function handleShortcutRequest_(e, method) {
+  try {
+    var payload = buildShortcutPayload_(e, method);
+    var action = String(payload.action || '').trim().toLowerCase();
+    if (!action) {
+      throw new Error('Missing action parameter.');
+    }
+
+    var data;
+    switch (action) {
+      case 'searchclients':
+      case 'search-client':
+      case 'search_clients':
+        data = shortcutSearchClients_(payload);
+        break;
+      case 'updatechip':
+      case 'update_chip':
+        data = shortcutUpdateChip_(payload);
+        break;
+      case 'addclient':
+      case 'add_client':
+        data = shortcutAddClient_(payload);
+        break;
+      default:
+        throw new Error('Unsupported action: ' + action);
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({
+      ok: true,
+      action: action,
+      data: data
+    })).setMimeType(ContentService.MimeType.JSON);
+  } catch (error) {
+    return createShortcutErrorResponse_(error);
+  }
+}
+
+function buildShortcutPayload_(e, method) {
+  var payload = {};
+  if (e && e.parameter) {
+    Object.keys(e.parameter).forEach(function(key) {
+      var value = e.parameter[key];
+      payload[key] = Array.isArray(value) ? value[0] : value;
+    });
+  }
+
+  if (method === 'POST' && e && e.postData && e.postData.contents) {
+    var content = e.postData.contents;
+    var type = (e.postData.type || '').toLowerCase();
+    var parsed = null;
+
+    if (type.indexOf('application/json') !== -1) {
+      try {
+        parsed = JSON.parse(content);
+      } catch (jsonErr) {
+        throw new Error('Invalid JSON body: ' + jsonErr.message);
+      }
+    } else if (type.indexOf('application/x-www-form-urlencoded') !== -1) {
+      content.split('&').forEach(function(part) {
+        if (!part) return;
+        var bits = part.split('=');
+        var k = decodeURIComponent(bits[0]);
+        var v = bits.length > 1 ? decodeURIComponent(bits[1].replace(/\+/g, ' ')) : '';
+        payload[k] = v;
+      });
+    } else {
+      try {
+        parsed = JSON.parse(content);
+      } catch (err) {
+        payload.body = content;
+      }
+    }
+
+    if (parsed && typeof parsed === 'object') {
+      Object.keys(parsed).forEach(function(k) {
+        payload[k] = parsed[k];
+      });
+    }
+  }
+
+  return payload;
+}
+
+function shortcutSearchClients_(payload) {
+  var query = String(payload.query || payload.q || payload.name || '').trim();
+  var limit = parseInt(payload.limit, 10);
+  if (!limit || limit < 1) {
+    limit = 10;
+  }
+
+  if (!query) {
+    return { query: '', matches: [] };
+  }
+
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
+  if (!sheet) {
+    throw new Error("Sheet 'DASHBOARD 8.0' not found");
+  }
+
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    return { query: query, matches: [] };
+  }
+
+  var tz = Session.getScriptTimeZone();
+  var values = sheet.getRange(2, 1, lastRow - 1, 17).getValues();
+  var needle = query.toLowerCase();
+  var seen = {};
+  var matches = [];
+
+  values.forEach(function(row) {
+    var rawName = row[0];
+    if (!rawName) return;
+
+    var cleanName = String(rawName).replace(/\d+$/, '').trim();
+    if (!cleanName) return;
+
+    var normalized = cleanName.toLowerCase();
+    if (normalized.indexOf(needle) === -1) {
+      if (!cleanName.toLowerCase().split(/\s+/).some(function(part){ return part.indexOf(needle) === 0; })) {
+        return;
+      }
+    }
+
+    var category = row[5] ? String(row[5]).trim() : '';
+    var chipInitials = row[15] ? String(row[15]).trim() : '';
+    var chipDateRaw = row[16];
+    var chipDate = '';
+    if (chipDateRaw) {
+      var d = chipDateRaw instanceof Date ? chipDateRaw : new Date(chipDateRaw);
+      if (!isNaN(d.getTime())) {
+        chipDate = Utilities.formatDate(d, tz, 'MM/dd/yy');
+      } else {
+        chipDate = String(chipDateRaw);
+      }
+    }
+
+    if (!seen[normalized]) {
+      var entry = {
+        name: cleanName,
+        category: category,
+        chipInitials: chipInitials,
+        chipDate: chipDate
+      };
+      matches.push(entry);
+      seen[normalized] = entry;
+    } else {
+      var existing = seen[normalized];
+      if (!existing.category && category) existing.category = category;
+      if (!existing.chipInitials && chipInitials) existing.chipInitials = chipInitials;
+      if (!existing.chipDate && chipDate) existing.chipDate = chipDate;
+    }
+  });
+
+  matches.sort(function(a, b) {
+    var aName = a.name.toLowerCase();
+    var bName = b.name.toLowerCase();
+    var aIndex = aName.indexOf(needle);
+    var bIndex = bName.indexOf(needle);
+    if (aIndex === -1) aIndex = 999;
+    if (bIndex === -1) bIndex = 999;
+    if (aIndex !== bIndex) return aIndex - bIndex;
+    return aName.localeCompare(bName);
+  });
+
+  if (matches.length > limit) {
+    matches = matches.slice(0, limit);
+  }
+
+  return { query: query, matches: matches };
+}
+
+function shortcutUpdateChip_(payload) {
+  var name = String(payload.client || payload.clientName || payload.name || '').replace(/\d+$/, '').trim();
+  if (!name) {
+    throw new Error('Missing client name.');
+  }
+
+  var initials = String(payload.initials || payload.owner || '').trim().toUpperCase();
+  var dateInput = payload.followUpDate || payload.date || payload.chipDate || '';
+
+  updateClientChip(name, initials, dateInput);
+
+  var state = getChipStateForClients([name]);
+  var normalized = name.replace(/\u00A0/g, ' ').trim().toLowerCase();
+  var chipState = state[normalized] || {};
+
+  return {
+    client: name,
+    initials: chipState.initials || initials || '',
+    chipDate: chipState.dateMMDDYY || ''
+  };
+}
+
+function shortcutAddClient_(payload) {
+  var name = String(payload.client || payload.clientName || payload.name || '').replace(/\s+/g, ' ').trim();
+  if (!name) {
+    throw new Error('Missing client name.');
+  }
+
+  var category = String(payload.category || payload.bucket || '').trim();
+  if (!category) {
+    category = 'NONE';
+  }
+
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
+  if (!sheet) {
+    throw new Error("Sheet 'DASHBOARD 8.0' not found");
+  }
+
+  var lastRow = sheet.getLastRow();
+  if (lastRow >= 2) {
+    var existingNames = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+    var target = name.replace(/\d+$/, '').trim().toLowerCase();
+    for (var i = 0; i < existingNames.length; i++) {
+      var existing = String(existingNames[i][0] || '').replace(/\d+$/, '').trim().toLowerCase();
+      if (existing && existing === target) {
+        throw new Error('Client already exists: ' + name);
+      }
+    }
+  }
+
+  var columnCount = sheet.getLastColumn();
+  var row = new Array(columnCount);
+  for (var j = 0; j < columnCount; j++) {
+    row[j] = '';
+  }
+  row[0] = name;
+  row[5] = category;
+
+  sheet.appendRow(row);
+
+  return {
+    added: true,
+    client: name,
+    category: category
+  };
 }
 
 
