@@ -8479,27 +8479,38 @@ function displayClient(client, container) {
 
 function updateCategorySelectValue(clientCategory) {
     var categorySelect = document.getElementById('categorySelect');
-    if (clientCategory) {
-        // Ensure the category exists in the dropdown
+    if (!categorySelect) return;
+
+    var normalizedCategory = (clientCategory || '').trim();
+
+    // Ensure the category exists in the dropdown
+    if (normalizedCategory) {
         var optionExists = Array.from(categorySelect.options).some(function(option) {
-            return option.value === clientCategory;
+            return option.value === normalizedCategory;
         });
 
         // If not, add it to the dropdown
         if (!optionExists) {
             var newOption = document.createElement('option');
-            newOption.value = clientCategory;
-            newOption.textContent = clientCategory;
+            newOption.value = normalizedCategory;
+            newOption.textContent = normalizedCategory;
             categorySelect.appendChild(newOption);
         }
 
-        // Set the dropdown's value to the client's category
-        categorySelect.value = clientCategory;
-        setCategoryPlaceholderText(clientCategory);
+        __suppressCategoryChange = true;
+        categorySelect.value = normalizedCategory;
+        __suppressCategoryChange = false;
+
+        __currentCategory = normalizedCategory;
+        setCategoryPlaceholderText(__currentCategory);
         positionCategoryDropdownOverAutocomplete();
     } else {
+        __suppressCategoryChange = true;
         categorySelect.value = '';
-        setCategoryPlaceholderText('');
+        __suppressCategoryChange = false;
+
+        __currentCategory = '';
+        setCategoryPlaceholderText(__currentCategory);
         hideCategoryOverlay();
     }
 }
