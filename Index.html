@@ -5118,6 +5118,11 @@ function showClientNotes() {
     if (clientName) {
         clientAutocomplete.style.color = 'black'; // Set text color to black when client is loaded
         currentClientName = clientAutocomplete.value; // Store the current client name
+
+        // Log the open client so the recent buttons stay populated on first load
+        if (typeof onClientOpened === 'function') {
+            onClientOpened(clientName);
+        }
     } else {
         clientAutocomplete.style.color = ''; // Default color
         currentClientName = '';
