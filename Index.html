@@ -2800,6 +2800,48 @@ input#clientAutocomplete, select#clientSelect {
   display: inline !important;       /* inline so they sit on one line */
 }
 
+/* === Keep all four recent items shrinking together ====================== */
+#recentRow {
+  font-size: 1rem;                 /* shared base size for the bar */
+}
+
+/* Let every direct child shrink (3 recents + NEW CLIENT) */
+#recentRow > * {
+  flex-shrink: 1;
+}
+
+#recentRow .recent-bar.inside-autocomplete {
+  flex-wrap: nowrap;               /* JS will shrink font-size instead of wrapping */
+  min-width: 0;                    /* allow chips to contract */
+}
+
+/* Prevent chip text from overflowing when the bar shrinks */
+#recentRow .recent-pill {
+  min-width: 0;
+}
+
+#recentRow .recent-pill .rc-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* NEW CLIENT shrinks with the row and keeps em-based padding */
+#addNewClientBtn,
+#addNewClientBtn.recent-add-btn {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: inherit !important;   /* let fitRecentRowOneLine scale it */
+  padding: 0.45em 0.9em;
+  gap: 0.35em;
+  margin-right: 0 !important;      /* avoid forced overflow */
+  white-space: nowrap !important;  /* stay on one line; shrink instead */
+}
+
+#addNewClientBtn span {
+  display: inline-block !important;
+}
+
 .cat-pill {
   position: relative;
   display: inline-flex;
