@@ -1736,10 +1736,16 @@ input#clientAutocomplete, select#clientSelect {
   align-items: stretch;
 }
 
+.labels-notes-left {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 #labelsDisplay {
-  flex-basis: 85%; /* Assign 90% of the parent container's width to labels display */
   font-size: 32px;
-  max-width: 85%;
 }
 
 #labelsAdditionSection {
@@ -3016,8 +3022,13 @@ input#clientAutocomplete, select#clientSelect {
 
 
 <div class="labels-container">
-  <div id="labelsDisplay">
-    <!-- Labels will be displayed here -->
+  <div class="labels-notes-left">
+    <div id="labelsDisplay">
+      <!-- Labels will be displayed here -->
+    </div>
+    <div id="notesDisplay">
+        <!-- Notes will be displayed here -->
+    </div>
   </div>
   <div id="labelsAdditionSection">
        <select id="labelsDropdown" onchange="addLabelToClient(this.value)" style="width: 100%;">
@@ -3037,25 +3048,6 @@ input#clientAutocomplete, select#clientSelect {
 
 
 
-
-
-
-<!-- The rest of your HTML remains unchanged -->
-
-
-<!-- Labels display section -->
-
-
-<!-- Notes display, shown after client selection -->
-<div id="notesDisplay">
-    <!-- Notes will be displayed here -->
-</div>
-
-<!-- Rest of your code... -->
-
-
-
-              <!-- Notes will be displayed here -->
 
   <div id="workSectionsContainer" style="display: flex; flex-direction: row; justify-content: space-between; align-items: stretch;">
 
