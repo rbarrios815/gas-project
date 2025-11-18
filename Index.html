@@ -1832,7 +1832,7 @@ input#clientAutocomplete, select#clientSelect {
 .note-chip-inline {
   display: inline-flex;
   margin-left: 10px;
-  vertical-align: middle;
+  vertical-align: baseline;
 }
 
 
@@ -6143,6 +6143,10 @@ function displayNotes(notes) {
   if (noteChipEl && highlightedWrap.children.length) {
     var latestNote = highlightedWrap.lastElementChild;
     if (latestNote) {
+      // Remove trailing line breaks so the chip sits on the last text line
+      latestNote.innerHTML = latestNote.innerHTML.replace(/(<br\s*\/?>(\s|&nbsp;)*)+$/i, '');
+      // Ensure a single space before the chip for inline alignment with the final text
+      latestNote.append(document.createTextNode(' '));
       latestNote.appendChild(noteChipEl);
     }
   }
