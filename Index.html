@@ -1904,6 +1904,13 @@ button:active {
   pointer-events: none;
 }
 
+/* When collapsed, remove the bars entirely so nothing peeks through */
+.client-container.hide-recents #recentRow,
+.client-container.hide-recents #clientAutocomplete,
+.client-container.hide-recents .correlated-chip-slot[data-correlated-chip-slot="client-autocomplete"] {
+  display: none !important;
+}
+
 #autocompleteSuggestions {
   transition: transform .2s ease, opacity .2s ease, max-height .2s ease, margin .2s ease;
 }
@@ -1923,17 +1930,19 @@ button:active {
 
 /* Keep the blue box almost fully minimized while collapsed */
 .client-container.hide-recents {
-  padding-top: 1px;
-  padding-bottom: 1px;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .client-container.hide-recents .client-input-wrap {
-  padding: 1px 6px !important;
-  max-height: 8px;
+  padding: 0 !important;
+  max-height: 0;
+  height: 0;
   border-width: 0;
   min-height: 0;
+  margin: 0;
   overflow: hidden;
-  transition: padding .2s ease, max-height .2s ease, border-width .2s ease;
+  transition: padding .2s ease, max-height .2s ease, border-width .2s ease, height .2s ease, margin .2s ease;
 }
 
 
