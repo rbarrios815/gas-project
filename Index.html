@@ -5243,6 +5243,16 @@ hideCategoryOverlay();
 
 var displayStyle = clientName ? 'block' : 'none';
 
+// Only show the labels row and label list when a client is loaded
+var labelsTopRow = document.querySelector('.labels-top-row');
+if (labelsTopRow) {
+  labelsTopRow.style.display = clientName ? '' : 'none';
+}
+var labelsDisplayEl = document.getElementById('labelsDisplay');
+if (labelsDisplayEl) {
+  labelsDisplayEl.style.display = clientName ? '' : 'none';
+}
+
 // Show only the Past Work section (Future Work is deprecated)
 document.getElementById('workSectionsContainer').style.display = clientName ? 'flex' : 'none';
 document.getElementById('pastWorkSection').style.display = displayStyle;
