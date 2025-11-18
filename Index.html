@@ -2064,9 +2064,9 @@ input#clientAutocomplete, select#clientSelect {
   background-color: #ff9500; /* Solid orange square */
   margin: 0;
   font-size: 24px;
-  width: 60px;
-  height: 60px;
-  padding: 4px;
+  width: 120px;
+  height: 120px;
+  padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2451,7 +2451,7 @@ input#clientAutocomplete, select#clientSelect {
 
 
 
-#toggleNotesButton, #columnDDropdown {
+#columnDDropdown {
   padding-top: 5px; /* Reduce padding-top */
   padding-bottom: 5px; /* Reduce padding-bottom */
 }
@@ -6402,7 +6402,7 @@ REPLACE ENTIRE toggleNotesVisibility FUNCTION WITH THIS
 REPLACE ENTIRE toggleNotesVisibility FUNCTION WITH THIS
 ***************************************/
 function toggleNotesVisibility() {
-  // Capture previous state to detect a click on the "-" button
+  // Capture previous state before toggling visibility
   var wasExpanded = !!notesExpanded;
 
   // Flip the global boolean
@@ -6419,12 +6419,12 @@ function toggleNotesVisibility() {
 
   var toggleButton = document.getElementById('toggleNotesButton');
   if (toggleButton) {
-    // If expanded now, the button should read -; if collapsed, +
-    toggleButton.innerText = notesExpanded ? '-' : '+';
+    // Update accessibility label to reflect state without visible symbols
+    toggleButton.setAttribute('aria-pressed', notesExpanded ? 'true' : 'false');
+    toggleButton.setAttribute('aria-label', notesExpanded ? 'Hide older notes' : 'Show older notes');
   }
 
-  // If the user just clicked the - button (i.e., was expanded → now collapsed),
-  // scroll to the top.
+  // If the user collapses the block (was expanded → now collapsed), scroll to the top.
   if (wasExpanded && !notesExpanded) {
     // Use the global helper (defined below). If you have your own scrollToTop already, this will call it.
     scrollToTop();
@@ -6582,11 +6582,9 @@ function displayNotes(notes) {
   var toggleBtn = document.createElement('button');
   toggleBtn.id = 'toggleNotesButton';
   toggleBtn.onclick = toggleNotesVisibility;
-  toggleBtn.style.fontSize = '0.5em';
-  toggleBtn.style.padding = '0';
-  toggleBtn.style.width = '24px';
-  toggleBtn.style.height = '24px';
-  toggleBtn.innerText = '+';
+  toggleBtn.type = 'button';
+  toggleBtn.setAttribute('aria-label', 'Show older notes');
+  toggleBtn.setAttribute('aria-pressed', 'false');
 
   var toggleRow = document.createElement('div');
   toggleRow.style.display = 'flex';
