@@ -1983,10 +1983,17 @@ input#clientAutocomplete, select#clientSelect {
 
 
 #toggleNotesButton {
-  background-color: #FFDAB9; /* Peach Puff color, a light orange shade */
-  margin-top: 5px;
-  font-size: 1em;
-  }
+  background-color: #ff9500; /* Solid orange square */
+  margin: 0;
+  font-size: 0.5em;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
 
 #hideClientNotesBtn {
   display: none !important;
@@ -3196,8 +3203,13 @@ input#clientAutocomplete, select#clientSelect {
 
 /* Calendar icon button */
 .calendar-btn {
-  border: 0; background: #21a45e; color: #fff; border-radius: 8px;
-  height: 32px; width: 36px; cursor: pointer;
+  border: 0;
+  background: #d92525;
+  color: #fff;
+  border-radius: 4px;
+  height: 32px;
+  width: 32px;
+  cursor: pointer;
 }
 
 /* Modal */
@@ -6421,14 +6433,16 @@ function displayNotes(notes) {
   var toggleBtn = document.createElement('button');
   toggleBtn.id = 'toggleNotesButton';
   toggleBtn.onclick = toggleNotesVisibility;
-  toggleBtn.style.fontSize = '0.85em';
-  toggleBtn.style.padding = '4px 12px';
+  toggleBtn.style.fontSize = '0.5em';
+  toggleBtn.style.padding = '0';
+  toggleBtn.style.width = '24px';
+  toggleBtn.style.height = '24px';
   toggleBtn.innerText = '+';
 
   var toggleRow = document.createElement('div');
   toggleRow.style.display = 'flex';
   toggleRow.style.justifyContent = 'center';
-  toggleRow.style.margin = '6px 0 4px';
+  toggleRow.style.margin = '0';
   toggleRow.appendChild(toggleBtn);
   container.appendChild(toggleRow);
 
