@@ -1920,13 +1920,13 @@ button:active {
 
 /* Keep the blue box almost fully minimized while collapsed */
 .client-container.hide-recents {
-  padding-top: 0;
-  padding-bottom: 0;
+  padding-top: 2px;
+  padding-bottom: 2px;
 }
 
 .client-container.hide-recents .client-input-wrap {
-  padding: 2px 6px !important;
-  max-height: 8px;
+  padding: 4px 8px !important;
+  max-height: 16px;
   border-width: 1px;
   overflow: hidden;
   transition: padding .2s ease, max-height .2s ease, border-width .2s ease;
@@ -5110,7 +5110,6 @@ window.addEventListener('load',   fitRecentRowOneLine);
 
   var lastY = window.scrollY || document.documentElement.scrollTop || 0;
   var ticking = false;
-  var deltaToToggle = 6; // minimum px movement before changing state
   var revealAt = 30;   // show once the user scrolls a bit
   var collapseAt = 12; // collapse again only when back near the very top
 
@@ -5141,18 +5140,6 @@ window.addEventListener('load',   fitRecentRowOneLine);
   }
 
   function onScrollPosition(y){
-    var delta = y - lastY;
-
-    if (Math.abs(delta) < deltaToToggle) {
-      ticking = false;
-      return;
-    }
-
-    if (delta > 0) {
-      // Scrolling down: collapse to maximize space
-      applyState(true);
-    } else {
-      // Scrolling up: reveal the controls again
     if (y <= collapseAt) {
       applyState(true);
     } else if (y >= revealAt) {
@@ -5171,8 +5158,8 @@ window.addEventListener('load',   fitRecentRowOneLine);
     }
   }, { passive: true });
 
-  // Start collapsed until the user scrolls upward
-  applyState(true);
+  // Start collapsed until the user scrolls down a bit
+  applyState((window.scrollY || document.documentElement.scrollTop || 0) <= collapseAt);
 })();
 
 
