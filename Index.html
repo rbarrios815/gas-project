@@ -322,7 +322,7 @@ html { font-size: 200%; }
 /* === RECENT ROW: never wrap; we'll shrink font-size instead === */
 .recent-row#recentRow {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   flex-wrap: nowrap;   /* prevent wrap */
   overflow: hidden;    /* clip during measurement */
@@ -2498,17 +2498,18 @@ input#clientAutocomplete, select#clientSelect {
   pointer-events: none;
   overflow: hidden;
   padding: 0;
+  background: transparent;
 }
 
 #categoryChangeSection select {
   width: 100%;
   height: 100%;
-  background: rgba(255, 255, 255, 0.01);
+  background: transparent;
   border: none;
   border-radius: 0;
   font-size: 0.7em;
   line-height: 1;
-  padding: 0 6px;
+  padding: 0 18px 0 6px;
   min-height: 0;
   max-height: 100%;
   margin: 0;
@@ -2517,6 +2518,19 @@ input#clientAutocomplete, select#clientSelect {
   appearance: none;
   outline: none;
   box-shadow: none;
+  position: relative;
+}
+
+#categoryChangeSection::after {
+  content: '▼';
+  position: absolute;
+  right: 6px;
+  top: 40%;
+  transform: translateY(-50%);
+  font-size: 0.6em;
+  line-height: 1;
+  pointer-events: none;
+  color: inherit;
 }
 
 /* Chips bar when placed inside the autocomplete wrapper */
@@ -7896,23 +7910,25 @@ function positionCategoryDropdownOverAutocomplete() {
     var paddingRight = parseFloat(style.paddingRight) || 0;
 
     // Leave a sliver of the green autocomplete background visible all around the overlay
-    var inset = 4;
+    var insetSide = 4;
+    var insetTop = 4;
+    var insetBottom = 10; // keep the bottom edge lifted so the green bar peeks through
 
-    var insideWidth = Math.max(inputRect.width - inset * 2, 0);
-    var availableWidth = Math.max(insideWidth - prefixWidth - paddingLeft - paddingRight, 120);
-    var overlayWidth = Math.min(categoryWidth + paddingLeft + paddingRight, availableWidth);
-    var left = inputRect.left - containerRect.left + inset + paddingLeft + prefixWidth;
+    var insideWidth = Math.max(inputRect.width - insetSide * 2, 0);
+    var availableWidth = Math.max(insideWidth - prefixWidth - paddingLeft - paddingRight, 0);
+    var overlayWidth = Math.min(categoryWidth + paddingLeft + paddingRight + 12 /*arrow space*/, availableWidth);
+    var left = inputRect.left - containerRect.left + insetSide + paddingLeft + prefixWidth;
 
     // Keep the overlay fully inside the autocomplete input bounds
-    var minLeft = inputRect.left - containerRect.left + inset + paddingLeft;
-    var maxLeft = inputRect.left - containerRect.left + inputRect.width - inset - paddingRight - overlayWidth;
+    var minLeft = inputRect.left - containerRect.left + insetSide + paddingLeft;
+    var maxLeft = inputRect.left - containerRect.left + inputRect.width - insetSide - paddingRight - overlayWidth;
     left = Math.min(Math.max(left, minLeft), maxLeft);
 
-    var maxOverlayHeight = Math.max(inputRect.height - inset * 2, 0);
+    var maxOverlayHeight = Math.max(inputRect.height - insetTop - insetBottom, 0);
 
     overlay.style.display = 'flex';
     overlay.style.left = left + 'px';
-    overlay.style.top = (inputRect.top - containerRect.top + inset) + 'px';
+    overlay.style.top = (inputRect.top - containerRect.top + insetTop) + 'px';
     overlay.style.height = maxOverlayHeight + 'px';
     overlay.style.maxHeight = maxOverlayHeight + 'px';
     overlay.style.width = Math.max(overlayWidth, 0) + 'px';
