@@ -1707,6 +1707,19 @@ button:active {
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
+#recentRow {
+  transition: transform .2s ease, opacity .2s ease, max-height .2s ease, margin .2s ease;
+  max-height: 200px;
+}
+
+.client-container.hide-recents #recentRow {
+  transform: translateY(-120%);
+  opacity: 0;
+  max-height: 0;
+  margin: 0;
+  pointer-events: none;
+}
+
 
 body {
     margin-top: 0; /* Adjust the value to match the height of the fixed header */
@@ -2317,6 +2330,17 @@ input#clientAutocomplete, select#clientSelect {
    AND THE ADD NEW CLIENT BUTTON ROW */
 #topClientsControlRow {
   margin-bottom: 20px; /* Adjust as needed to create more or less space */
+}
+
+/* Center the date/initials/lightbulb row within the viewport */
+#topClientsControlRow {
+  justify-content: center;
+  text-align: center;
+}
+
+#topClientsControlRow > * {
+  margin-left: 0;
+  margin-right: 0;
 }
 
 /* SNIPPET #2 (REPLACED): make filter dropdown look like a button and hide arrow */
@@ -3526,7 +3550,7 @@ function fitElementTextToOneLine(el, opts){
 function fitClientInputNow(){
   const input = document.getElementById('clientAutocomplete');
   if (!input) return;
-  fitElementTextToOneLine(input, { minPx: 10 });
+  fitElementTextToOneLine(input, { minPx: 6 });
 }
 
 /* === HELPER: shrink a suggestion row only if it overflows === */
@@ -4827,6 +4851,51 @@ window.addEventListener('load',   fitRecentRowOneLine);
   window.addEventListener('load', ensureHeaderSpacing);
 })();
 
+// Hide the recent clients/new client bar when scrolling down to maximize space
+(function installRecentHideOnScroll(){
+  var container = document.querySelector('.client-container');
+  var row = document.getElementById('recentRow');
+  if (!container || !row) return;
+
+  var lastY = window.scrollY || document.documentElement.scrollTop || 0;
+  var ticking = false;
+
+  function applyState(shouldHide){
+    var changed = false;
+    if (shouldHide && !container.classList.contains('hide-recents')) {
+      container.classList.add('hide-recents');
+      changed = true;
+    } else if (!shouldHide && container.classList.contains('hide-recents')) {
+      container.classList.remove('hide-recents');
+      changed = true;
+    }
+
+    if (changed && typeof ensureHeaderSpacing === 'function') {
+      ensureHeaderSpacing();
+    }
+  }
+
+  function onScrollPosition(y){
+    var delta = y - lastY;
+    var hide = y > 40 && delta > 3;
+    var show = delta < -3 || y <= 10;
+
+    if (hide) applyState(true);
+    else if (show) applyState(false);
+
+    lastY = y;
+    ticking = false;
+  }
+
+  window.addEventListener('scroll', function(){
+    var currentY = window.scrollY || document.documentElement.scrollTop || 0;
+    if (!ticking) {
+      ticking = true;
+      requestAnimationFrame(function(){ onScrollPosition(currentY); });
+    }
+  }, { passive: true });
+})();
+
 
 var currentClientName = '';
 
@@ -4914,6 +4983,10 @@ var inputElement = document.getElementById('clientAutocomplete');
     requestAnimationFrame(fitClientInputNow);
   });
 
+  window.addEventListener('resize', function(){
+    requestAnimationFrame(fitClientInputNow);
+  });
+
   // Programmatic changes (e.g., when a client is loaded into the input)
   // Wrap showClientNotes to run the fitter after it sets the input value.
   (function wrapShowClientNotesOnce(){
@@ -4954,6 +5027,12 @@ var inputElement = document.getElementById('clientAutocomplete');
       enumerable: false
     });
   })();
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', function(){
+      requestAnimationFrame(fitClientInputNow);
+    });
+  }
 
 
   // Also fit immediately on first load (in case a value is prefilled)
@@ -6493,6 +6572,17 @@ function showCalendarInput() {
     }
 }
 
+function logPastWorkSubmissionToInbox(noteText, clientName) {
+    var trimmed = (noteText || '').trim();
+    if (!trimmed) return;
+
+    try {
+        google.script.run.inboxAddNote(trimmed, clientName || '');
+    } catch (e) {
+        console.log('Unable to mirror submit to inbox:', e);
+    }
+}
+
 function submitPastWork() {
     var clientName = document.getElementById('clientSelect').value;
     var pastWorkContent = document.getElementById('newPastWork').value;
@@ -6507,6 +6597,8 @@ showStarAnimation(); // SNIPPET #3
 
 
             alert('Past work updated successfully.');
+
+            logPastWorkSubmissionToInbox(pastWorkContent, clientName);
 
 retriggerTopClientsFilter();
 
