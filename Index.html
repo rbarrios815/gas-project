@@ -2065,11 +2065,6 @@ input#clientAutocomplete, select#clientSelect {
   display: none;
 }
 
-/* Dedicated styling hook for the primary-view autocomplete chip mirrors */
-.primary-autocomplete-chip {
-  width: 100%;
-}
-
 
 /* When you want to display the labelsAdditionSection, you can change its style to 'display: block' or 'display: flex' as needed with JavaScript */
 
@@ -9984,8 +9979,6 @@ function getCorrelatedChipPayload() {
 }
 
 function syncCorrelatedChips() {
-  installPrimaryAutocompleteChipSlots();
-
   var payload = getCorrelatedChipPayload();
   var slots = document.querySelectorAll('[data-correlated-chip-slot]');
 
@@ -10004,46 +9997,6 @@ function syncCorrelatedChips() {
     slot.style.display = 'flex';
   });
 }
-
-// Ensure every primary-view autocomplete gets a correlated chip slot beneath it
-function installPrimaryAutocompleteChipSlots() {
-  var inputs = document.querySelectorAll('[list="clientNamesList"]');
-
-  inputs.forEach(function(input) {
-    // Skip the secondary/bottom-sheet view entirely
-    if (input.closest('#dashSheet')) return;
-
-    // Avoid duplicating slots if markup already provides one
-    var next = input.nextElementSibling;
-    if (next && next.dataset && next.dataset.correlatedChipSlot) return;
-
-    var slot = document.createElement('div');
-    slot.className = 'correlated-chip-slot primary-autocomplete-chip';
-    slot.dataset.correlatedChipSlot = 'client-autocomplete';
-    slot.style.display = 'none';
-
-    input.insertAdjacentElement('afterend', slot);
-  });
-}
-
-function scrollPrimaryViewToCollapsedBars() {
-  var target = document.getElementById('topClientsControlRow');
-  if (!target) return;
-
-  requestAnimationFrame(function() {
-    try {
-      target.scrollIntoView({ behavior: 'instant', block: 'start' });
-    } catch (_) {
-      target.scrollIntoView({ block: 'start' });
-    }
-  });
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-  installPrimaryAutocompleteChipSlots();
-  scrollPrimaryViewToCollapsedBars();
-  syncCorrelatedChips();
-});
 
 
 
