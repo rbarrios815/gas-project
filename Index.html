@@ -4596,6 +4596,16 @@ document.getElementById('scrollBottomBtn').style.display = 'inline-block';
 }
 /***** END SNIPPET *****/
 
+    // Hide label controls until a client is selected
+    (function(){
+      var labelsTopRow = document.querySelector('.labels-top-row');
+      var labelsDisplay = document.getElementById('labelsDisplay');
+      var labelsAddition = document.getElementById('labelsAdditionSection');
+      if (labelsTopRow) labelsTopRow.style.display = 'none';
+      if (labelsDisplay) labelsDisplay.style.display = 'none';
+      if (labelsAddition) labelsAddition.style.display = 'none';
+    })();
+
     google.script.run.withSuccessHandler(function(data){
       clientsData = data;
       rebuildClientNameIndex();
@@ -7290,47 +7300,64 @@ var suggestions; // Keep this global to store suggestions
 
 function autocompleteClient() {
   var clientSelect = document.getElementById('clientSelect');
+  var inputElement = document.getElementById('clientAutocomplete');
+  if (!inputElement) return;
 
-    var inputElement = document.getElementById('clientAutocomplete');
-    suggestions = document.getElementById('autocompleteSuggestions');
-    if (!suggestions) {
-        suggestions = document.createElement('div');
-        suggestions.id = 'autocompleteSuggestions';
-        inputElement.parentNode.appendChild(suggestions);
-    }
+  suggestions = document.getElementById('autocompleteSuggestions');
+  if (!suggestions) {
+    suggestions = document.createElement('div');
+    suggestions.id = 'autocompleteSuggestions';
+    inputElement.parentNode.appendChild(suggestions);
+  }
 
-    inputElement.addEventListener('input', function() {
-        var inputValue = inputElement.value.toLowerCase();
+  var inputValue = (inputElement.value || '').trim().toLowerCase();
 
-        // Clear current suggestions
-        suggestions.innerHTML = '';
+  // Clear current suggestions
+  suggestions.innerHTML = '';
 
-        // Calculate the available height below the input field
-        var rect = inputElement.getBoundingClientRect();
-        var availableHeight = window.innerHeight - rect.bottom;
+  // Calculate the available height below the input field
+  var rect = inputElement.getBoundingClientRect();
+  var availableHeight = window.innerHeight - rect.bottom;
 
-        // Set the max-height of suggestions to the available height
-        suggestions.style.maxHeight = availableHeight + 'px';
+  // Set the max-height of suggestions to the available height
+  suggestions.style.maxHeight = availableHeight + 'px';
 
-        // Populate suggestions
-        clientsData.forEach(function(client) {
-            if (client.rowText.includes(inputValue) && inputValue) {
-                var suggestion = document.createElement('div');
-                suggestion.innerHTML = client.clientName + (client.category ? ' (' + client.category + ')' : '');
+  if (!inputValue || !Array.isArray(clientsData) || !clientsData.length) {
+    suggestions.style.display = 'none';
+    return;
+  }
 
-                suggestion.onclick = function() {
-                    inputElement.value = this.innerHTML;
-                    clientSelect.value = client.clientName;
-                    showClientNotes();
-                        scrollToTop(); // Add this line to scroll to the top
+  // Populate suggestions using case-insensitive matching against name, category, or row text
+  var matchedClients = clientsData.filter(function(client) {
+    var name = (client.clientName || '').toLowerCase();
+    var category = (client.category || '').toLowerCase();
+    var rowText = (client.rowText || '').toLowerCase();
+    return name.includes(inputValue) || category.includes(inputValue) || rowText.includes(inputValue);
+  });
 
-                    suggestions.innerHTML = ''; // Hide suggestions after selection
-                };
+  if (!matchedClients.length) {
+    suggestions.style.display = 'none';
+    return;
+  }
 
-                suggestions.appendChild(suggestion);
-            }
-        });
-    });
+  matchedClients.forEach(function(client) {
+    var suggestion = document.createElement('div');
+    suggestion.innerHTML = client.clientName + (client.category ? ' (' + client.category + ')' : '');
+
+    suggestion.onclick = function() {
+      inputElement.value = this.innerHTML;
+      if (clientSelect) clientSelect.value = client.clientName;
+      showClientNotes();
+      scrollToTop(); // Add this line to scroll to the top
+
+      suggestions.innerHTML = ''; // Hide suggestions after selection
+      suggestions.style.display = 'none';
+    };
+
+    suggestions.appendChild(suggestion);
+  });
+
+  suggestions.style.display = 'block';
 }
 
 
