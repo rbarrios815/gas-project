@@ -2237,8 +2237,32 @@ function sendDailyTopClientsEmail() {
   }
 
   // 6) Send
+  var activeUserEmail = (Session.getActiveUser().getEmail() || "").trim();
+  var effectiveUserEmail = (Session.getEffectiveUser().getEmail() || "").trim();
+  var defaultRecipient = "rbarrio1@alumni.nd.edu";
+  var recipients = [defaultRecipient];
+
+  [activeUserEmail, effectiveUserEmail].forEach(function(addr) {
+    if (addr) {
+      recipients.push(addr);
+    }
+  });
+
+  var uniqueRecipients = Array.from(new Set(recipients.filter(function(addr) {
+    return addr && addr.trim();
+  }).map(function(addr) {
+    return addr.trim();
+  })));
+
+  if (!uniqueRecipients.length) {
+    throw new Error("No valid recipients available for daily summary email.");
+  }
+
+  var recipientList = uniqueRecipients.join(",");
+  Logger.log("sendDailyTopClientsEmail recipients: " + recipientList);
+
   MailApp.sendEmail({
-    to: "rbarrio1@alumni.nd.edu",  // <-- change to your desired email
+    to: recipientList,
     subject: "Immediate Summary (" + todayDay + ")",
     body: emailBody
   });
