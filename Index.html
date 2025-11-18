@@ -322,7 +322,7 @@ html { font-size: 200%; }
 /* === RECENT ROW: never wrap; we'll shrink font-size instead === */
 .recent-row#recentRow {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
   flex-wrap: nowrap;   /* prevent wrap */
   overflow: hidden;    /* clip during measurement */
@@ -2481,7 +2481,7 @@ input#clientAutocomplete, select#clientSelect {
 .recent-bar .rc-muted { opacity: 1 !important; }
 
 /* Make the blue box visually contain chips + input cleanly */
-  .client-input-wrap {
+.client-input-wrap {
   position: relative;           /* already present, keep it */
   background: #ffffff;          /* white interior so chips/input stand out */
   border: 2px solid #1E90FF;    /* blue outline */
@@ -2490,104 +2490,24 @@ input#clientAutocomplete, select#clientSelect {
   box-shadow: 0 2px 5px rgba(0,0,0,0.06);
 }
 
-.client-input-row {
-  display: flex;
-  align-items: stretch;
-  gap: 10px;
-  width: 100%;
-  position: relative;
-  margin-top: 10px;
-}
-
-.client-input-row #clientAutocomplete {
-  flex: 2 1 65%;
-  width: 100%;
-}
-
-.client-input-row #catCalWrap {
-  flex: 1 1 35%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.client-input-row #catCalWrap .cat-pill { flex: 1 1 auto; }
-.client-input-row #catCalWrap #calendarBtn { flex: 0 0 auto; }
-
-.client-input-row input,
-.client-input-row select,
-.client-input-row .cat-pill,
-.client-input-row .cat-input {
-  font-size: 1em;
-}
-
 .category-overlay {
   position: absolute;
   display: none;
   align-items: center;
   z-index: 1010;
   pointer-events: none;
-  overflow: visible;
-  padding: 0;
-  margin: 0;
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  cursor: pointer;
-}
-
-#categoryChangeSection.category-overlay {
-  padding: 0;
-  margin: 0;
-  background: transparent;
-  border: none;
-  box-shadow: none;
-}
-
-#categoryChangeSection::after {
-  content: '▼';
-  position: absolute;
-  right: -2px;
-  top: -6px;
-  transform: none;
-  font-size: 0.10em;
-#categoryChangeSection::after {
-  content: '▼';
-  position: absolute;
-  right: 2px;
-  top: 0;
-  transform: translateY(-50%);
-  font-size: 0.22em;
-  line-height: 1;
-  color: #333;
-  pointer-events: none;
-  display: block;
 }
 
 #categoryChangeSection select {
   width: 100%;
   height: 100%;
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  font-size: 1em;
-  line-height: 1;
-  padding: 0 18px 0 6px;
-  min-height: 0;
-  max-height: 100%;
-  margin: 0;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #1E90FF;
+  border-radius: 6px;
+  font-size: inherit;
+  padding: 0 28px 0 10px;
   box-sizing: border-box;
   pointer-events: auto;
-  appearance: none;
-  outline: none;
-  box-shadow: none;
-  position: relative;
-  opacity: 0;
-}
-
-#categoryChangeSection select option {
-  font-size: 0.9em;
-  padding: 4px 6px;
 }
 
 /* Chips bar when placed inside the autocomplete wrapper */
@@ -3003,17 +2923,16 @@ input#clientAutocomplete, select#clientSelect {
   position: relative;
   display: inline-flex;
   align-items: center;
-  width: 100%;
-  max-width: none;
+  max-width: min(42vw, 380px);
   border: 1px solid #cfcfcf;
   border-radius: 999px;
-  padding: 10px 28px 10px 12px;
+  padding: 4px 28px 4px 10px;
   background: #fff;
-  height: auto;
+  height: 32px;
 }
 .cat-input {
   border: 0; outline: 0; width: 100%;
-  font: inherit; line-height: 1.2;
+  font: inherit; line-height: 1;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .cat-input::placeholder { color: #777; }
@@ -3079,41 +2998,44 @@ input#clientAutocomplete, select#clientSelect {
   </button>
 </div>
 
-    <div class="client-input-row">
-      <input type="text" id="clientAutocomplete"
-             placeholder="Type Client Name"
-             oninput="autocompleteClient()">
 
-      <!-- Category dropdown overlaid on the category portion of the loaded client -->
-      <div id="categoryChangeSection" class="category-overlay" aria-hidden="true" style="display:none;">
-        <select id="categorySelect" class="category-select">
-          <option value=""></option>
-        </select>
-      </div>
+</div>
 
-             <!-- Category combo + Calendar icon (hidden until a client is selected) -->
-      <div id="catCalWrap" style="display:none; gap:10px; align-items:center; width:100%;">
-        <!-- Category pill (combobox) -->
-        <div class="cat-pill" title="" >
-          <input id="categoryCombo"
-                 type="text"
-                 placeholder="Select category"
-                 list="categoryList"
-                 aria-label="Category"
-                 aria-expanded="false"
-                 aria-autocomplete="list"
-                 class="cat-input" />
-          <span class="cat-caret" aria-hidden="true">▼</span>
-          <datalist id="categoryList"></datalist>
-        </div>
+    <input type="text" id="clientAutocomplete"
+           placeholder="Type Client Name"
+           oninput="autocompleteClient()">
 
-        <!-- Calendar button -->
-        <button id="calendarBtn" class="calendar-btn" title="Open calendar">
-          <!-- simple calendar glyph -->
-          🗓️
-        </button>
-      </div>
+    <!-- Category dropdown overlaid on the category portion of the loaded client -->
+    <div id="categoryChangeSection" class="category-overlay" aria-hidden="true" style="display:none;">
+      <select id="categorySelect" class="category-select">
+        <option value=""></option>
+      </select>
     </div>
+
+           <!-- Category combo + Calendar icon (hidden until a client is selected) -->
+<div id="catCalWrap" style="display:none; gap:8px; align-items:center; margin-left:auto;">
+  <!-- Category pill (combobox) -->
+  <div class="cat-pill" title="" >
+    <input id="categoryCombo"
+           type="text"
+           placeholder="Select category"
+           list="categoryList"
+           aria-label="Category"
+           aria-expanded="false"
+           aria-autocomplete="list"
+           class="cat-input" />
+    <span class="cat-caret" aria-hidden="true">▼</span>
+    <datalist id="categoryList"></datalist>
+  </div>
+
+  <!-- Calendar button -->
+  <button id="calendarBtn" class="calendar-btn" title="Open calendar">
+    <!-- simple calendar glyph -->
+    🗓️
+  </button>
+</div>
+
+
   </div>
 
   <select id="clientSelect" onchange="showClientNotes()" style="display: none;">
@@ -5198,7 +5120,6 @@ function populateClientDropdown(clients) {
         var option = document.createElement('option');
         option.value = client.clientName;
         option.textContent = client.clientName + (client.category ? ' (' + client.category + ')' : '');
-        option.dataset.category = client.category || '';
         clientSelect.appendChild(option);
     });
     hideLoadingBar(); // Hide the loading bar after populating the dropdown
@@ -7152,7 +7073,7 @@ function selectClientFromButton(clientText) {
     for (var i = 0; i < clientSelect.options.length; i++) {
         // Extract the client name and category from the dropdown option
         var optionText = clientSelect.options[i].text;
-        var optionClientName = clientSelect.options[i].value || optionText.split(' (')[0]; // Prefer the raw value to ignore categories
+        var optionClientName = optionText.split(' (')[0]; // Get the client name before the '('
 
         // Check if the client names match (without considering the category)
         if (clientText.startsWith(optionClientName)) {
@@ -7880,9 +7801,11 @@ function updateCategoryLabel() {
     var selectedOption = clientSelect.options[clientSelect.selectedIndex];
 
     if (clientSelect.value) {
-        // Extract client name and category without relying on parentheses in the client name
+        // Extract client name and category from the selected option
         var clientName = selectedOption.value;
-        var clientCategory = selectedOption.dataset ? (selectedOption.dataset.category || '') : '';
+        var rawText = selectedOption && selectedOption.textContent ? selectedOption.textContent : '';
+        var split = rawText.split(' (');
+        var clientCategory = split.length > 1 ? split[1].slice(0, -1) : '';
         var effectiveCategory = clientCategory || __currentCategory || '';
 
         // Overlay the dropdown with the current category so it sits on top of the "(Category)" text
@@ -7902,8 +7825,9 @@ function setCategoryPlaceholderText(text) {
     var fallbackFromClient = (function() {
         var clientSel = document.getElementById('clientSelect');
         if (!clientSel || !clientSel.value || !clientSel.selectedOptions.length) return '';
-        var opt = clientSel.selectedOptions[0];
-        return opt && opt.dataset ? (opt.dataset.category || '') : '';
+        var raw = clientSel.selectedOptions[0].textContent || '';
+        var parts = raw.split(' (');
+        return parts.length > 1 ? parts[1].replace(/\)$/, '') : '';
     })();
 
     if (categorySelect.options.length === 0) {
@@ -7940,7 +7864,7 @@ function positionCategoryDropdownOverAutocomplete() {
     }
 
     var value = input.value || '';
-    var start = value.lastIndexOf('(');
+    var start = value.indexOf('(');
     var end = value.lastIndexOf(')');
     if (start === -1 || end === -1 || end <= start) {
         hideCategoryOverlay();
@@ -7963,30 +7887,17 @@ function positionCategoryDropdownOverAutocomplete() {
     var categoryWidth = Math.max(ctx.measureText(value.slice(start, end + 1)).width, 0);
     var paddingLeft = parseFloat(style.paddingLeft) || 0;
     var paddingRight = parseFloat(style.paddingRight) || 0;
-
-    // Leave a sliver of the green autocomplete background visible all around the overlay
-    var insetSide = 4;
-    var insetTop = 4;
-    var insetBottom = 10; // keep the bottom edge lifted so the green bar peeks through
-
-    var insideWidth = Math.max(inputRect.width - insetSide * 2, 0);
-    var availableWidth = Math.max(insideWidth - prefixWidth - paddingLeft - paddingRight, 0);
-    var overlayWidth = Math.min(categoryWidth + paddingLeft + paddingRight + 12 /*arrow space*/, availableWidth);
-    var left = inputRect.left - containerRect.left + insetSide + paddingLeft + prefixWidth;
-
-    // Keep the overlay fully inside the autocomplete input bounds
-    var minLeft = inputRect.left - containerRect.left + insetSide + paddingLeft;
-    var maxLeft = inputRect.left - containerRect.left + inputRect.width - insetSide - paddingRight - overlayWidth;
-    left = Math.min(Math.max(left, minLeft), maxLeft);
-
-    var maxOverlayHeight = Math.max(inputRect.height - insetTop - insetBottom, 0);
+    var borderTop = parseFloat(style.borderTopWidth) || 0;
+    var borderBottom = parseFloat(style.borderBottomWidth) || 0;
+    var availableWidth = Math.max(inputRect.width - prefixWidth - paddingLeft - paddingRight, 120);
+    var overlayWidth = Math.min(categoryWidth + paddingLeft + paddingRight, availableWidth);
+    var left = inputRect.left - containerRect.left + paddingLeft + prefixWidth;
 
     overlay.style.display = 'flex';
     overlay.style.left = left + 'px';
-    overlay.style.top = (inputRect.top - containerRect.top + insetTop) + 'px';
-    overlay.style.height = maxOverlayHeight + 'px';
-    overlay.style.maxHeight = maxOverlayHeight + 'px';
-    overlay.style.width = Math.max(overlayWidth, 0) + 'px';
+    overlay.style.top = (inputRect.top - containerRect.top + borderTop) + 'px';
+    overlay.style.height = (inputRect.height - borderTop - borderBottom) + 'px';
+    overlay.style.width = overlayWidth + 'px';
     overlay.setAttribute('aria-hidden', 'false');
 }
 
