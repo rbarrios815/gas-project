@@ -1583,35 +1583,6 @@ button:active {
   width: 100%;
 }
 
-#appointmentInputSection {
-  text-align: center; /* Center-align content within the section */
-  padding: 20px;
-  margin-bottom: 20px;
-  background-color: var(--background-color);
-  border: 1px solid #ccc;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-}
-
-.appointment-label {
-  display: block; /* Make label a block element */
-  margin: 10px auto; /* Center label and add space above and below */
-}
-
-.appointment-input {
-  display: block; /* Make input a block element */
-  margin: 0 auto; /* Center the input field */
-  width: 50%; /* Adjust width as needed */
-  padding: 10px; /* Padding for better appearance */
-  border-radius: 4px; /* Rounded corners */
-  border: 1px solid #ccc; /* Border styling */
-}
-
-#appointmentInputSection button {
-  display: block; /* Make button a block element */
-  margin: 20px auto; /* Center the button and add space above and below */
-  /* Additional button styling as needed */
-}
-
 #loadingBarContainer {
     width: 100%;
     background-color: #f3f3f3;
@@ -3008,6 +2979,69 @@ input#clientAutocomplete, select#clientSelect {
 .btn-secondary { background: #efefef; }
 .btn-primary { background: #21a45e; color: #fff; }
 
+/* Appointment scheduling modal */
+.appointment-modal-card {
+  width: min(520px, 92vw);
+  height: auto;
+  box-shadow: 0 12px 40px rgba(0,0,0,.18);
+}
+
+.appointment-modal-header {
+  gap: 6px;
+}
+
+.appointment-modal-title {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.appointment-modal-subtitle {
+  font-size: 13px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+.appointment-modal-body {
+  background: #f8fafc;
+  padding: 18px 18px 10px;
+  gap: 14px;
+}
+
+.appointment-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.appointment-field input {
+  width: 100%;
+  padding: 14px;
+  font-size: 18px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+}
+
+.appointment-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.appointment-icon-btn {
+  background-color: red;
+  color: #fff;
+  width: 44px;
+  height: 44px;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
 
 </style>
 
@@ -3154,24 +3188,35 @@ input#clientAutocomplete, select#clientSelect {
 </div>
 
 <br>
-<!-- Button to show appointment scheduling inputs -->
-<button id="addAppointmentBtn" class="secondary-button" onclick="showAppointmentInput()" style="display:none;">Add APPOINTMENT to Calendar for This Client</button>
-
-<!-- Appointment scheduling inputs, initially hidden -->
-<div id="appointmentInputSection" style="display:none;">
-    <label for="appointmentDate" class="appointment-label">Appointment Date:</label>
-    <input type="date" id="appointmentDate" class="appointment-input">
-
-    <label for="appointmentTime" class="appointment-label">Appointment Time:</label>
-    <input type="time" id="appointmentTime" class="appointment-input">
-
-    <button onclick="submitAppointmentToCalendar()">Submit APPOINTMENT to Calendar</button>
-</div>
-
-
-
 <!-- Add the HIDE CLIENT NOTES button here -->
 <button id="hideClientNotesBtn" class="secondary-button" onclick="hideClientNotes()" style="display:none;">HIDE CLIENT NOTES</button>
+
+<!-- Appointment scheduling modal -->
+<div id="appointmentModal" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="appointmentModalTitle" aria-hidden="true">
+  <div class="modal-card appointment-modal-card">
+    <div class="modal-header appointment-modal-header">
+      <div>
+        <div id="appointmentModalTitle" class="appointment-modal-title">Schedule appointment</div>
+        <div id="appointmentModalSubtitle" class="appointment-modal-subtitle">Choose a date and start time for this client.</div>
+      </div>
+      <button type="button" class="modal-close" aria-label="Close appointment modal" onclick="closeAppointmentModal()">✕</button>
+    </div>
+    <div class="modal-body appointment-modal-body">
+      <label class="appointment-field">
+        <span>Date</span>
+        <input type="date" id="appointmentDate" class="appointment-input">
+      </label>
+      <label class="appointment-field">
+        <span>Start time</span>
+        <input type="time" id="appointmentTime" class="appointment-input">
+      </label>
+    </div>
+    <div class="modal-footer appointment-modal-footer">
+      <button type="button" class="btn-secondary" onclick="closeAppointmentModal()">Cancel</button>
+      <button type="button" class="btn-primary" onclick="submitAppointmentToCalendar()">Add to calendar</button>
+    </div>
+  </div>
+</div>
 
 
 <hr style="border: 4px solid black;">
@@ -5267,8 +5312,10 @@ if (fw) fw.style.display = 'none';
 
 // Keep the rest of the UI behavior unchanged
 document.getElementById('categoryChangeSection').style.display = displayStyle;
-document.getElementById('appointmentInputSection').style.display = 'none';
-document.getElementById('addAppointmentBtn').style.display = displayStyle;
+var appointmentBtn = document.getElementById('addAppointmentBtn');
+if (appointmentBtn) {
+  appointmentBtn.style.display = displayStyle;
+}
 document.getElementById('labelsAdditionSection').style.display = displayStyle;
 document.getElementById('hideClientNotesBtn').style.display = displayStyle; // Show or hide the button
 document.getElementById('notesDisplay').style.display = 'block';
@@ -6047,6 +6094,14 @@ function displayNotes(notes) {
   // === BUTTON ROW (moved beside the label dropdown) ===
   var buttonRow = document.createElement('div');
   buttonRow.className = 'labels-buttons-row';
+  buttonRow.style.flexDirection = 'column';
+  buttonRow.style.alignItems = 'flex-start';
+  buttonRow.style.gap = '6px';
+
+  var stackedButtons = document.createElement('div');
+  stackedButtons.style.display = 'flex';
+  stackedButtons.style.alignItems = 'center';
+  stackedButtons.style.gap = '6px';
 
   var toggleBtn = document.createElement('button');
   toggleBtn.id = 'toggleNotesButton';
@@ -6075,8 +6130,27 @@ function displayNotes(notes) {
     editCombinedNotes(container, flattened.join('\n'));
   };
 
-  buttonRow.appendChild(toggleBtn);
-  buttonRow.appendChild(editBtn);
+  stackedButtons.appendChild(toggleBtn);
+  stackedButtons.appendChild(editBtn);
+
+  var apptBtn = document.getElementById('addAppointmentBtn');
+  if (!apptBtn) {
+    apptBtn = document.createElement('button');
+    apptBtn.id = 'addAppointmentBtn';
+    apptBtn.type = 'button';
+  }
+  apptBtn.className = 'secondary-button inline-button appointment-icon-btn';
+  apptBtn.title = 'Add appointment to calendar for this client';
+  apptBtn.setAttribute('aria-label', 'Add appointment to calendar for this client');
+  apptBtn.innerHTML = '📅';
+  apptBtn.style.display = displayStyle;
+  apptBtn.onclick = function (e) {
+    e.stopPropagation();
+    showAppointmentInput();
+  };
+
+  buttonRow.appendChild(stackedButtons);
+  buttonRow.appendChild(apptBtn);
 
   var labelsButtonsRow = document.getElementById('labelsButtonsRow');
   if (labelsButtonsRow) {
@@ -6993,12 +7067,46 @@ function showClientsByCategory(clients) {
 }
 
 function showAppointmentInput() {
-    var appointmentSection = document.getElementById('appointmentInputSection');
-    if (appointmentSection.style.display === 'none' || appointmentSection.style.display === '') {
-        appointmentSection.style.display = 'block';
-    } else {
-        appointmentSection.style.display = 'none';
+    var modal = document.getElementById('appointmentModal');
+    if (!modal) return;
+
+    var clientName = document.getElementById('clientSelect').value;
+    var now = new Date();
+    var dateInput = document.getElementById('appointmentDate');
+    var timeInput = document.getElementById('appointmentTime');
+    var modalTitle = document.getElementById('appointmentModalTitle');
+    var modalSubtitle = document.getElementById('appointmentModalSubtitle');
+
+    if (modalTitle) {
+      modalTitle.textContent = clientName ? `Schedule appointment for ${clientName}` : 'Schedule appointment';
     }
+    if (modalSubtitle) {
+      modalSubtitle.textContent = 'Choose a date and start time for this client.';
+    }
+
+    if (dateInput && !dateInput.value) {
+      dateInput.value = now.toISOString().split('T')[0];
+    }
+    if (timeInput && !timeInput.value) {
+      var hours = String(now.getHours()).padStart(2, '0');
+      var minutes = String(now.getMinutes()).padStart(2, '0');
+      timeInput.value = `${hours}:${minutes}`;
+    }
+
+    modal.style.display = 'flex';
+    modal.setAttribute('aria-hidden', 'false');
+
+    if (dateInput) {
+      dateInput.focus();
+    }
+}
+
+function closeAppointmentModal() {
+    var modal = document.getElementById('appointmentModal');
+    if (!modal) return;
+
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden', 'true');
 }
 
 function submitAppointmentToCalendar() {
@@ -7006,10 +7114,16 @@ function submitAppointmentToCalendar() {
     var appointmentDate = document.getElementById('appointmentDate').value;
     var appointmentTime = document.getElementById('appointmentTime').value;
 
+    if (!appointmentDate || !appointmentTime) {
+        alert('Please select both a date and start time.');
+        return;
+    }
+
     google.script.run.withSuccessHandler(function(response) {
         alert(response); // Display the returned message
         // Assuming 'refreshClientData' is a function to refresh client data
         refreshClientData(); // Call this function to refresh the client data
+        closeAppointmentModal();
     }).addAppointmentToCalendar(clientName, appointmentDate, appointmentTime);
 }
 
@@ -8183,7 +8297,6 @@ function hideClientNotes() {
     'workSectionsContainer',
     'pastWorkSection',
     'categoryChangeSection',
-    'appointmentInputSection',
     'addAppointmentBtn',
     'labelsAdditionSection',
     'hideClientNotesBtn'
@@ -8192,6 +8305,10 @@ function hideClientNotes() {
     var el = document.getElementById(id);
     if (el && el.style) el.style.display = 'none';
   });
+
+  if (typeof closeAppointmentModal === 'function') {
+    closeAppointmentModal();
+  }
 
   // Safety: Future Work section should stay hidden if it still exists
   var fw = document.getElementById('futureWorkSection');
