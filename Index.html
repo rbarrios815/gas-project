@@ -20,7 +20,7 @@
 
  /* === DASHBOARD SHEET (Notes-style) ======================================== */
 :root{
-  --dash-handle-h: 64px;
+  --dash-handle-h: 44px;
   /* Full screen height using dynamic viewport units */
   --dash-open-h: 100dvh;
 }
@@ -63,60 +63,14 @@
 /* Green handle / tap target */
 #dashHandle{
   height: var(--dash-handle-h);
-  background: linear-gradient(135deg, #1dd1a1, #10a67c);
-  border-top-left-radius: 18px;
-  border-top-right-radius: 18px;
+  background: linear-gradient(135deg, var(--green1), var(--green2));
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
   display: flex; align-items: center; justify-content: center;
   color: #fff;
+  font-weight: 800; letter-spacing: .3px;
   cursor: pointer; user-select: none;
   position: relative; z-index: 1;
-  box-shadow: 0 -2px 18px rgba(0,0,0,.12) inset, 0 6px 18px rgba(0,0,0,.22);
-  overflow: hidden;
-}
-#dashHandle::before{
-  content: '';
-  position: absolute;
-  top: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 58px;
-  height: 6px;
-  border-radius: 999px;
-  background: rgba(255,255,255,.7);
-  box-shadow: 0 2px 6px rgba(0,0,0,.12);
-  opacity: .9;
-}
-#dashHandle .handle-inner{
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 18px;
-  border-radius: 14px;
-  background: rgba(255,255,255,.12);
-  box-shadow: 0 8px 24px rgba(0,0,0,.12);
-  backdrop-filter: blur(2px);
-}
-#dashHandle .handle-icon{
-  font-size: 22px;
-  line-height: 1;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,.2));
-}
-#dashHandle .handle-text{
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  text-align: left;
-}
-#dashHandle .handle-title{
-  font-size: 15px;
-  font-weight: 900;
-  letter-spacing: .7px;
-  text-transform: uppercase;
-}
-#dashHandle .handle-subtitle{
-  font-size: 12px;
-  font-weight: 600;
-  opacity: .9;
 }
 
 /* Scrollable body area */
@@ -663,13 +617,7 @@ a:focus {
 <div id="dashOverlay" aria-hidden="true"></div>
 <div id="dashSheet" class="dashboard-closed" aria-hidden="true">
   <div id="dashHandle" role="button" aria-controls="dashSheet" aria-expanded="false">
-    <div class="handle-inner">
-      <span class="handle-icon">⇅</span>
-      <div class="handle-text">
-        <span class="handle-title">Change View</span>
-        <span class="handle-subtitle">Tap to open or close the dashboard</span>
-      </div>
-    </div>
+     CHANGE VIEW
   </div>
 
   <div id="dashBody" role="region" aria-label="Dashboard content">
