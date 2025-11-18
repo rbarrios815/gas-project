@@ -1689,11 +1689,11 @@ button:active {
   display: none;
 }
 
-#labelsDropdown {
-    width: 100vw; /* Sets the width to span the entire viewport width */
-    box-sizing: border-box; /* Includes padding and border in the width */
-    /* Additional styling as needed */
-}
+  #labelsDropdown {
+      width: 100%;
+      box-sizing: border-box; /* Includes padding and border in the width */
+      /* Additional styling as needed */
+  }
 
 
 .client-container {
@@ -1731,33 +1731,47 @@ input#clientAutocomplete, select#clientSelect {
   align-items: stretch;
 }
 
-.labels-notes-left {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
+  .labels-notes-left {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .labels-top-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .labels-top-row #labelsDropdown {
+    flex: 1 1 auto;
+  }
+
+  .labels-top-row .labels-chip-slot {
+    flex: 0 0 auto;
+  }
 
 #labelsDisplay {
   font-size: 32px;
 }
 
-#labelsAdditionSection {
-  flex: 0 0 15%; /* Keep the controls to no more than 15% of the screen width */
-  max-width: 15%;
-  display: none;
-  flex-direction: column;
+  #labelsAdditionSection {
+    flex: 0 0 15%; /* Keep the controls to no more than 15% of the screen width */
+    max-width: 15%;
+    display: none;
+    flex-direction: column;
   gap: 8px;
   font-size: 32px;
 }
 
-#labelsDropdown {
-  width: 100%; /* Ensure the dropdown fills its container */
-  box-sizing: border-box; /* Include padding and borders in the element's total width */
-  font-size: 1em; /* Match the labels/notes sizing */
+  #labelsDropdown {
+    width: 100%; /* Ensure the dropdown fills its container */
+    box-sizing: border-box; /* Include padding and borders in the element's total width */
+    font-size: 1em; /* Match the labels/notes sizing */
 
-}
+  }
 
 
 
@@ -1785,11 +1799,12 @@ input#clientAutocomplete, select#clientSelect {
   font-size: 1em;
 }
 
-.labels-chip-slot {
-  display: flex;
-  justify-content: center;
-  font-size: 1em;
-}
+  .labels-chip-slot {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1em;
+  }
 
 
 /* When you want to display the labelsAdditionSection, you can change its style to 'display: block' or 'display: flex' as needed with JavaScript */
@@ -3035,34 +3050,36 @@ input#clientAutocomplete, select#clientSelect {
 
 
 
-<div class="labels-container">
-  <div class="labels-notes-left">
-    <div id="labelsDisplay">
-      <!-- Labels will be displayed here -->
-    </div>
-    <div id="notesDisplay">
-        <!-- Notes will be displayed here -->
-    </div>
-  </div>
-  <div id="labelsAdditionSection">
-      <div id="categoryChangeSection" class="category-overlay" aria-hidden="true" style="display:none;">
-        <select id="categorySelect" class="category-select">
-          <option value="">▼</option>
+  <div class="labels-container">
+    <div class="labels-notes-left">
+      <div class="labels-top-row">
+        <select id="labelsDropdown" onchange="addLabelToClient(this.value)">
+          <option value="" disabled selected>Add a Label</option>
+          <!-- Options will be dynamically populated here -->
+          <option value="NEW LABEL">NEW LABEL</option>
         </select>
+        <div id="labelsChipSlot" class="labels-chip-slot"></div>
       </div>
-       <select id="labelsDropdown" onchange="addLabelToClient(this.value)" style="width: 100%;">
-      <option value="" disabled selected>Add a Label</option>
-      <!-- Options will be dynamically populated here -->
-      <option value="NEW LABEL">NEW LABEL</option>
-    </select>
+      <div id="labelsDisplay">
+        <!-- Labels will be displayed here -->
+      </div>
+      <div id="notesDisplay">
+          <!-- Notes will be displayed here -->
+      </div>
+    </div>
+    <div id="labelsAdditionSection">
+        <div id="categoryChangeSection" class="category-overlay" aria-hidden="true" style="display:none;">
+          <select id="categorySelect" class="category-select">
+            <option value="">▼</option>
+          </select>
+        </div>
 
-    <div id="labelsButtonsRow" class="labels-buttons-row"></div>
+      <div id="labelsButtonsRow" class="labels-buttons-row"></div>
 
 
 
-
+    </div>
   </div>
-</div>
 
 
 
@@ -6011,28 +6028,27 @@ function displayNotes(notes) {
   buttonRow.appendChild(toggleBtn);
   buttonRow.appendChild(editBtn);
 
-  var chipSlot = document.createElement('div');
-  chipSlot.className = 'labels-chip-slot';
-
-  var chipInfo = window.__chipForCurrentClient || { initials: "", date: "" };
-  var currentClientId = document.getElementById('clientSelect').value || "";
-  if (currentClientId) {
-    var chipEl = createChipElement(
-      currentClientId,
-      (chipInfo.initials || "").toUpperCase(),
-      chipInfo.date || ""
-    );
-    chipSlot.appendChild(chipEl);
-  }
-
   var labelsButtonsRow = document.getElementById('labelsButtonsRow');
   if (labelsButtonsRow) {
     labelsButtonsRow.innerHTML = '';
     labelsButtonsRow.appendChild(buttonRow);
-    labelsButtonsRow.appendChild(chipSlot);
   } else {
     container.appendChild(buttonRow);
-    container.appendChild(chipSlot);
+  }
+
+  var chipSlot = document.getElementById('labelsChipSlot');
+  if (chipSlot) {
+    chipSlot.innerHTML = '';
+    var chipInfo = window.__chipForCurrentClient || { initials: "", date: "" };
+    var currentClientId = document.getElementById('clientSelect').value || "";
+    if (currentClientId) {
+      var chipEl = createChipElement(
+        currentClientId,
+        (chipInfo.initials || "").toUpperCase(),
+        chipInfo.date || ""
+      );
+      chipSlot.appendChild(chipEl);
+    }
   }
 
   // === HIGHLIGHTED (newest 3 blocks) ===
