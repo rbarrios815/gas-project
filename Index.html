@@ -6051,6 +6051,10 @@ function displayNotes(notes) {
   var notesDisplay = document.getElementById('notesDisplay');
   notesDisplay.innerHTML = '';
 
+  // Toggle note action visibility based on whether a client is selected
+  var hasClient = !!((document.getElementById('clientSelect') || {}).value);
+  var displayStyle = hasClient ? 'flex' : 'none';
+
   if (!notes || notes.length === 0) {
     notesDisplay.innerHTML = '<p>No notes to display.</p>';
     return;
