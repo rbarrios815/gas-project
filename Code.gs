@@ -1546,16 +1546,36 @@ function getAllClientsData() {
 
   for (var i = 1; i < data.length; i++) { // Start from 1 to skip header row if there's a header
     var row = data[i];
-    var clientName = row[0];
-    if (clientName) {
-      var clientData = {
-        clientName: clientName,
-        category: row[5], // Assuming column F is index 5
-        rowText: row.join(' ').toLowerCase() // Concatenate all cell values in the row
-      };
-      clients.push(clientData);
+       var rawName = row[0];
+    if (!rawName) {
+      continue;
+    }
+     var category = row[5] != null ? row[5].toString().trim() : '';
+    var rowText = row
+      .map(function (cell) {
+        if (cell === null || cell === undefined) {
+          return '';
+        }
+        return cell instanceof Date
+          ? Utilities.formatDate(cell, Session.getScriptTimeZone(), 'MM/dd/yy')
+          : cell.toString();
+      })
+      .join(' ')
+      .toLowerCase();
+
+    clients.push({
+      clientName: normalizedName,
+      originalName: rawName.toString().trim(),
+      category: category,
+      rowText: rowText
+    });
+
+    var normalizedName = rawName.toString().replace(/\d+$/, '').trim();
+    if (!normalizedName) {
+      continue;
     }
   }
+  
   return clients;
 }
 
@@ -2664,7 +2684,7 @@ function ensureNotesInbox_() {
   return sh;
 }
 
-function inboxAddNote(rawNote) {
+function inboxAddNote(rawNote, assignedClient) {
   // === CONFIG: who receives the "ADD" email ===
   var EMAIL_TO = 'rbarrio1@alumni.nd.edu';  // change if needed
 
@@ -2679,6 +2699,12 @@ function inboxAddNote(rawNote) {
   var cleanNote = String(rawNote).trim();
   sh.getRange(row, 1).setValue(cleanNote);   // Col A: NOTE
   sh.getRange(row, 3).setValue(new Date());  // Col C: TIMESTAMP
+
+  // Optionally assign to a client immediately (Column B)
+  if (assignedClient && String(assignedClient).trim()) {
+    var resolved = getCanonicalClientName_(assignedClient) || String(assignedClient).trim();
+    sh.getRange(row, 2).setValue(resolved);
+  }
 
   // Build a helpful subject and body for the email
   var tz = Session.getScriptTimeZone();
@@ -2810,54 +2836,3 @@ function getChipStateForClients(clientNames) {
   }
   return map;
 }
-
-
-
-
-
-
-/** === Siri → Google Sheets Bridge: Column A note, Column C timestamp ===
- * Appends note in Col A, leaves Col B blank, puts timestamp in Col C.
- */
-const SHEET_ID = "1rzejdmR0hatqESPp9MroCwT229QGM0oB2G9mELaL4Ps";
-const TARGET_SHEET = "NOTES INBOX";
-const COL_NOTE = 1; // A
-const COL_BLANK = 2; // B
-const COL_TIME = 3; // C
-
-function doPost(e) {
-  try {
-    if (!e || !e.postData || !e.postData.contents) {
-      return _json({ ok: false, error: "No postData received" });
-    }
-    const body = JSON.parse(e.postData.contents);
-    const note = (body && body.note != null) ? String(body.note).trim() : "";
-    if (!note) return _json({ ok: false, error: "Missing 'note' value" });
-
-    const ss = SpreadsheetApp.openById(SHEET_ID);
-    const sh = ss.getSheetByName(TARGET_SHEET);
-    if (!sh) return _json({ ok: false, error: `Sheet not found: ${TARGET_SHEET}` });
-
-    const nextRow = sh.getLastRow() + 1;
-    const now = new Date();
-    sh.getRange(nextRow, COL_NOTE, 1, 3).setValues([[note, "", now]]);
-
-    return _json({
-      ok: true,
-      addedTo: `${TARGET_SHEET}!A${nextRow}:C${nextRow}`,
-      note,
-      timestampISO: now.toISOString()
-    });
-  } catch (err) {
-    return _json({ ok: false, error: String(err) });
-  }
-}
-
-function _json(obj) {
-  return ContentService.createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-
-
-
