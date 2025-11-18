@@ -1985,9 +1985,9 @@ input#clientAutocomplete, select#clientSelect {
 #toggleNotesButton {
   background-color: #ff9500; /* Solid orange square */
   margin: 0;
-  font-size: 18px;
-  width: 48px;
-  height: 48px;
+  font-size: 24px;
+  width: 120px;
+  height: 120px;
   padding: 0;
   display: inline-flex;
   align-items: center;
@@ -2160,18 +2160,25 @@ input#clientAutocomplete, select#clientSelect {
   position: relative;
   width: 100%;
   margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .past-work-wrapper .past-work-textarea {
-  padding-right: 200px;
+  padding-right: 0;
+  flex: 1 1 auto;
 }
 
 .past-work-wrapper .update-team-task-btn {
-  position: absolute;
-  top: 50%;
-  right: 12px;
-  transform: translateY(-50%);
+  position: static;
+  top: auto;
+  right: auto;
+  transform: none;
   margin: 0;
+  flex: 0 0 auto;
+  font-size: 180%;
+  padding: 8px 16px;
 }
 
 .client-button {
@@ -2354,7 +2361,7 @@ input#clientAutocomplete, select#clientSelect {
 
 
 
-#toggleNotesButton, #columnDDropdown {
+#columnDDropdown {
   padding-top: 5px; /* Reduce padding-top */
   padding-bottom: 5px; /* Reduce padding-bottom */
 }
@@ -3216,6 +3223,10 @@ input#clientAutocomplete, select#clientSelect {
   justify-content: center;
   font-size: 28px;
 }
+.calendar-btn .calendar-emoji {
+  font-size: 28px;
+  line-height: 1;
+}
 
 /* Modal */
 .modal {
@@ -3357,8 +3368,8 @@ input#clientAutocomplete, select#clientSelect {
 
   <!-- Calendar button -->
   <button id="calendarBtn" class="calendar-btn" title="Open calendar">
-    <!-- simple calendar glyph -->
-    🗓️
+    <!-- simple calendar glyph (text style, no color fill) -->
+    <span class="calendar-emoji" aria-hidden="true">&#x1F5D3;&#xFE0E;</span>
   </button>
 </div>
 
@@ -6259,7 +6270,7 @@ REPLACE ENTIRE toggleNotesVisibility FUNCTION WITH THIS
 REPLACE ENTIRE toggleNotesVisibility FUNCTION WITH THIS
 ***************************************/
 function toggleNotesVisibility() {
-  // Capture previous state to detect a click on the "-" button
+  // Capture previous state before toggling visibility
   var wasExpanded = !!notesExpanded;
 
   // Flip the global boolean
@@ -6276,12 +6287,12 @@ function toggleNotesVisibility() {
 
   var toggleButton = document.getElementById('toggleNotesButton');
   if (toggleButton) {
-    // If expanded now, the button should read -; if collapsed, +
-    toggleButton.innerText = notesExpanded ? '-' : '+';
+    // Update accessibility label to reflect state without visible symbols
+    toggleButton.setAttribute('aria-pressed', notesExpanded ? 'true' : 'false');
+    toggleButton.setAttribute('aria-label', notesExpanded ? 'Hide older notes' : 'Show older notes');
   }
 
-  // If the user just clicked the - button (i.e., was expanded → now collapsed),
-  // scroll to the top.
+  // If the user collapses the block (was expanded → now collapsed), scroll to the top.
   if (wasExpanded && !notesExpanded) {
     // Use the global helper (defined below). If you have your own scrollToTop already, this will call it.
     scrollToTop();
@@ -6439,11 +6450,9 @@ function displayNotes(notes) {
   var toggleBtn = document.createElement('button');
   toggleBtn.id = 'toggleNotesButton';
   toggleBtn.onclick = toggleNotesVisibility;
-  toggleBtn.style.fontSize = '0.5em';
-  toggleBtn.style.padding = '0';
-  toggleBtn.style.width = '24px';
-  toggleBtn.style.height = '24px';
-  toggleBtn.innerText = '+';
+  toggleBtn.type = 'button';
+  toggleBtn.setAttribute('aria-label', 'Show older notes');
+  toggleBtn.setAttribute('aria-pressed', 'false');
 
   var toggleRow = document.createElement('div');
   toggleRow.style.display = 'flex';
