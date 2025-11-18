@@ -4254,7 +4254,7 @@ function fitTopClientsHeaderControls(preferShortFormat) {
 
   var baseSize = parseFloat(container.dataset.baseFontSize || getComputedStyle(container).fontSize) || 16;
   container.dataset.baseFontSize = baseSize;
-  var minSize = 8;
+  var minSize = 6;
   var baseGap = parseFloat(container.dataset.baseGap || getComputedStyle(container).columnGap || 12);
   container.dataset.baseGap = baseGap;
 
@@ -4266,6 +4266,33 @@ function fitTopClientsHeaderControls(preferShortFormat) {
     bulb.style.fontSize = val;
     var gapPx = Math.max(4, baseGap * (px / baseSize));
     container.style.columnGap = gapPx + 'px';
+  }
+
+  function hasDateDropdownOverlap() {
+    var dateRect = dateEl.getBoundingClientRect();
+    var ddRect = dd.getBoundingClientRect();
+    return dateRect.right > ddRect.left;
+  }
+
+  function shrinkLineToAvoidOverlap() {
+    var lo = minSize, hi = baseSize, best = lo;
+
+    while (lo <= hi) {
+      var mid = Math.floor((lo + hi) / 2);
+      applySize(mid);
+      updateDropdownWidthToFit(dd);
+
+      var fits = container.scrollWidth <= container.clientWidth && !hasDateDropdownOverlap();
+      if (fits) {
+        best = mid;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+    }
+
+    applySize(best);
+    updateDropdownWidthToFit(dd);
   }
 
   function tryDate(text) {
@@ -4288,15 +4315,13 @@ function fitTopClientsHeaderControls(preferShortFormat) {
   var firstChoice = preferShortFormat ? shortDate : longDate;
   var fitsLong = tryDate(firstChoice);
   if (!fitsLong && firstChoice !== shortDate) {
-    tryDate(shortDate);
+    fitsLong = tryDate(shortDate);
   }
 
-  // Final guard: if space is still tight, lock to the compact date and minimum size
-  // so the dropdown and bulb never overlap the date text.
-  if (container.scrollWidth > container.clientWidth) {
+  // Final guard: if space is still tight, shrink the entire row until there is no overlap.
+  if (container.scrollWidth > container.clientWidth || hasDateDropdownOverlap()) {
     dateEl.textContent = shortDate;
-    applySize(minSize);
-    updateDropdownWidthToFit(dd);
+    shrinkLineToAvoidOverlap();
   }
 }
 
