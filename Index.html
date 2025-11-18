@@ -717,7 +717,8 @@ a:focus {
       <div class="usage-meta">
         <div id="usageCountDisplay" class="usage-line">0 actions</div>
         <div id="usageMinutesDisplay" class="usage-line">0 min</div>
-        <div id="usageTrackedTotals" class="usage-line">Today: 0 min · Week: 0 min</div>
+        <div id="usageTodayTotal" class="usage-line">Today: -- min</div>
+        <div id="usageWeekTotal" class="usage-line">Week: -- min</div>
       </div>
     </div>
     <button id="addBtn" class="btn">ADD</button>
@@ -906,6 +907,24 @@ function updateUsageDisplay(){
   if (minutesEl) minutesEl.textContent = `${usageTracker.activeMinutes.toFixed(1)} min`;
 }
 
+function renderUsageSummary(summary){
+  if(!summary) return;
+  const todayEl = document.getElementById('usageTodayTotal');
+  const weekEl = document.getElementById('usageWeekTotal');
+  if(todayEl && typeof summary.todayMinutes === 'number'){
+    todayEl.textContent = `Today: ${summary.todayMinutes.toFixed(1)} min`;
+  }
+  if(weekEl && typeof summary.weekMinutes === 'number'){
+    weekEl.textContent = `Week: ${summary.weekMinutes.toFixed(1)} min`;
+  }
+}
+
+function fetchUsageSummary(){
+  try{
+    if(google && google.script && google.script.run && typeof google.script.run.getUsageSummary === 'function'){
+      google.script.run.withSuccessHandler(renderUsageSummary).getUsageSummary();
+    }
+  }catch(_){ /* ignore */ }
 function refreshTrackedTimeSummary(){
   try {
     if (google && google.script && google.script.run && typeof google.script.run.getTrackedUsageSummary === 'function') {
@@ -923,7 +942,7 @@ function refreshTrackedTimeSummary(){
 function sendUsageToServer(actionLabel, ts){
   try {
     if (google && google.script && google.script.run && typeof google.script.run.logUsageEvent === 'function') {
-      google.script.run.logUsageEvent({ action: actionLabel, timestamp: ts });
+      google.script.run.withSuccessHandler(fetchUsageSummary).logUsageEvent({ action: actionLabel, timestamp: ts });
     }
   } catch(_) { /* ignore logging failures */ }
 }
@@ -981,6 +1000,7 @@ document.getElementById('floatingEmailBtn')?.addEventListener('click', function(
 
 // Initialize displays on load
 updateUsageDisplay();
+fetchUsageSummary();
 refreshTrackedTimeSummary();
 
 

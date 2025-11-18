@@ -32,6 +32,67 @@ function logUsageEvent(entry) {
   sheet.appendRow([action, ts, isTargetUser, userEmail]);
 }
 
+function getUsageSummary() {
+  var targetEmail = 'rbarrios815@gmail.com';
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('TIME SHEET');
+  if (!sheet) {
+    return { todayMinutes: 0, weekMinutes: 0, todayActions: 0, weekActions: 0 };
+  }
+
+  var values = sheet.getDataRange().getValues();
+  if (values.length <= 1) {
+    return { todayMinutes: 0, weekMinutes: 0, todayActions: 0, weekActions: 0 };
+  }
+
+  var now = new Date();
+  var todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+
+  var weekStart = new Date(todayStart);
+  weekStart.setDate(todayStart.getDate() - todayStart.getDay());
+
+  function toDate(value) {
+    return value instanceof Date ? value : new Date(value);
+  }
+
+  function calcActiveMinutes(times) {
+    if (!times || times.length < 2) return 0;
+    times.sort(function(a, b) { return a - b; });
+    var totalMs = 0;
+    for (var i = 1; i < times.length; i++) {
+      var diff = times[i] - times[i - 1];
+      if (diff <= 5 * 60 * 1000) {
+        totalMs += diff;
+      }
+    }
+    return totalMs / 60000;
+  }
+
+  var todayTimes = [];
+  var weekTimes = [];
+
+  values.slice(1).forEach(function(row) {
+    var email = (row[3] || '').toString().toLowerCase();
+    if (email !== targetEmail) return;
+    var ts = toDate(row[1]);
+    if (isNaN(ts)) return;
+    if (ts >= todayStart) {
+      todayTimes.push(ts);
+    }
+    if (ts >= weekStart) {
+      weekTimes.push(ts);
+    }
+  });
+
+  return {
+    todayMinutes: calcActiveMinutes(todayTimes),
+    weekMinutes: calcActiveMinutes(weekTimes),
+    todayActions: todayTimes.length,
+    weekActions: weekTimes.length
+  };
+}
+
 function getTrackedUsageSummary() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName('TIME SHEET');
