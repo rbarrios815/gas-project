@@ -1867,11 +1867,27 @@ button:active {
   max-height: 200px;
 }
 
+/* Let the green autocomplete slide away like the recent bar when we hide it */
+#clientAutocomplete {
+  transition: transform .2s ease, opacity .2s ease, max-height .2s ease, margin .2s ease, padding .2s ease;
+}
+
 .client-container.hide-recents #recentRow {
   transform: translateY(-120%);
   opacity: 0;
   max-height: 0;
   margin: 0;
+  pointer-events: none;
+}
+
+.client-container.hide-recents #clientAutocomplete {
+  transform: translateY(-120%);
+  opacity: 0;
+  max-height: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-top: 0;
+  padding-bottom: 0;
   pointer-events: none;
 }
 
