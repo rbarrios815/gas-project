@@ -5111,6 +5111,8 @@ window.addEventListener('load',   fitRecentRowOneLine);
   var lastY = window.scrollY || document.documentElement.scrollTop || 0;
   var ticking = false;
   var deltaToToggle = 6; // minimum px movement before changing state
+  var revealAt = 30;   // show once the user scrolls a bit
+  var collapseAt = 12; // collapse again only when back near the very top
 
   function applyState(shouldHide){
     var changed = false;
@@ -5151,6 +5153,9 @@ window.addEventListener('load',   fitRecentRowOneLine);
       applyState(true);
     } else {
       // Scrolling up: reveal the controls again
+    if (y <= collapseAt) {
+      applyState(true);
+    } else if (y >= revealAt) {
       applyState(false);
     }
 
