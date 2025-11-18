@@ -2481,13 +2481,44 @@ input#clientAutocomplete, select#clientSelect {
 .recent-bar .rc-muted { opacity: 1 !important; }
 
 /* Make the blue box visually contain chips + input cleanly */
-.client-input-wrap {
+  .client-input-wrap {
   position: relative;           /* already present, keep it */
   background: #ffffff;          /* white interior so chips/input stand out */
   border: 2px solid #1E90FF;    /* blue outline */
   border-radius: 10px;
   padding: 10px 140px 12px 12px; /* top/right/bottom/left; right = room for NEW CLIENT button */
   box-shadow: 0 2px 5px rgba(0,0,0,0.06);
+}
+
+.client-input-row {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+  position: relative;
+  margin-top: 10px;
+}
+
+.client-input-row #clientAutocomplete {
+  flex: 2 1 65%;
+  width: 100%;
+}
+
+.client-input-row #catCalWrap {
+  flex: 1 1 35%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.client-input-row #catCalWrap .cat-pill { flex: 1 1 auto; }
+.client-input-row #catCalWrap #calendarBtn { flex: 0 0 auto; }
+
+.client-input-row input,
+.client-input-row select,
+.client-input-row .cat-pill,
+.client-input-row .cat-input {
+  font-size: 1em;
 }
 
 .category-overlay {
@@ -2507,7 +2538,7 @@ input#clientAutocomplete, select#clientSelect {
   background: transparent;
   border: none;
   border-radius: 0;
-  font-size: 0.7em;
+  font-size: 1em;
   line-height: 1;
   padding: 0 18px 0 6px;
   min-height: 0;
@@ -2946,16 +2977,17 @@ input#clientAutocomplete, select#clientSelect {
   position: relative;
   display: inline-flex;
   align-items: center;
-  max-width: min(42vw, 380px);
+  width: 100%;
+  max-width: none;
   border: 1px solid #cfcfcf;
   border-radius: 999px;
-  padding: 4px 28px 4px 10px;
+  padding: 10px 28px 10px 12px;
   background: #fff;
-  height: 32px;
+  height: auto;
 }
 .cat-input {
   border: 0; outline: 0; width: 100%;
-  font: inherit; line-height: 1;
+  font: inherit; line-height: 1.2;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .cat-input::placeholder { color: #777; }
@@ -3021,44 +3053,41 @@ input#clientAutocomplete, select#clientSelect {
   </button>
 </div>
 
+    <div class="client-input-row">
+      <input type="text" id="clientAutocomplete"
+             placeholder="Type Client Name"
+             oninput="autocompleteClient()">
 
-</div>
+      <!-- Category dropdown overlaid on the category portion of the loaded client -->
+      <div id="categoryChangeSection" class="category-overlay" aria-hidden="true" style="display:none;">
+        <select id="categorySelect" class="category-select">
+          <option value=""></option>
+        </select>
+      </div>
 
-    <input type="text" id="clientAutocomplete"
-           placeholder="Type Client Name"
-           oninput="autocompleteClient()">
+             <!-- Category combo + Calendar icon (hidden until a client is selected) -->
+      <div id="catCalWrap" style="display:none; gap:10px; align-items:center; width:100%;">
+        <!-- Category pill (combobox) -->
+        <div class="cat-pill" title="" >
+          <input id="categoryCombo"
+                 type="text"
+                 placeholder="Select category"
+                 list="categoryList"
+                 aria-label="Category"
+                 aria-expanded="false"
+                 aria-autocomplete="list"
+                 class="cat-input" />
+          <span class="cat-caret" aria-hidden="true">▼</span>
+          <datalist id="categoryList"></datalist>
+        </div>
 
-    <!-- Category dropdown overlaid on the category portion of the loaded client -->
-    <div id="categoryChangeSection" class="category-overlay" aria-hidden="true" style="display:none;">
-      <select id="categorySelect" class="category-select">
-        <option value=""></option>
-      </select>
+        <!-- Calendar button -->
+        <button id="calendarBtn" class="calendar-btn" title="Open calendar">
+          <!-- simple calendar glyph -->
+          🗓️
+        </button>
+      </div>
     </div>
-
-           <!-- Category combo + Calendar icon (hidden until a client is selected) -->
-<div id="catCalWrap" style="display:none; gap:8px; align-items:center; margin-left:auto;">
-  <!-- Category pill (combobox) -->
-  <div class="cat-pill" title="" >
-    <input id="categoryCombo"
-           type="text"
-           placeholder="Select category"
-           list="categoryList"
-           aria-label="Category"
-           aria-expanded="false"
-           aria-autocomplete="list"
-           class="cat-input" />
-    <span class="cat-caret" aria-hidden="true">▼</span>
-    <datalist id="categoryList"></datalist>
-  </div>
-
-  <!-- Calendar button -->
-  <button id="calendarBtn" class="calendar-btn" title="Open calendar">
-    <!-- simple calendar glyph -->
-    🗓️
-  </button>
-</div>
-
-
   </div>
 
   <select id="clientSelect" onchange="showClientNotes()" style="display: none;">
