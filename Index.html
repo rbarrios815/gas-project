@@ -2530,6 +2530,7 @@ input#clientAutocomplete, select#clientSelect {
   overflow: hidden;
   padding: 0;
   background: transparent;
+  cursor: pointer;
 }
 
 #categoryChangeSection select {
@@ -2550,18 +2551,16 @@ input#clientAutocomplete, select#clientSelect {
   outline: none;
   box-shadow: none;
   position: relative;
+  opacity: 0;
 }
 
 #categoryChangeSection::after {
-  content: '▼';
-  position: absolute;
-  right: 6px;
-  top: 40%;
-  transform: translateY(-50%);
-  font-size: 0.6em;
-  line-height: 1;
-  pointer-events: none;
-  color: inherit;
+  display: none;
+}
+
+#categoryChangeSection select option {
+  font-size: 0.9em;
+  padding: 4px 6px;
 }
 
 /* Chips bar when placed inside the autocomplete wrapper */
