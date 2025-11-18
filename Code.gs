@@ -2237,8 +2237,22 @@ function sendDailyTopClientsEmail() {
   }
 
   // 6) Send
+  var activeUserEmail = (Session.getActiveUser().getEmail() || "").trim();
+  var defaultRecipient = "rbarrio1@alumni.nd.edu";
+  var recipients = [defaultRecipient];
+
+  if (activeUserEmail) {
+    recipients.push(activeUserEmail);
+  }
+
+  var uniqueRecipients = Array.from(new Set(recipients.filter(function(addr) {
+    return addr && addr.trim();
+  }).map(function(addr) {
+    return addr.trim();
+  })));
+
   MailApp.sendEmail({
-    to: "rbarrio1@alumni.nd.edu",  // <-- change to your desired email
+    to: uniqueRecipients.join(","),
     subject: "Immediate Summary (" + todayDay + ")",
     body: emailBody
   });
