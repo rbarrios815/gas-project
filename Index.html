@@ -2259,7 +2259,6 @@ input#clientAutocomplete, select#clientSelect {
     align-items: center;
     width: 100%;
     font-size: 1.25em;
-    justify-content: center;
 }
 
 #topClientsControlRow .title-text {
@@ -3478,7 +3477,7 @@ function fitElementTextToOneLine(el, opts){
   if (!el) return;
   const cs = getComputedStyle(el);
   const maxPx = Math.max(10, parseFloat(cs.fontSize) || 16); // current as ceiling
-  const minPx = Math.max(6, (opts && typeof opts.minPx === 'number' ? opts.minPx : 10));    // allow extra shrink when space is tight
+  const minPx = Math.max(10, (opts && opts.minPx) || 10);    // don’t go below 10px unless you choose
 
   // Determine available width (account for padding)
   const rect = el.getBoundingClientRect();
@@ -3527,7 +3526,7 @@ function fitElementTextToOneLine(el, opts){
 function fitClientInputNow(){
   const input = document.getElementById('clientAutocomplete');
   if (!input) return;
-  fitElementTextToOneLine(input, { minPx: 6 });
+  fitElementTextToOneLine(input, { minPx: 10 });
 }
 
 /* === HELPER: shrink a suggestion row only if it overflows === */
@@ -3587,15 +3586,6 @@ window.addEventListener('resize', function(){
   fitClientInputNow();
   fitAllSuggestionRows();
 });
-
-if (window.visualViewport) {
-  const refitForViewportChange = () => {
-    fitClientInputNow();
-    fitAllSuggestionRows();
-  };
-  visualViewport.addEventListener('resize', refitForViewportChange);
-  visualViewport.addEventListener('scroll', refitForViewportChange);
-}
 
 
 /* === REPLACEMENT: Slow-grow (to ~90%), finish to 100, then shrink & hide === */
@@ -6506,9 +6496,6 @@ function showCalendarInput() {
 function submitPastWork() {
     var clientName = document.getElementById('clientSelect').value;
     var pastWorkContent = document.getElementById('newPastWork').value;
-
-    // Also log this entry via the ADD pathway so the timestamped note is captured
-    addNote(pastWorkContent);
 
     // Show the loading bar
     showLoadingBar();
