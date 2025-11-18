@@ -882,17 +882,24 @@ voiceToggleBtn?.addEventListener('click', ()=>{
 const usageTracker = {
   count: 0,
   activeMinutes: 0,
-  lastTimestamp: null
+  lastTimestamp: null,
+  summary: { todayMinutes: 0, weekMinutes: 0 }
 };
 
 function updateUsageDisplay(){
   const countEl = document.getElementById('usageCountDisplay');
   const minutesEl = document.getElementById('usageMinutesDisplay');
+  const trackedTotalsEl = document.getElementById('usageTrackedTotals');
   const floatingCountEl = document.getElementById('floatingUsageCount');
   const floatingMinutesEl = document.getElementById('floatingUsageMinutes');
 
   if (countEl) countEl.textContent = `${usageTracker.count} actions`;
   if (minutesEl) minutesEl.textContent = `${usageTracker.activeMinutes.toFixed(1)} min`;
+  if (trackedTotalsEl) {
+    const today = usageTracker.summary?.todayMinutes ?? 0;
+    const week = usageTracker.summary?.weekMinutes ?? 0;
+    trackedTotalsEl.textContent = `Today: ${today.toFixed(1)} min · Week: ${week.toFixed(1)} min`;
+  }
   if (floatingCountEl) floatingCountEl.textContent = usageTracker.count.toString();
   if (floatingMinutesEl) floatingMinutesEl.textContent = `${usageTracker.activeMinutes.toFixed(1)}m`;
 
@@ -918,6 +925,18 @@ function fetchUsageSummary(){
       google.script.run.withSuccessHandler(renderUsageSummary).getUsageSummary();
     }
   }catch(_){ /* ignore */ }
+function refreshTrackedTimeSummary(){
+  try {
+    if (google && google.script && google.script.run && typeof google.script.run.getTrackedUsageSummary === 'function') {
+      google.script.run
+        .withSuccessHandler(function(res){
+          if (!res) return;
+          usageTracker.summary = res;
+          updateUsageDisplay();
+        })
+        .getTrackedUsageSummary();
+    }
+  } catch (_) { /* ignore */ }
 }
 
 function sendUsageToServer(actionLabel, ts){
@@ -938,6 +957,7 @@ function recordUsage(actionLabel){
 
   updateUsageDisplay();
   sendUsageToServer(actionLabel, now);
+  refreshTrackedTimeSummary();
 }
 
 document.addEventListener('click', function(evt){
@@ -981,6 +1001,7 @@ document.getElementById('floatingEmailBtn')?.addEventListener('click', function(
 // Initialize displays on load
 updateUsageDisplay();
 fetchUsageSummary();
+refreshTrackedTimeSummary();
 
 
 function ensureRecognition(){
@@ -1929,6 +1950,13 @@ button:active {
   pointer-events: none;
 }
 
+/* When collapsed, remove the bars entirely so nothing peeks through */
+.client-container.hide-recents #recentRow,
+.client-container.hide-recents #clientAutocomplete,
+.client-container.hide-recents .correlated-chip-slot[data-correlated-chip-slot="client-autocomplete"] {
+  display: none !important;
+}
+
 #autocompleteSuggestions {
   transition: transform .2s ease, opacity .2s ease, max-height .2s ease, margin .2s ease;
 }
@@ -1949,17 +1977,19 @@ button:active {
 
 /* Keep the blue box almost fully minimized while collapsed */
 .client-container.hide-recents {
-  padding-top: 1px;
-  padding-bottom: 1px;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .client-container.hide-recents .client-input-wrap {
-  padding: 1px 6px !important;
-  max-height: 8px;
+  padding: 0 !important;
+  max-height: 0;
+  height: 0;
   border-width: 0;
   min-height: 0;
+  margin: 0;
   overflow: hidden;
-  transition: padding .2s ease, max-height .2s ease, border-width .2s ease;
+  transition: padding .2s ease, max-height .2s ease, border-width .2s ease, height .2s ease, margin .2s ease;
 }
 
 
@@ -4268,7 +4298,7 @@ function fitTopClientsHeaderControls(preferShortFormat) {
 
   var baseSize = parseFloat(container.dataset.baseFontSize || getComputedStyle(container).fontSize) || 16;
   container.dataset.baseFontSize = baseSize;
-  var minSize = 8;
+  var minSize = 6;
   var baseGap = parseFloat(container.dataset.baseGap || getComputedStyle(container).columnGap || 12);
   container.dataset.baseGap = baseGap;
 
@@ -4280,6 +4310,33 @@ function fitTopClientsHeaderControls(preferShortFormat) {
     bulb.style.fontSize = val;
     var gapPx = Math.max(4, baseGap * (px / baseSize));
     container.style.columnGap = gapPx + 'px';
+  }
+
+  function hasDateDropdownOverlap() {
+    var dateRect = dateEl.getBoundingClientRect();
+    var ddRect = dd.getBoundingClientRect();
+    return dateRect.right > ddRect.left;
+  }
+
+  function shrinkLineToAvoidOverlap() {
+    var lo = minSize, hi = baseSize, best = lo;
+
+    while (lo <= hi) {
+      var mid = Math.floor((lo + hi) / 2);
+      applySize(mid);
+      updateDropdownWidthToFit(dd);
+
+      var fits = container.scrollWidth <= container.clientWidth && !hasDateDropdownOverlap();
+      if (fits) {
+        best = mid;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+    }
+
+    applySize(best);
+    updateDropdownWidthToFit(dd);
   }
 
   function tryDate(text) {
@@ -4302,15 +4359,13 @@ function fitTopClientsHeaderControls(preferShortFormat) {
   var firstChoice = preferShortFormat ? shortDate : longDate;
   var fitsLong = tryDate(firstChoice);
   if (!fitsLong && firstChoice !== shortDate) {
-    tryDate(shortDate);
+    fitsLong = tryDate(shortDate);
   }
 
-  // Final guard: if space is still tight, lock to the compact date and minimum size
-  // so the dropdown and bulb never overlap the date text.
-  if (container.scrollWidth > container.clientWidth) {
+  // Final guard: if space is still tight, shrink the entire row until there is no overlap.
+  if (container.scrollWidth > container.clientWidth || hasDateDropdownOverlap()) {
     dateEl.textContent = shortDate;
-    applySize(minSize);
-    updateDropdownWidthToFit(dd);
+    shrinkLineToAvoidOverlap();
   }
 }
 
