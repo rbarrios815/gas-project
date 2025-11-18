@@ -1914,22 +1914,24 @@ button:active {
   opacity: 0;
   max-height: 0 !important;
   margin-top: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-width: 0;
   pointer-events: none;
   overflow: hidden;
 }
 
 /* Keep the blue box almost fully minimized while collapsed */
 .client-container.hide-recents {
-  padding-top: 0;
-  padding-bottom: 0;
-  min-height: 6px;
-  box-shadow: none;
+  padding-top: 1px;
+  padding-bottom: 1px;
 }
 
 .client-container.hide-recents .client-input-wrap {
-  padding: 0 6px !important;
+  padding: 1px 6px !important;
   max-height: 8px;
-  border-width: 1px;
+  border-width: 0;
+  min-height: 0;
   overflow: hidden;
   transition: padding .2s ease, max-height .2s ease, border-width .2s ease;
 }
@@ -5112,9 +5114,8 @@ window.addEventListener('load',   fitRecentRowOneLine);
 
   var lastY = window.scrollY || document.documentElement.scrollTop || 0;
   var ticking = false;
-  var downThreshold = 6;  // pixels of downward movement before hiding
-  var upThreshold = 6;    // pixels of upward movement before showing
-  var topReveal = 6;      // always show when the user is near the top
+  var collapseAt = 12; // always reveal when close to the top
+  var directionThreshold = 8; // px needed before we treat it as intentional
 
   function applyState(shouldHide){
     var changed = false;
@@ -5145,14 +5146,14 @@ window.addEventListener('load',   fitRecentRowOneLine);
   function onScrollPosition(y){
     var delta = y - lastY;
 
-    // Always reveal near the very top of the page
-    if (y <= topReveal) {
+    // Always reveal when approaching the very top.
+    if (y <= collapseAt) {
       applyState(false);
-    } else if (delta > downThreshold) {
-      // Scrolling down: collapse the bars
+    } else if (delta > directionThreshold) {
+      // Scrolling down hides the bars to maximize space.
       applyState(true);
-    } else if (delta < -upThreshold) {
-      // Scrolling up: reveal the bars
+    } else if (delta < -directionThreshold) {
+      // Scrolling up reveals them again.
       applyState(false);
     }
 
@@ -5168,7 +5169,7 @@ window.addEventListener('load',   fitRecentRowOneLine);
     }
   }, { passive: true });
 
-  // Start expanded; scrolling down will collapse the bars
+  // Start fully visible; the first downward scroll will collapse it.
   applyState(false);
 })();
 
