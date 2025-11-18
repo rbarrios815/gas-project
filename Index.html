@@ -1725,6 +1725,7 @@ input#clientAutocomplete, select#clientSelect {
   box-sizing: border-box; /* Include padding and borders in the element's total width */
 }
 
+
 .labels-container {
   display: flex;
   width: 100%;
@@ -1744,12 +1745,11 @@ input#clientAutocomplete, select#clientSelect {
 }
 
 #labelsAdditionSection {
-  flex: 0 0 15%; /* Keep the controls to no more than 15% of the screen width */
-  max-width: 15%;
   display: none;
   flex-direction: column;
   gap: 8px;
   font-size: 32px;
+  width: 100%;
 }
 
 #labelsDropdown {
@@ -3040,32 +3040,25 @@ input#clientAutocomplete, select#clientSelect {
     <div id="labelsDisplay">
       <!-- Labels will be displayed here -->
     </div>
+    <div id="labelsAdditionSection">
+        <div id="categoryChangeSection" class="category-overlay" aria-hidden="true" style="display:none;">
+          <select id="categorySelect" class="category-select">
+            <option value="">▼</option>
+          </select>
+        </div>
+         <select id="labelsDropdown" onchange="addLabelToClient(this.value)" style="width: 100%;">
+        <option value="" disabled selected>Add a Label</option>
+        <!-- Options will be dynamically populated here -->
+        <option value="NEW LABEL">NEW LABEL</option>
+      </select>
+
+        <div id="labelsButtonsRow" class="labels-buttons-row"></div>
+    </div>
     <div id="notesDisplay">
         <!-- Notes will be displayed here -->
     </div>
   </div>
-  <div id="labelsAdditionSection">
-      <div id="categoryChangeSection" class="category-overlay" aria-hidden="true" style="display:none;">
-        <select id="categorySelect" class="category-select">
-          <option value="">▼</option>
-        </select>
-      </div>
-       <select id="labelsDropdown" onchange="addLabelToClient(this.value)" style="width: 100%;">
-      <option value="" disabled selected>Add a Label</option>
-      <!-- Options will be dynamically populated here -->
-      <option value="NEW LABEL">NEW LABEL</option>
-    </select>
-
-    <div id="labelsButtonsRow" class="labels-buttons-row"></div>
-
-
-
-
-  </div>
 </div>
-
-
-
 
 
   <div id="workSectionsContainer" style="display: flex; flex-direction: row; justify-content: space-between; align-items: stretch;">
