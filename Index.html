@@ -1274,7 +1274,7 @@ input, button, select {
   font-size: 1em;
 }
 
-#categoryChangeSection, #addToCalendarBtn, #addAppointmentBtn {
+#addToCalendarBtn, #addAppointmentBtn {
   background-color: var(--background-color);
   padding: 20px;
   margin-bottom: 20px;
@@ -1559,30 +1559,36 @@ button:active {
 
 
 
+#catCalWrap { position: relative; }
+
 #categoryChangeSection {
-  background-color: var(--background-color);
-  padding: 20px;
-  margin-bottom: 20px;
-  border: 1px solid #ccc;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  text-align: center; /* Center-align content within the section */
-    margin: 0 auto; /* Auto margins for horizontal centering */
-
+  position: absolute;
+  inset: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  box-shadow: none;
+  text-align: left;
 }
 
-.category-label {
-  display: block; /* Make label a block element */
-  margin-bottom: 10px; /* Space between label and select */
-}
+.category-overlay { display: flex; align-items: center; }
+
+.category-label { display: block; margin-bottom: 10px; }
 
 .category-select {
   display: block;
   margin: 0;
-  width: auto;
-    margin: 0 auto; /* Auto margins for horizontal centering */
-
- 
+  width: 100%;
+  height: 100%;
+  border: 1px solid #cfcfcf;
+  border-radius: 999px;
+  padding: 4px 28px 4px 10px;
+  background: #fff;
+  font: inherit;
 }
+
+.category-select option { font-size: inherit; }
 
 #appointmentInputSection {
   text-align: center; /* Center-align content within the section */
@@ -2492,20 +2498,20 @@ input#clientAutocomplete, select#clientSelect {
 
 .category-overlay {
   position: absolute;
+  inset: 0;
   display: none;
-  align-items: center;
-  z-index: 1010;
-  pointer-events: none;
+  width: 100%;
+  pointer-events: auto;
 }
 
 #categoryChangeSection select {
   width: 100%;
   height: 100%;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid #1E90FF;
-  border-radius: 6px;
-  font-size: inherit;
-  padding: 0 28px 0 10px;
+  background: #fff;
+  border: 1px solid #cfcfcf;
+  border-radius: 999px;
+  font-size: 1em;
+  padding: 4px 28px 4px 10px;
   box-sizing: border-box;
   pointer-events: auto;
 }
@@ -2923,6 +2929,8 @@ input#clientAutocomplete, select#clientSelect {
   position: relative;
   display: inline-flex;
   align-items: center;
+  gap: 8px;
+  min-width: 220px;
   max-width: min(42vw, 380px);
   border: 1px solid #cfcfcf;
   border-radius: 999px;
@@ -3005,17 +3013,10 @@ input#clientAutocomplete, select#clientSelect {
            placeholder="Type Client Name"
            oninput="autocompleteClient()">
 
-    <!-- Category dropdown overlaid on the category portion of the loaded client -->
-    <div id="categoryChangeSection" class="category-overlay" aria-hidden="true" style="display:none;">
-      <select id="categorySelect" class="category-select">
-        <option value=""></option>
-      </select>
-    </div>
-
            <!-- Category combo + Calendar icon (hidden until a client is selected) -->
 <div id="catCalWrap" style="display:none; gap:8px; align-items:center; margin-left:auto;">
   <!-- Category pill (combobox) -->
-  <div class="cat-pill" title="" >
+  <div class="cat-pill" id="categoryPill" title="">
     <input id="categoryCombo"
            type="text"
            placeholder="Select category"
@@ -3026,6 +3027,12 @@ input#clientAutocomplete, select#clientSelect {
            class="cat-input" />
     <span class="cat-caret" aria-hidden="true">▼</span>
     <datalist id="categoryList"></datalist>
+
+    <div id="categoryChangeSection" class="category-overlay" aria-hidden="true" style="display:none;">
+      <select id="categorySelect" class="category-select">
+        <option value="">▼</option>
+      </select>
+    </div>
   </div>
 
   <!-- Calendar button -->
@@ -7836,7 +7843,7 @@ function setCategoryPlaceholderText(text) {
         categorySelect.appendChild(placeholderOption);
     }
 
-    var effectiveText = (text || '').trim() || __currentCategory || fallbackFromClient || '';
+    var effectiveText = (text || '').trim() || __currentCategory || fallbackFromClient || '▼';
     if (effectiveText) {
         __currentCategory = effectiveText;
     }
@@ -7854,50 +7861,15 @@ function hideCategoryOverlay() {
 function positionCategoryDropdownOverAutocomplete() {
     var overlay = document.getElementById('categoryChangeSection');
     var categorySelect = document.getElementById('categorySelect');
-    var input = document.getElementById('clientAutocomplete');
     var clientSelect = document.getElementById('clientSelect');
-    if (!overlay || !categorySelect || !input || !clientSelect) return;
+    if (!overlay || !categorySelect || !clientSelect) return;
 
     if (!clientSelect.value) {
         hideCategoryOverlay();
         return;
     }
 
-    var value = input.value || '';
-    var start = value.indexOf('(');
-    var end = value.lastIndexOf(')');
-    if (start === -1 || end === -1 || end <= start) {
-        hideCategoryOverlay();
-        return;
-    }
-
-    var container = input.closest('.client-input-wrap') || input.parentElement;
-    if (!container) return;
-
-    var inputRect = input.getBoundingClientRect();
-    var containerRect = container.getBoundingClientRect();
-    var style = window.getComputedStyle(input);
-
-    var canvas = positionCategoryDropdownOverAutocomplete._canvas || document.createElement('canvas');
-    positionCategoryDropdownOverAutocomplete._canvas = canvas;
-    var ctx = canvas.getContext('2d');
-    ctx.font = style.fontWeight + ' ' + style.fontSize + ' ' + style.fontFamily;
-
-    var prefixWidth = ctx.measureText(value.slice(0, start)).width;
-    var categoryWidth = Math.max(ctx.measureText(value.slice(start, end + 1)).width, 0);
-    var paddingLeft = parseFloat(style.paddingLeft) || 0;
-    var paddingRight = parseFloat(style.paddingRight) || 0;
-    var borderTop = parseFloat(style.borderTopWidth) || 0;
-    var borderBottom = parseFloat(style.borderBottomWidth) || 0;
-    var availableWidth = Math.max(inputRect.width - prefixWidth - paddingLeft - paddingRight, 120);
-    var overlayWidth = Math.min(categoryWidth + paddingLeft + paddingRight, availableWidth);
-    var left = inputRect.left - containerRect.left + paddingLeft + prefixWidth;
-
-    overlay.style.display = 'flex';
-    overlay.style.left = left + 'px';
-    overlay.style.top = (inputRect.top - containerRect.top + borderTop) + 'px';
-    overlay.style.height = (inputRect.height - borderTop - borderBottom) + 'px';
-    overlay.style.width = overlayWidth + 'px';
+    overlay.style.display = 'block';
     overlay.setAttribute('aria-hidden', 'false');
 }
 
