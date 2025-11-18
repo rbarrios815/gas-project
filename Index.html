@@ -888,6 +888,9 @@ function updateUsageDisplay(){
   if (minutesEl) minutesEl.textContent = `${usageTracker.activeMinutes.toFixed(1)} min`;
   if (floatingCountEl) floatingCountEl.textContent = usageTracker.count.toString();
   if (floatingMinutesEl) floatingMinutesEl.textContent = `${usageTracker.activeMinutes.toFixed(1)}m`;
+
+  if (countEl) countEl.textContent = `${usageTracker.count} actions`;
+  if (minutesEl) minutesEl.textContent = `${usageTracker.activeMinutes.toFixed(1)} min`;
 }
 
 function sendUsageToServer(actionLabel, ts){
