@@ -2529,10 +2529,28 @@ input#clientAutocomplete, select#clientSelect {
   pointer-events: none;
   overflow: visible;
   padding: 0;
+  margin: 0;
   background: transparent;
+  border: none;
+  box-shadow: none;
   cursor: pointer;
 }
 
+#categoryChangeSection.category-overlay {
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+#categoryChangeSection::after {
+  content: '▼';
+  position: absolute;
+  right: -2px;
+  top: -6px;
+  transform: none;
+  font-size: 0.10em;
 #categoryChangeSection::after {
   content: '▼';
   position: absolute;
