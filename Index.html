@@ -2051,6 +2051,18 @@ input#clientAutocomplete, select#clientSelect {
   vertical-align: baseline;
 }
 
+.correlated-chip-slot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  min-height: 32px;
+}
+
+.correlated-chip-slot:empty {
+  display: none;
+}
+
 
 /* When you want to display the labelsAdditionSection, you can change its style to 'display: block' or 'display: flex' as needed with JavaScript */
 
@@ -3370,6 +3382,8 @@ input#clientAutocomplete, select#clientSelect {
            placeholder="Type Client Name"
            oninput="autocompleteClient()">
 
+    <div class="correlated-chip-slot" data-correlated-chip-slot="client-autocomplete"></div>
+
            <!-- Category combo + Calendar icon (hidden until a client is selected) -->
 <div id="catCalWrap" style="display:none; gap:8px; align-items:center; margin-left:auto;">
   <!-- Category pill (combobox) -->
@@ -3448,6 +3462,7 @@ input#clientAutocomplete, select#clientSelect {
     <div id="pastWorkSection" style="flex: 1 1 100%; padding-right: 0; display: none; flex-direction: column; justify-content: flex-end; width: 100%; max-width: 100%;">
         <div class="past-work-wrapper">
           <textarea id="newPastWork" class="past-work-textarea"></textarea>
+          <div class="correlated-chip-slot" data-correlated-chip-slot="past-work"></div>
           <button type="button" class="update-team-task-btn" onclick="submitPastWork()">SUBMIT</button>
         </div>
 <!-- In-Progress (Loaded) with left-side bulb -->
@@ -3457,6 +3472,7 @@ input#clientAutocomplete, select#clientSelect {
             style="flex:1 1 auto; width:100%; min-height:60px; background-color:white; box-sizing:border-box;"
             onblur="onInProgressLoadedBlur(this.value)"></textarea>
 </div>
+<div class="correlated-chip-slot" data-correlated-chip-slot="in-progress"></div>
 
 <br>
 
@@ -5733,6 +5749,8 @@ window.__chipForCurrentClient = {
   initials: (data.chipInitials || "").toUpperCase(),
   date: data.chipDate || ""   // already MM/DD/YY per our server plan
 };
+
+syncCorrelatedChips();
 
 displayClientDetails(data);
 
@@ -8756,6 +8774,7 @@ function hideClientNotes() {
 
   // Clear chip data (columns P and Q)
   window.__chipForCurrentClient = { initials: '', date: '' };
+  syncCorrelatedChips();
 
   // Clear category selection
   var catSel = document.getElementById('categorySelect');
@@ -9945,6 +9964,39 @@ function createChipElementReadOnly(clientName, initials, mmddyy) {
   return chip;
 }
 
+// Shared renderer for correlated client chips displayed alongside inputs/areas
+function getCorrelatedChipPayload() {
+  var chipInfo = window.__chipForCurrentClient || {};
+  var clientId = (document.getElementById('clientSelect') || {}).value || '';
+  if (!clientId) return null;
+
+  return {
+    clientName: clientId,
+    initials: (chipInfo.initials || '').toUpperCase(),
+    date: chipInfo.date || ''
+  };
+}
+
+function syncCorrelatedChips() {
+  var payload = getCorrelatedChipPayload();
+  var slots = document.querySelectorAll('[data-correlated-chip-slot]');
+
+  slots.forEach(function(slot){
+    if (!slot) return;
+    slot.innerHTML = '';
+
+    if (!payload) {
+      slot.style.display = 'none';
+      return;
+    }
+
+    var chip = createChipElement(payload.clientName, payload.initials, payload.date);
+    chip.classList.add('note-chip-inline');
+    slot.appendChild(chip);
+    slot.style.display = 'flex';
+  });
+}
+
 
 
 
@@ -10018,6 +10070,7 @@ function openChipEditor(anchorEl, clientName, initials, mmddyy) {
       }
 
       renderChipInto(anchorEl, clientName, newInitials, newMmddyy);
+      syncCorrelatedChips();
       closeAnyChipEditor();
       // ---- NEW: ensure BOTH chip instances refresh ----
 try {
