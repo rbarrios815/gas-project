@@ -1684,6 +1684,25 @@ button:active {
     font-size: 32px;
 }
 
+.add-label-dropdown {
+  width: auto !important;
+  min-width: 0;
+  padding: 5px 12px;
+  margin: 5px;
+  font-size: 32px;
+  background-color: lightgreen;
+  color: black;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  appearance: none;
+}
+
+.add-label-dropdown:focus {
+  outline: 3px solid var(--green2, #0ca678);
+  outline-offset: 2px;
+}
+
 /* Add this CSS rule to initially hide the label section */
 #labelsSection {
   display: none;
@@ -1805,6 +1824,12 @@ input#clientAutocomplete, select#clientSelect {
     align-items: center;
     font-size: 1em;
   }
+
+.note-chip-inline {
+  display: inline-flex;
+  margin-left: 10px;
+  vertical-align: middle;
+}
 
 
 /* When you want to display the labelsAdditionSection, you can change its style to 'display: block' or 'display: flex' as needed with JavaScript */
@@ -3053,8 +3078,8 @@ input#clientAutocomplete, select#clientSelect {
   <div class="labels-container">
     <div class="labels-notes-left">
       <div class="labels-top-row">
-        <select id="labelsDropdown" onchange="addLabelToClient(this.value)">
-          <option value="" disabled selected>Add a Label</option>
+          <select id="labelsDropdown" onchange="addLabelToClient(this.value)">
+            <option value="" disabled selected>ADD</option>
           <!-- Options will be dynamically populated here -->
           <option value="NEW LABEL">NEW LABEL</option>
         </select>
@@ -3092,7 +3117,7 @@ input#clientAutocomplete, select#clientSelect {
     <div id="pastWorkSection" style="flex: 1 1 100%; padding-right: 0; display: none; flex-direction: column; justify-content: flex-end; width: 100%; max-width: 100%;">
         <div class="past-work-wrapper">
           <textarea id="newPastWork" class="past-work-textarea"></textarea>
-          <button class="update-team-task-btn" onclick="submitPastWork()">Submit</button>
+          <button class="update-team-task-btn" onclick="submitPastWork()">SUBMIT</button>
         </div>
 <!-- In-Progress (Loaded) with left-side bulb -->
 <div class="inprogress-bulb-row" style="background-color:#90EE90; padding:10px; border:1px solid #ccc; border-radius:4px; display:flex; align-items:flex-start; gap:10px;">
@@ -5533,6 +5558,13 @@ function labelContainsEmoji(labelText) {
 function displayLabels(labelsArray) {
     var labelsDisplay = document.getElementById('labelsDisplay');
     labelsDisplay.innerHTML = '';
+
+    // Reuse the dropdown as an inline label-like control at the end of the list
+    var addLabelDropdown = document.getElementById('labelsDropdown');
+    if (addLabelDropdown) {
+        addLabelDropdown.classList.add('label-box', 'add-label-dropdown');
+        addLabelDropdown.selectedIndex = 0; // Keep placeholder visible after refresh
+    }
     
     var emojiLabels = [];
     var nonEmojiLabels = [];
@@ -5569,6 +5601,10 @@ function displayLabels(labelsArray) {
 
         labelsDisplay.appendChild(labelDiv);
     });
+
+    if (addLabelDropdown) {
+        labelsDisplay.appendChild(addLabelDropdown);
+    }
 }
 
 
@@ -6039,16 +6075,18 @@ function displayNotes(notes) {
   var chipSlot = document.getElementById('labelsChipSlot');
   if (chipSlot) {
     chipSlot.innerHTML = '';
-    var chipInfo = window.__chipForCurrentClient || { initials: "", date: "" };
-    var currentClientId = document.getElementById('clientSelect').value || "";
-    if (currentClientId) {
-      var chipEl = createChipElement(
-        currentClientId,
-        (chipInfo.initials || "").toUpperCase(),
-        chipInfo.date || ""
-      );
-      chipSlot.appendChild(chipEl);
-    }
+  }
+
+  var chipInfo = window.__chipForCurrentClient || { initials: "", date: "" };
+  var currentClientId = document.getElementById('clientSelect').value || "";
+  var noteChipEl = null;
+  if (currentClientId) {
+    noteChipEl = createChipElement(
+      currentClientId,
+      (chipInfo.initials || "").toUpperCase(),
+      chipInfo.date || ""
+    );
+    noteChipEl.classList.add('note-chip-inline');
   }
 
   // === HIGHLIGHTED (newest 3 blocks) ===
@@ -6087,6 +6125,13 @@ function displayNotes(notes) {
       unhighlightedWrap.appendChild(div);
     }
   });
+
+  if (noteChipEl && highlightedWrap.children.length) {
+    var latestNote = highlightedWrap.lastElementChild;
+    if (latestNote) {
+      latestNote.appendChild(noteChipEl);
+    }
+  }
 
 // Always show the row; only hide the toggle button if no older blocks
 var hasOlder = unhighlightedWrap.children.length > 0;
@@ -7884,7 +7929,7 @@ function populateLabelsDropdown(labels) {
     // Add a disabled and selected placeholder option at the beginning
     var placeholderOption = document.createElement('option');
     placeholderOption.value = "";
-    placeholderOption.textContent = "Add Label";
+    placeholderOption.textContent = "ADD";
     placeholderOption.disabled = true;
     placeholderOption.selected = true;
     dropdown.appendChild(placeholderOption);
