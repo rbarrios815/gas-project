@@ -1780,6 +1780,18 @@ input#clientAutocomplete, select#clientSelect {
   gap: 6px;
 }
 
+.labels-top-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.labels-top-row #labelsDropdown {
+  flex: 1 1 320px;
+}
+
 .labels-buttons-row > button {
   width: 100%;
   font-size: 1em;
@@ -1787,7 +1799,7 @@ input#clientAutocomplete, select#clientSelect {
 
 .labels-chip-slot {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   font-size: 1em;
 }
 
@@ -3037,6 +3049,14 @@ input#clientAutocomplete, select#clientSelect {
 
 <div class="labels-container">
   <div class="labels-notes-left">
+    <div class="labels-top-row">
+      <select id="labelsDropdown" onchange="addLabelToClient(this.value)" style="width: 100%;">
+        <option value="" disabled selected>Add a Label</option>
+        <!-- Options will be dynamically populated here -->
+        <option value="NEW LABEL">NEW LABEL</option>
+      </select>
+      <div id="labelsChipSlot" class="labels-chip-slot"></div>
+    </div>
     <div id="labelsDisplay">
       <!-- Labels will be displayed here -->
     </div>
@@ -3050,11 +3070,6 @@ input#clientAutocomplete, select#clientSelect {
           <option value="">▼</option>
         </select>
       </div>
-       <select id="labelsDropdown" onchange="addLabelToClient(this.value)" style="width: 100%;">
-      <option value="" disabled selected>Add a Label</option>
-      <!-- Options will be dynamically populated here -->
-      <option value="NEW LABEL">NEW LABEL</option>
-    </select>
 
     <div id="labelsButtonsRow" class="labels-buttons-row"></div>
 
@@ -6025,14 +6040,20 @@ function displayNotes(notes) {
     chipSlot.appendChild(chipEl);
   }
 
+  var labelsChipSlot = document.getElementById('labelsChipSlot');
+  if (labelsChipSlot) {
+    labelsChipSlot.innerHTML = '';
+    labelsChipSlot.appendChild(chipSlot);
+  } else {
+    container.appendChild(chipSlot);
+  }
+
   var labelsButtonsRow = document.getElementById('labelsButtonsRow');
   if (labelsButtonsRow) {
     labelsButtonsRow.innerHTML = '';
     labelsButtonsRow.appendChild(buttonRow);
-    labelsButtonsRow.appendChild(chipSlot);
   } else {
     container.appendChild(buttonRow);
-    container.appendChild(chipSlot);
   }
 
   // === HIGHLIGHTED (newest 3 blocks) ===
