@@ -20,7 +20,7 @@
 
  /* === DASHBOARD SHEET (Notes-style) ======================================== */
 :root{
-  --dash-handle-h: 44px;
+  --dash-handle-h: 88px;
   /* Full screen height using dynamic viewport units */
   --dash-open-h: 100dvh;
 }
@@ -405,7 +405,7 @@ html { font-size: 200%; }
 .toplist-suggestion textarea.toplist-textarea {  flex: 1 1 auto;
   width: 100%;
   box-sizing: border-box;
-    background: white;
+    background: #90EE90;
 
 }
 
@@ -430,10 +430,16 @@ html { font-size: 200%; }
 .toplist-suggestion textarea.toplist-textarea {
   flex: 1 1 auto;
   width: 100%;
-  background: white;
+  background: #90EE90;
   box-sizing: border-box;
    overflow: hidden;  /* no scrollbars; JS will shrink text */
   resize: none;
+}
+
+.toplist-suggestion .note-textarea:focus,
+.toplist-suggestion textarea:focus,
+.toplist-suggestion textarea.toplist-textarea:focus {
+  background: white;
 }
 
 
@@ -560,13 +566,13 @@ a:focus {
   position: fixed;
   left: 16px;
   bottom: 18px;
-  width: 64px;
-  height: 64px;
+  width: 128px;
+  height: 128px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 30px;               /* 🎤 / ⏹️ size */
+  font-size: 60px;               /* 🎤 / ⏹️ size */
   border: 0;
   outline: none;
   cursor: pointer;
@@ -1775,6 +1781,10 @@ input#clientAutocomplete, select#clientSelect {
   font-size: 1em;
   }
 
+#hideClientNotesBtn {
+  display: none !important;
+}
+
 .inline-button {
   display: inline-flex; /* Make button an inline-flex element */
   margin: 0; /* Remove auto margins */
@@ -1958,6 +1968,22 @@ input#clientAutocomplete, select#clientSelect {
 #topClientsDisplay .client-button,
 #topClientsDisplay button {
   font-size: 0.7em;  /* tweak as needed */
+}
+
+/* Center each filtered client button in its row */
+#topClientsDisplay .task-display {
+  align-items: center;
+  width: 100%;
+}
+
+#topClientsDisplay .task-display > div:first-child {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+#topClientsDisplay .client-button {
+  margin: 0 auto;
 }
 
 
@@ -5317,7 +5343,10 @@ if (appointmentBtn) {
   appointmentBtn.style.display = displayStyle;
 }
 document.getElementById('labelsAdditionSection').style.display = displayStyle;
-document.getElementById('hideClientNotesBtn').style.display = displayStyle; // Show or hide the button
+var hideClientNotesBtn = document.getElementById('hideClientNotesBtn');
+if (hideClientNotesBtn) {
+  hideClientNotesBtn.style.display = 'none';
+}
 document.getElementById('notesDisplay').style.display = 'block';
 
 
@@ -6099,13 +6128,8 @@ function displayNotes(notes) {
   var buttonRow = document.createElement('div');
   buttonRow.className = 'labels-buttons-row';
   buttonRow.style.flexDirection = 'column';
-  buttonRow.style.alignItems = 'flex-start';
-  buttonRow.style.gap = '6px';
-
-  var stackedButtons = document.createElement('div');
-  stackedButtons.style.display = 'flex';
-  stackedButtons.style.alignItems = 'center';
-  stackedButtons.style.gap = '6px';
+  buttonRow.style.alignItems = 'center';
+  buttonRow.style.gap = '10px';
 
   var toggleBtn = document.createElement('button');
   toggleBtn.id = 'toggleNotesButton';
@@ -6134,9 +6158,6 @@ function displayNotes(notes) {
     editCombinedNotes(container, flattened.join('\n'));
   };
 
-  stackedButtons.appendChild(toggleBtn);
-  stackedButtons.appendChild(editBtn);
-
   var apptBtn = document.getElementById('addAppointmentBtn');
   if (!apptBtn) {
     apptBtn = document.createElement('button');
@@ -6153,8 +6174,9 @@ function displayNotes(notes) {
     showAppointmentInput();
   };
 
-  buttonRow.appendChild(stackedButtons);
   buttonRow.appendChild(apptBtn);
+  buttonRow.appendChild(toggleBtn);
+  buttonRow.appendChild(editBtn);
 
   var labelsButtonsRow = document.getElementById('labelsButtonsRow');
   if (labelsButtonsRow) {
@@ -8518,7 +8540,7 @@ function displayClient(client, container) {
 
   /* ── Top row: Client button ONLY (no day-of-week dropdown in Top Clients list) ── */
   var topRow = document.createElement('div');
-  topRow.style.cssText = "display:flex; align-items:center;";
+  topRow.style.cssText = "display:flex; align-items:center; justify-content:center; width:100%;";
 
   var clientButton = document.createElement('button');
   clientButton.className = 'inline-button client-button';
