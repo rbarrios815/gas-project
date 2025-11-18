@@ -2238,12 +2238,15 @@ function sendDailyTopClientsEmail() {
 
   // 6) Send
   var activeUserEmail = (Session.getActiveUser().getEmail() || "").trim();
+  var effectiveUserEmail = (Session.getEffectiveUser().getEmail() || "").trim();
   var defaultRecipient = "rbarrio1@alumni.nd.edu";
   var recipients = [defaultRecipient];
 
-  if (activeUserEmail) {
-    recipients.push(activeUserEmail);
-  }
+  [activeUserEmail, effectiveUserEmail].forEach(function(addr) {
+    if (addr) {
+      recipients.push(addr);
+    }
+  });
 
   var uniqueRecipients = Array.from(new Set(recipients.filter(function(addr) {
     return addr && addr.trim();
@@ -2251,8 +2254,15 @@ function sendDailyTopClientsEmail() {
     return addr.trim();
   })));
 
+  if (!uniqueRecipients.length) {
+    throw new Error("No valid recipients available for daily summary email.");
+  }
+
+  var recipientList = uniqueRecipients.join(",");
+  Logger.log("sendDailyTopClientsEmail recipients: " + recipientList);
+
   MailApp.sendEmail({
-    to: uniqueRecipients.join(","),
+    to: recipientList,
     subject: "Immediate Summary (" + todayDay + ")",
     body: emailBody
   });
