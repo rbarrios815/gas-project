@@ -197,7 +197,67 @@
   #actionRow { flex-direction: row !important; }
   #actionRow .btn,
   #actionRow #addBtn,
-  #actionRow #voiceToggleBtn { width: auto !important; }
+#actionRow #voiceToggleBtn { width: auto !important; }
+}
+
+
+.usage-counter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#usageCounterBtn {
+  border: 1px solid #ced4da;
+  background: #f8f9fa;
+  border-radius: 10px;
+  font-size: 28px;
+  padding: 8px 12px;
+}
+
+/* Floating, always-visible usage counter opposite the floating mic */
+#floatingUsageBtn {
+  position: fixed;
+  right: 16px;
+  bottom: 18px;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 0;
+  outline: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 32px;
+  background: linear-gradient(135deg, #fff, #f8f9fa);
+  color: #212529;
+  box-shadow: 0 8px 24px rgba(0,0,0,.22);
+  cursor: pointer;
+  z-index: 200101; /* one step above floating mic */
+  transition: transform .08s ease, box-shadow .12s ease;
+}
+
+#floatingUsageBtn:hover { transform: translateY(-1px); box-shadow: 0 10px 28px rgba(0,0,0,.25); }
+#floatingUsageBtn:active { transform: translateY(1px); box-shadow: 0 6px 18px rgba(0,0,0,.18); }
+
+#floatingUsageBtn .usage-pill {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #e9ecef;
+  color: #212529;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.usage-counter .usage-meta {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  font-size: 14px;
+  color: #495057;
 }
 
 
@@ -608,14 +668,20 @@ a:focus {
 <!-- Keep these elements once in your HTML -->
 
 
-  <!-- Loading bar -->
-  
+<!-- Loading bar -->
+
   <div id="loadingBarWrap"><div id="loadingBar"></div></div>
   <!-- Floating always-visible mic button -->
 <button id="floatingMicBtn" aria-label="Start voice input (floating)">🎤</button>
+<!-- Floating usage counter (calculator) opposite the mic -->
+<button id="floatingUsageBtn" aria-label="Usage counter" title="Usage counter">
+  <span aria-hidden="true">🧮</span>
+  <span id="floatingUsageCount" class="usage-pill" aria-live="polite">0</span>
+  <span id="floatingUsageMinutes" class="usage-pill" aria-live="polite">0m</span>
+</button>
 
   <!-- Toast -->
-<div id="toast" role="status" aria-live="polite"></div>
+  <div id="toast" role="status" aria-live="polite"></div>
 
 
   <!-- Overlay that slides; tab moves with it -->
@@ -641,6 +707,13 @@ a:focus {
 
   <!-- RIGHT: ADD button + status -->
   <div class="right-actions" style="display:flex; align-items:center; gap:8px;">
+    <div id="usageCounterWrap" class="usage-counter" aria-live="polite">
+      <button id="usageCounterBtn" class="btn emoji-btn" aria-label="Usage counter" title="Usage counter">🧮</button>
+      <div class="usage-meta">
+        <div id="usageCountDisplay" class="usage-line">0 actions</div>
+        <div id="usageMinutesDisplay" class="usage-line">0 min</div>
+      </div>
+    </div>
     <button id="addBtn" class="btn">ADD</button>
     <span id="addStatus" class="meta" style="margin-left:4px"></span>
   </div>
@@ -794,6 +867,85 @@ voiceToggleBtn?.addEventListener('click', ()=>{
   // We add a small interval-based guard to nudge UI if needed.
   setInterval(()=>{ setVoiceButtonUI(!!recognizing); }, 500);
 })();
+
+
+/* =========================
+   Usage counter + event log
+   ========================= */
+const usageTracker = {
+  count: 0,
+  activeMinutes: 0,
+  lastTimestamp: null
+};
+
+function updateUsageDisplay(){
+  const countEl = document.getElementById('usageCountDisplay');
+  const minutesEl = document.getElementById('usageMinutesDisplay');
+  const floatingCountEl = document.getElementById('floatingUsageCount');
+  const floatingMinutesEl = document.getElementById('floatingUsageMinutes');
+
+  if (countEl) countEl.textContent = `${usageTracker.count} actions`;
+  if (minutesEl) minutesEl.textContent = `${usageTracker.activeMinutes.toFixed(1)} min`;
+  if (floatingCountEl) floatingCountEl.textContent = usageTracker.count.toString();
+  if (floatingMinutesEl) floatingMinutesEl.textContent = `${usageTracker.activeMinutes.toFixed(1)}m`;
+}
+
+function sendUsageToServer(actionLabel, ts){
+  try {
+    if (google && google.script && google.script.run && typeof google.script.run.logUsageEvent === 'function') {
+      google.script.run.logUsageEvent({ action: actionLabel, timestamp: ts });
+    }
+  } catch(_) { /* ignore logging failures */ }
+}
+
+function recordUsage(actionLabel){
+  const now = Date.now();
+  if (usageTracker.lastTimestamp && (now - usageTracker.lastTimestamp) <= 5 * 60 * 1000) {
+    usageTracker.activeMinutes += (now - usageTracker.lastTimestamp) / 60000;
+  }
+  usageTracker.lastTimestamp = now;
+  usageTracker.count += 1;
+
+  updateUsageDisplay();
+  sendUsageToServer(actionLabel, now);
+}
+
+document.addEventListener('click', function(evt){
+  const button = evt.target.closest('button');
+  if (button) {
+    const label = button.getAttribute('aria-label') || button.textContent.trim() || button.id || 'Button';
+    recordUsage(`Button: ${label}`);
+    return;
+  }
+
+  const suggestion = evt.target.closest('#autocompleteSuggestions > div');
+  if (suggestion) {
+    recordUsage(`Autocomplete: ${suggestion.textContent.trim()}`);
+  }
+}, true);
+
+document.addEventListener('change', function(evt){
+  const select = evt.target.closest('select');
+  if (!select) return;
+  const label = select.getAttribute('aria-label') || select.name || select.id || 'Dropdown';
+  const value = select.value || '';
+  recordUsage(`Dropdown: ${label}${value ? ' -> ' + value : ''}`);
+}, true);
+
+document.getElementById('usageCounterBtn')?.addEventListener('click', function(){
+  if (typeof showToast === 'function') {
+    showToast(`Tracked ${usageTracker.count} actions · ${usageTracker.activeMinutes.toFixed(1)} min`);
+  }
+});
+
+document.getElementById('floatingUsageBtn')?.addEventListener('click', function(){
+  if (typeof showToast === 'function') {
+    showToast(`Tracked ${usageTracker.count} actions · ${usageTracker.activeMinutes.toFixed(1)} min`);
+  }
+});
+
+// Initialize displays on load
+updateUsageDisplay();
 
 
 function ensureRecognition(){
@@ -1718,6 +1870,20 @@ button:active {
   max-height: 0;
   margin: 0;
   pointer-events: none;
+}
+
+#autocompleteSuggestions {
+  transition: transform .2s ease, opacity .2s ease, max-height .2s ease, margin .2s ease;
+}
+
+.client-container.hide-recents #autocompleteSuggestions,
+#autocompleteSuggestions.is-contracted {
+  transform: translateY(-12px);
+  opacity: 0;
+  max-height: 0 !important;
+  margin-top: 0;
+  pointer-events: none;
+  overflow: hidden;
 }
 
 
@@ -4872,12 +5038,23 @@ window.addEventListener('load',   fitRecentRowOneLine);
 
   function applyState(shouldHide){
     var changed = false;
+    var suggestionsEl = document.getElementById('autocompleteSuggestions');
     if (shouldHide && !container.classList.contains('hide-recents')) {
       container.classList.add('hide-recents');
       changed = true;
     } else if (!shouldHide && container.classList.contains('hide-recents')) {
       container.classList.remove('hide-recents');
       changed = true;
+    }
+
+    if (suggestionsEl) {
+      if (shouldHide) {
+        suggestionsEl.classList.add('is-contracted');
+        suggestionsEl.style.display = 'none';
+      } else {
+        suggestionsEl.classList.remove('is-contracted');
+        suggestionsEl.style.display = '';
+      }
     }
 
     if (changed && typeof ensureHeaderSpacing === 'function') {
@@ -7308,6 +7485,11 @@ function autocompleteClient() {
     suggestions = document.createElement('div');
     suggestions.id = 'autocompleteSuggestions';
     inputElement.parentNode.appendChild(suggestions);
+    var clientContainer = document.querySelector('.client-container');
+    if (clientContainer && clientContainer.classList.contains('hide-recents')) {
+      suggestions.classList.add('is-contracted');
+      suggestions.style.display = 'none';
+    }
   }
 
   var inputValue = (inputElement.value || '').trim().toLowerCase();
