@@ -2527,10 +2527,22 @@ input#clientAutocomplete, select#clientSelect {
   align-items: center;
   z-index: 1010;
   pointer-events: none;
-  overflow: hidden;
+  overflow: visible;
   padding: 0;
   background: transparent;
   cursor: pointer;
+}
+
+#categoryChangeSection::after {
+  content: '▼';
+  position: absolute;
+  right: 2px;
+  top: -8px;
+  font-size: 0.9em;
+  line-height: 1;
+  color: #333;
+  pointer-events: none;
+  display: block;
 }
 
 #categoryChangeSection select {
@@ -2552,10 +2564,6 @@ input#clientAutocomplete, select#clientSelect {
   box-shadow: none;
   position: relative;
   opacity: 0;
-}
-
-#categoryChangeSection::after {
-  display: none;
 }
 
 #categoryChangeSection select option {
