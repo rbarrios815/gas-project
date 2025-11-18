@@ -2684,7 +2684,7 @@ function ensureNotesInbox_() {
   return sh;
 }
 
-function inboxAddNote(rawNote) {
+function inboxAddNote(rawNote, assignedClient) {
   // === CONFIG: who receives the "ADD" email ===
   var EMAIL_TO = 'rbarrio1@alumni.nd.edu';  // change if needed
 
@@ -2699,6 +2699,12 @@ function inboxAddNote(rawNote) {
   var cleanNote = String(rawNote).trim();
   sh.getRange(row, 1).setValue(cleanNote);   // Col A: NOTE
   sh.getRange(row, 3).setValue(new Date());  // Col C: TIMESTAMP
+
+  // Optionally assign to a client immediately (Column B)
+  if (assignedClient && String(assignedClient).trim()) {
+    var resolved = getCanonicalClientName_(assignedClient) || String(assignedClient).trim();
+    sh.getRange(row, 2).setValue(resolved);
+  }
 
   // Build a helpful subject and body for the email
   var tz = Session.getScriptTimeZone();
