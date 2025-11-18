@@ -32,6 +32,75 @@ function logUsageEvent(entry) {
   sheet.appendRow([action, ts, isTargetUser, userEmail]);
 }
 
+function getTrackedUsageSummary() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('TIME SHEET');
+  if (!sheet) {
+    return { todayMinutes: 0, weekMinutes: 0 };
+  }
+
+  var data = sheet.getDataRange().getValues();
+  if (!data || data.length <= 1) {
+    return { todayMinutes: 0, weekMinutes: 0 };
+  }
+
+  var targetEmail = 'rbarrios815@gmail.com';
+  var now = new Date();
+  var startOfDay = new Date(now);
+  startOfDay.setHours(0, 0, 0, 0);
+
+  var startOfWeek = new Date(startOfDay);
+  startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+
+  var todayTimestamps = [];
+  var weekTimestamps = [];
+
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    var timestamp = row[1];
+    var email = (row[3] || '').toString().toLowerCase();
+
+    if (!(timestamp instanceof Date)) {
+      continue;
+    }
+
+    if (email !== targetEmail) {
+      continue;
+    }
+
+    if (timestamp >= startOfDay) {
+      todayTimestamps.push(timestamp);
+    }
+
+    if (timestamp >= startOfWeek) {
+      weekTimestamps.push(timestamp);
+    }
+  }
+
+  return {
+    todayMinutes: computeActiveMinutes(todayTimestamps),
+    weekMinutes: computeActiveMinutes(weekTimestamps)
+  };
+}
+
+function computeActiveMinutes(timestamps) {
+  if (!timestamps || timestamps.length === 0) {
+    return 0;
+  }
+
+  timestamps.sort(function(a, b) { return a - b; });
+
+  var minutes = 0;
+  for (var i = 1; i < timestamps.length; i++) {
+    var diffMinutes = (timestamps[i].getTime() - timestamps[i - 1].getTime()) / 60000;
+    if (diffMinutes <= 5) {
+      minutes += diffMinutes;
+    }
+  }
+
+  return minutes;
+}
+
 
 
 
