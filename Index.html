@@ -3266,8 +3266,8 @@ input#clientAutocomplete, select#clientSelect {
 }
 
 .appointment-icon-btn {
-  background-color: red;
-  color: #fff;
+  background-color: transparent;
+  color: #1f2937;
   width: 44px;
   height: 44px;
   font-size: 24px;
@@ -6409,18 +6409,26 @@ function displayNotes(notes) {
   unhighlightedWrap.style.gap = '5px';
   container.appendChild(unhighlightedWrap);
 
+  var toggleBtn = document.createElement('button');
+  toggleBtn.id = 'toggleNotesButton';
+  toggleBtn.onclick = toggleNotesVisibility;
+  toggleBtn.style.fontSize = '0.85em';
+  toggleBtn.style.padding = '4px 12px';
+  toggleBtn.innerText = '+';
+
+  var toggleRow = document.createElement('div');
+  toggleRow.style.display = 'flex';
+  toggleRow.style.justifyContent = 'center';
+  toggleRow.style.margin = '6px 0 4px';
+  toggleRow.appendChild(toggleBtn);
+  container.appendChild(toggleRow);
+
   // === BUTTON ROW (moved beside the label dropdown) ===
   var buttonRow = document.createElement('div');
   buttonRow.className = 'labels-buttons-row';
   buttonRow.style.flexDirection = 'column';
   buttonRow.style.alignItems = 'center';
   buttonRow.style.gap = '10px';
-
-  var toggleBtn = document.createElement('button');
-  toggleBtn.id = 'toggleNotesButton';
-  toggleBtn.onclick = toggleNotesVisibility;
-  toggleBtn.style.fontSize = '1em';
-  toggleBtn.innerText = '+';
 
   var editBtn = document.createElement('button');
   editBtn.id = 'editNotesButton';
@@ -6460,7 +6468,6 @@ function displayNotes(notes) {
   };
 
   buttonRow.appendChild(apptBtn);
-  buttonRow.appendChild(toggleBtn);
   buttonRow.appendChild(editBtn);
 
   var labelsButtonsRow = document.getElementById('labelsButtonsRow');
