@@ -717,6 +717,7 @@ a:focus {
       <div class="usage-meta">
         <div id="usageCountDisplay" class="usage-line">0 actions</div>
         <div id="usageMinutesDisplay" class="usage-line">0 min</div>
+        <div id="usageTrackedTotals" class="usage-line">Today: 0 min · Week: 0 min</div>
       </div>
     </div>
     <button id="addBtn" class="btn">ADD</button>
@@ -880,22 +881,43 @@ voiceToggleBtn?.addEventListener('click', ()=>{
 const usageTracker = {
   count: 0,
   activeMinutes: 0,
-  lastTimestamp: null
+  lastTimestamp: null,
+  summary: { todayMinutes: 0, weekMinutes: 0 }
 };
 
 function updateUsageDisplay(){
   const countEl = document.getElementById('usageCountDisplay');
   const minutesEl = document.getElementById('usageMinutesDisplay');
+  const trackedTotalsEl = document.getElementById('usageTrackedTotals');
   const floatingCountEl = document.getElementById('floatingUsageCount');
   const floatingMinutesEl = document.getElementById('floatingUsageMinutes');
 
   if (countEl) countEl.textContent = `${usageTracker.count} actions`;
   if (minutesEl) minutesEl.textContent = `${usageTracker.activeMinutes.toFixed(1)} min`;
+  if (trackedTotalsEl) {
+    const today = usageTracker.summary?.todayMinutes ?? 0;
+    const week = usageTracker.summary?.weekMinutes ?? 0;
+    trackedTotalsEl.textContent = `Today: ${today.toFixed(1)} min · Week: ${week.toFixed(1)} min`;
+  }
   if (floatingCountEl) floatingCountEl.textContent = usageTracker.count.toString();
   if (floatingMinutesEl) floatingMinutesEl.textContent = `${usageTracker.activeMinutes.toFixed(1)}m`;
 
   if (countEl) countEl.textContent = `${usageTracker.count} actions`;
   if (minutesEl) minutesEl.textContent = `${usageTracker.activeMinutes.toFixed(1)} min`;
+}
+
+function refreshTrackedTimeSummary(){
+  try {
+    if (google && google.script && google.script.run && typeof google.script.run.getTrackedUsageSummary === 'function') {
+      google.script.run
+        .withSuccessHandler(function(res){
+          if (!res) return;
+          usageTracker.summary = res;
+          updateUsageDisplay();
+        })
+        .getTrackedUsageSummary();
+    }
+  } catch (_) { /* ignore */ }
 }
 
 function sendUsageToServer(actionLabel, ts){
@@ -916,6 +938,7 @@ function recordUsage(actionLabel){
 
   updateUsageDisplay();
   sendUsageToServer(actionLabel, now);
+  refreshTrackedTimeSummary();
 }
 
 document.addEventListener('click', function(evt){
@@ -958,6 +981,7 @@ document.getElementById('floatingEmailBtn')?.addEventListener('click', function(
 
 // Initialize displays on load
 updateUsageDisplay();
+refreshTrackedTimeSummary();
 
 
 function ensureRecognition(){
