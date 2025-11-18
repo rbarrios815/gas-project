@@ -20,7 +20,7 @@
 
  /* === DASHBOARD SHEET (Notes-style) ======================================== */
 :root{
-  --dash-handle-h: 44px;
+  --dash-handle-h: 88px;
   /* Full screen height using dynamic viewport units */
   --dash-open-h: 100dvh;
 }
@@ -197,7 +197,68 @@
   #actionRow { flex-direction: row !important; }
   #actionRow .btn,
   #actionRow #addBtn,
-  #actionRow #voiceToggleBtn { width: auto !important; }
+#actionRow #voiceToggleBtn { width: auto !important; }
+}
+
+
+.usage-counter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#usageCounterBtn {
+  border: 1px solid #ced4da;
+  background: #f8f9fa;
+  border-radius: 10px;
+  font-size: 28px;
+  padding: 8px 12px;
+}
+
+.floatingUtilityBtn {
+  position: fixed;
+  bottom: 18px;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 0;
+  outline: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 32px;
+  background: linear-gradient(135deg, #fff, #f8f9fa);
+  color: #212529;
+  box-shadow: 0 8px 24px rgba(0,0,0,.22);
+  cursor: pointer;
+  z-index: 200101; /* one step above floating mic */
+  transition: transform .08s ease, box-shadow .12s ease;
+}
+
+.floatingUtilityBtn:hover { transform: translateY(-1px); box-shadow: 0 10px 28px rgba(0,0,0,.25); }
+.floatingUtilityBtn:active { transform: translateY(1px); box-shadow: 0 6px 18px rgba(0,0,0,.18); }
+
+#floatingUsageBtn { right: 16px; }
+#floatingEmailBtn { right: 102px; }
+
+#floatingUsageBtn .usage-pill {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #e9ecef;
+  color: #212529;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.usage-counter .usage-meta {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  font-size: 14px;
+  color: #495057;
 }
 
 
@@ -405,7 +466,7 @@ html { font-size: 200%; }
 .toplist-suggestion textarea.toplist-textarea {  flex: 1 1 auto;
   width: 100%;
   box-sizing: border-box;
-    background: white;
+    background: #90EE90;
 
 }
 
@@ -430,10 +491,16 @@ html { font-size: 200%; }
 .toplist-suggestion textarea.toplist-textarea {
   flex: 1 1 auto;
   width: 100%;
-  background: white;
+  background: #90EE90;
   box-sizing: border-box;
    overflow: hidden;  /* no scrollbars; JS will shrink text */
   resize: none;
+}
+
+.toplist-suggestion .note-textarea:focus,
+.toplist-suggestion textarea:focus,
+.toplist-suggestion textarea.toplist-textarea:focus {
+  background: white;
 }
 
 
@@ -560,13 +627,13 @@ a:focus {
   position: fixed;
   left: 16px;
   bottom: 18px;
-  width: 64px;
-  height: 64px;
+  width: 128px;
+  height: 128px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 30px;               /* 🎤 / ⏹️ size */
+  font-size: 60px;               /* 🎤 / ⏹️ size */
   border: 0;
   outline: none;
   cursor: pointer;
@@ -602,14 +669,24 @@ a:focus {
 <!-- Keep these elements once in your HTML -->
 
 
-  <!-- Loading bar -->
-  
+<!-- Loading bar -->
+
   <div id="loadingBarWrap"><div id="loadingBar"></div></div>
-  <!-- Floating always-visible mic button -->
+<!-- Floating always-visible mic button -->
 <button id="floatingMicBtn" aria-label="Start voice input (floating)">🎤</button>
+<!-- Floating usage counter (calculator) opposite the mic -->
+<button id="floatingUsageBtn" class="floatingUtilityBtn" aria-label="Usage counter" title="Usage counter">
+  <span aria-hidden="true">🧮</span>
+  <span id="floatingUsageCount" class="usage-pill" aria-live="polite">0</span>
+  <span id="floatingUsageMinutes" class="usage-pill" aria-live="polite">0m</span>
+</button>
+<!-- Floating email trigger next to calculator -->
+<button id="floatingEmailBtn" class="floatingUtilityBtn" aria-label="Send summary email" title="Send summary email">
+  <span aria-hidden="true">✉️</span>
+</button>
 
   <!-- Toast -->
-<div id="toast" role="status" aria-live="polite"></div>
+  <div id="toast" role="status" aria-live="polite"></div>
 
 
   <!-- Overlay that slides; tab moves with it -->
@@ -635,6 +712,13 @@ a:focus {
 
   <!-- RIGHT: ADD button + status -->
   <div class="right-actions" style="display:flex; align-items:center; gap:8px;">
+    <div id="usageCounterWrap" class="usage-counter" aria-live="polite">
+      <button id="usageCounterBtn" class="btn emoji-btn" aria-label="Usage counter" title="Usage counter">🧮</button>
+      <div class="usage-meta">
+        <div id="usageCountDisplay" class="usage-line">0 actions</div>
+        <div id="usageMinutesDisplay" class="usage-line">0 min</div>
+      </div>
+    </div>
     <button id="addBtn" class="btn">ADD</button>
     <span id="addStatus" class="meta" style="margin-left:4px"></span>
   </div>
@@ -788,6 +872,92 @@ voiceToggleBtn?.addEventListener('click', ()=>{
   // We add a small interval-based guard to nudge UI if needed.
   setInterval(()=>{ setVoiceButtonUI(!!recognizing); }, 500);
 })();
+
+
+/* =========================
+   Usage counter + event log
+   ========================= */
+const usageTracker = {
+  count: 0,
+  activeMinutes: 0,
+  lastTimestamp: null
+};
+
+function updateUsageDisplay(){
+  const countEl = document.getElementById('usageCountDisplay');
+  const minutesEl = document.getElementById('usageMinutesDisplay');
+  const floatingCountEl = document.getElementById('floatingUsageCount');
+  const floatingMinutesEl = document.getElementById('floatingUsageMinutes');
+
+  if (countEl) countEl.textContent = `${usageTracker.count} actions`;
+  if (minutesEl) minutesEl.textContent = `${usageTracker.activeMinutes.toFixed(1)} min`;
+  if (floatingCountEl) floatingCountEl.textContent = usageTracker.count.toString();
+  if (floatingMinutesEl) floatingMinutesEl.textContent = `${usageTracker.activeMinutes.toFixed(1)}m`;
+
+  if (countEl) countEl.textContent = `${usageTracker.count} actions`;
+  if (minutesEl) minutesEl.textContent = `${usageTracker.activeMinutes.toFixed(1)} min`;
+}
+
+function sendUsageToServer(actionLabel, ts){
+  try {
+    if (google && google.script && google.script.run && typeof google.script.run.logUsageEvent === 'function') {
+      google.script.run.logUsageEvent({ action: actionLabel, timestamp: ts });
+    }
+  } catch(_) { /* ignore logging failures */ }
+}
+
+function recordUsage(actionLabel){
+  const now = Date.now();
+  if (usageTracker.lastTimestamp && (now - usageTracker.lastTimestamp) <= 5 * 60 * 1000) {
+    usageTracker.activeMinutes += (now - usageTracker.lastTimestamp) / 60000;
+  }
+  usageTracker.lastTimestamp = now;
+  usageTracker.count += 1;
+
+  updateUsageDisplay();
+  sendUsageToServer(actionLabel, now);
+}
+
+document.addEventListener('click', function(evt){
+  const button = evt.target.closest('button');
+  if (button) {
+    const label = button.getAttribute('aria-label') || button.textContent.trim() || button.id || 'Button';
+    recordUsage(`Button: ${label}`);
+    return;
+  }
+
+  const suggestion = evt.target.closest('#autocompleteSuggestions > div');
+  if (suggestion) {
+    recordUsage(`Autocomplete: ${suggestion.textContent.trim()}`);
+  }
+}, true);
+
+document.addEventListener('change', function(evt){
+  const select = evt.target.closest('select');
+  if (!select) return;
+  const label = select.getAttribute('aria-label') || select.name || select.id || 'Dropdown';
+  const value = select.value || '';
+  recordUsage(`Dropdown: ${label}${value ? ' -> ' + value : ''}`);
+}, true);
+
+document.getElementById('usageCounterBtn')?.addEventListener('click', function(){
+  if (typeof showToast === 'function') {
+    showToast(`Tracked ${usageTracker.count} actions · ${usageTracker.activeMinutes.toFixed(1)} min`);
+  }
+});
+
+document.getElementById('floatingUsageBtn')?.addEventListener('click', function(){
+  if (typeof showToast === 'function') {
+    showToast(`Tracked ${usageTracker.count} actions · ${usageTracker.activeMinutes.toFixed(1)} min`);
+  }
+});
+
+document.getElementById('floatingEmailBtn')?.addEventListener('click', function(){
+  triggerTopClientsEmail();
+});
+
+// Initialize displays on load
+updateUsageDisplay();
 
 
 function ensureRecognition(){
@@ -980,6 +1150,10 @@ function addNote(textOverride){
     return;
   }
 
+  const preferredClient = (typeof getActiveClientName === 'function')
+    ? getActiveClientName()
+    : '';
+
   addNotePending = true;
 
   startLoading();
@@ -1007,7 +1181,7 @@ function addNote(textOverride){
         }
               showToast('Error adding note');
     })
-    .inboxAddNote(txt);
+    .inboxAddNote(txt, preferredClient);
 }
 
 
@@ -1105,7 +1279,7 @@ function loadRecent(done){
       stopLoading();
       if (typeof done === 'function') done(e);
     })
-    .inboxGetRecent(25);
+    .inboxGetRecent(50);
 }
 
 
@@ -1274,7 +1448,7 @@ input, button, select {
   font-size: 1em;
 }
 
-#categoryChangeSection, #addToCalendarBtn, #addAppointmentBtn {
+#addToCalendarBtn, #addAppointmentBtn {
   background-color: var(--background-color);
   padding: 20px;
   margin-bottom: 20px;
@@ -1560,14 +1734,12 @@ button:active {
 
 
 #categoryChangeSection {
-  background-color: var(--background-color);
-  padding: 20px;
-  margin-bottom: 20px;
-  border: 1px solid #ccc;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  text-align: center; /* Center-align content within the section */
-    margin: 0 auto; /* Auto margins for horizontal centering */
-
+  background: transparent;
+  padding: 0;
+  margin: 0 0 8px 0;
+  border: 0;
+  box-shadow: none;
+  text-align: left;
 }
 
 .category-label {
@@ -1578,39 +1750,7 @@ button:active {
 .category-select {
   display: block;
   margin: 0;
-  width: auto;
-    margin: 0 auto; /* Auto margins for horizontal centering */
-
- 
-}
-
-#appointmentInputSection {
-  text-align: center; /* Center-align content within the section */
-  padding: 20px;
-  margin-bottom: 20px;
-  background-color: var(--background-color);
-  border: 1px solid #ccc;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-}
-
-.appointment-label {
-  display: block; /* Make label a block element */
-  margin: 10px auto; /* Center label and add space above and below */
-}
-
-.appointment-input {
-  display: block; /* Make input a block element */
-  margin: 0 auto; /* Center the input field */
-  width: 50%; /* Adjust width as needed */
-  padding: 10px; /* Padding for better appearance */
-  border-radius: 4px; /* Rounded corners */
-  border: 1px solid #ccc; /* Border styling */
-}
-
-#appointmentInputSection button {
-  display: block; /* Make button a block element */
-  margin: 20px auto; /* Center the button and add space above and below */
-  /* Additional button styling as needed */
+  width: 100%;
 }
 
 #loadingBarContainer {
@@ -1686,6 +1826,26 @@ button:active {
     border: 1px solid #ddd;
     display: inline-block; /* or 'block' if you want each label on a new line */
     background-color: #f0f0f0;
+    font-size: 32px;
+}
+
+.add-label-dropdown {
+  width: auto !important;
+  min-width: 0;
+  padding: 5px 12px;
+  margin: 5px;
+  font-size: 32px;
+  background-color: lightgreen;
+  color: black;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  appearance: none;
+}
+
+.add-label-dropdown:focus {
+  outline: 3px solid var(--green2, #0ca678);
+  outline-offset: 2px;
 }
 
 /* Add this CSS rule to initially hide the label section */
@@ -1693,11 +1853,11 @@ button:active {
   display: none;
 }
 
-#labelsDropdown {
-    width: 100vw; /* Sets the width to span the entire viewport width */
-    box-sizing: border-box; /* Includes padding and border in the width */
-    /* Additional styling as needed */
-}
+  #labelsDropdown {
+      width: 100%;
+      box-sizing: border-box; /* Includes padding and border in the width */
+      /* Additional styling as needed */
+  }
 
 
 .client-container {
@@ -1709,6 +1869,67 @@ button:active {
     z-index: 1000; /* Lower than loading bar */
     padding: 10px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+#recentRow {
+  transition: transform .2s ease, opacity .2s ease, max-height .2s ease, margin .2s ease;
+  max-height: 200px;
+}
+
+.client-container {
+  transition: padding .2s ease;
+}
+
+/* Let the green autocomplete slide away like the recent bar when we hide it */
+#clientAutocomplete {
+  transition: transform .2s ease, opacity .2s ease, max-height .2s ease, margin .2s ease, padding .2s ease;
+}
+
+.client-container.hide-recents #recentRow {
+  transform: translateY(-120%);
+  opacity: 0;
+  max-height: 0;
+  margin: 0;
+  pointer-events: none;
+}
+
+.client-container.hide-recents #clientAutocomplete {
+  transform: translateY(-120%);
+  opacity: 0;
+  max-height: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  pointer-events: none;
+}
+
+#autocompleteSuggestions {
+  transition: transform .2s ease, opacity .2s ease, max-height .2s ease, margin .2s ease;
+}
+
+.client-container.hide-recents #autocompleteSuggestions,
+#autocompleteSuggestions.is-contracted {
+  transform: translateY(-12px);
+  opacity: 0;
+  max-height: 0 !important;
+  margin-top: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* Keep the blue box almost fully minimized while collapsed */
+.client-container.hide-recents {
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.client-container.hide-recents .client-input-wrap {
+  padding: 4px 8px !important;
+  max-height: 16px;
+  border-width: 1px;
+  overflow: hidden;
+  transition: padding .2s ease, max-height .2s ease, border-width .2s ease;
 }
 
 
@@ -1732,38 +1953,100 @@ input#clientAutocomplete, select#clientSelect {
 .labels-container {
   display: flex;
   width: 100%;
+  align-items: stretch;
 }
+
+  .labels-notes-left {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .labels-top-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .labels-top-row #labelsDropdown {
+    flex: 1 1 auto;
+  }
+
+  .labels-top-row .labels-chip-slot {
+    flex: 0 0 auto;
+  }
 
 #labelsDisplay {
-  flex-basis: 85%; /* Assign 90% of the parent container's width to labels display */
-    font-size: 65%; /* This will set the font size to half of the inherited size */
-
+  font-size: 32px;
 }
 
-#labelsAdditionSection {
-  flex-basis: 15%; /* Assign 10% of the parent container's width to the dropdown */
-  display: none;
+  #labelsAdditionSection {
+    flex: 0 0 15%; /* Keep the controls to no more than 15% of the screen width */
+    max-width: 15%;
+    display: none;
+    flex-direction: column;
+  gap: 8px;
+  font-size: 32px;
 }
 
-#labelsDropdown {
-  width: 100%; /* Ensure the dropdown fills its container */
-  box-sizing: border-box; /* Include padding and borders in the element's total width */
-    font-size: 65%; /* This will set the font size to 65% of the inherited size */
+  #labelsDropdown {
+    width: 100%; /* Ensure the dropdown fills its container */
+    box-sizing: border-box; /* Include padding and borders in the element's total width */
+    font-size: 1em; /* Match the labels/notes sizing */
 
-}
+  }
 
 
 
 #toggleNotesButton {
-  background-color: #FFDAB9; /* Peach Puff color, a light orange shade */
-  margin-top: 5px;
-  font-size: 65%;
-  }
+  background-color: #ff9500; /* Solid orange square */
+  margin: 0;
+  font-size: 24px;
+  width: 60px;
+  height: 60px;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  border-radius: 4px;
+}
+
+#hideClientNotesBtn {
+  display: none !important;
+}
 
 .inline-button {
   display: inline-flex; /* Make button an inline-flex element */
   margin: 0; /* Remove auto margins */
   /* Any other specific styles you want these buttons to have */
+}
+
+.labels-buttons-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.labels-buttons-row > button {
+  width: 100%;
+  font-size: 1em;
+}
+
+  .labels-chip-slot {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1em;
+  }
+
+.note-chip-inline {
+  display: inline-flex;
+  margin-left: 10px;
+  vertical-align: baseline;
 }
 
 
@@ -1891,6 +2174,31 @@ input#clientAutocomplete, select#clientSelect {
   font-size: 16px;
 }
 
+.past-work-wrapper {
+  position: relative;
+  width: 100%;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.past-work-wrapper .past-work-textarea {
+  padding-right: 0;
+  flex: 1 1 auto;
+}
+
+.past-work-wrapper .update-team-task-btn {
+  position: static;
+  top: auto;
+  right: auto;
+  transform: none;
+  margin: 0;
+  flex: 0 0 auto;
+  font-size: 180%;
+  padding: 8px 16px;
+}
+
 .client-button {
     font-weight: normal;
 }
@@ -1900,6 +2208,22 @@ input#clientAutocomplete, select#clientSelect {
 #topClientsDisplay .client-button,
 #topClientsDisplay button {
   font-size: 0.7em;  /* tweak as needed */
+}
+
+/* Center each filtered client button in its row */
+#topClientsDisplay .task-display {
+  align-items: center;
+  width: 100%;
+}
+
+#topClientsDisplay .task-display > div:first-child {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+#topClientsDisplay .client-button {
+  margin: 0 auto;
 }
 
 
@@ -2235,6 +2559,17 @@ input#clientAutocomplete, select#clientSelect {
   margin-bottom: 20px; /* Adjust as needed to create more or less space */
 }
 
+/* Center the date/initials/lightbulb row within the viewport */
+#topClientsControlRow {
+  justify-content: center;
+  text-align: center;
+}
+
+#topClientsControlRow > * {
+  margin-left: 0;
+  margin-right: 0;
+}
+
 /* SNIPPET #2 (REPLACED): make filter dropdown look like a button and hide arrow */
 /* SNIPPET #2 (RESTORED): native select with arrow */
 #topClientsFilterDropdown {
@@ -2440,6 +2775,25 @@ input#clientAutocomplete, select#clientSelect {
   border-radius: 10px;
   padding: 10px 140px 12px 12px; /* top/right/bottom/left; right = room for NEW CLIENT button */
   box-shadow: 0 2px 5px rgba(0,0,0,0.06);
+}
+
+.category-overlay {
+  position: static;
+  display: none;
+  width: 100%;
+  pointer-events: auto;
+}
+
+#categoryChangeSection select {
+  width: 100%;
+  height: auto;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1em;
+  padding: 10px;
+  box-sizing: border-box;
+  pointer-events: auto;
 }
 
 /* Chips bar when placed inside the autocomplete wrapper */
@@ -2654,6 +3008,13 @@ input#clientAutocomplete, select#clientSelect {
   display: none !important;
 }
 
+/* Mobile: show only the first two recent clients to keep the row compact */
+@media (max-width: 640px) {
+  #recentClientsBar .recent-pill:nth-child(n+3) {
+    display: none !important;
+  }
+}
+
 /* keep the pill compact now that only the name shows */
 #recentClientsBar .recent-pill {
   gap: 0.25rem;
@@ -2693,13 +3054,14 @@ input#clientAutocomplete, select#clientSelect {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: nowrap;
 }
 
-/* Let chips wrap and consume available width */
+/* Keep chips on a single line; JS will shrink font-size to fit */
 .recent-row#recentRow .recent-bar.inside-autocomplete {
   flex: 1 1 auto;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
   min-width: 0;
   margin-right: 0px;
@@ -2759,6 +3121,7 @@ input#clientAutocomplete, select#clientSelect {
   flex-direction: column;  /* NEW over CLIENT */
   align-items: center;
   gap: 2px;                /* single, small gap between lines */
+  min-width: 0;            /* allow shrink-to-fit alongside recent chips */
 }
 
 /* Stack spans cleanly (no extra breaks) */
@@ -2791,6 +3154,57 @@ input#clientAutocomplete, select#clientSelect {
   display: inline !important;       /* inline so they sit on one line */
 }
 
+/* === Keep all four recent items shrinking together ====================== */
+#recentRow { 
+  font-size: 1rem;                 /* shared base size for the bar */
+}
+
+/* Let every direct child shrink (3 recents + NEW CLIENT) */
+#recentRow > * {
+  flex-shrink: 1;
+  font-size: 1em !important;      /* keep siblings on the same scale */
+}
+
+#recentRow .recent-bar.inside-autocomplete {
+  flex-wrap: nowrap;               /* JS will shrink font-size instead of wrapping */
+  min-width: 0;                    /* allow chips to contract */
+}
+
+/* Prevent chip text from overflowing when the bar shrinks */
+#recentRow .recent-pill {
+  min-width: 0;
+}
+
+#recentRow .recent-pill .rc-name {
+  display: block;
+  min-width: 0;
+  overflow: visible;            /* never hide behind ellipses */
+  text-overflow: clip;          /* rely on font shrink instead */
+}
+
+/* Keep pill text bound to the shared row font size */
+#recentRow .recent-pill,
+#recentRow .recent-pill .rc-name {
+  font-size: 1em !important;
+}
+
+/* NEW CLIENT shrinks with the row and keeps em-based padding */
+#addNewClientBtn,
+#addNewClientBtn.recent-add-btn {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 1em !important;       /* lock to row sizing */
+  padding: 0.45em 0.9em;
+  gap: 0.35em;
+  margin-right: 0 !important;      /* avoid forced overflow */
+  white-space: nowrap !important;  /* stay on one line; shrink instead */
+}
+
+#addNewClientBtn span {
+  display: inline-block !important;
+  font-size: 1em !important;       /* keep both words the same scale */
+}
+
 .cat-pill {
   position: relative;
   display: inline-flex;
@@ -2815,8 +3229,21 @@ input#clientAutocomplete, select#clientSelect {
 
 /* Calendar icon button */
 .calendar-btn {
-  border: 0; background: #21a45e; color: #fff; border-radius: 8px;
-  height: 32px; width: 36px; cursor: pointer;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  border-radius: 4px;
+  height: 40px;
+  width: 40px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+}
+.calendar-btn .calendar-emoji {
+  font-size: 28px;
+  line-height: 1;
 }
 
 /* Modal */
@@ -2841,6 +3268,70 @@ input#clientAutocomplete, select#clientSelect {
 }
 .btn-secondary { background: #efefef; }
 .btn-primary { background: #21a45e; color: #fff; }
+
+/* Appointment scheduling modal */
+.appointment-modal-card {
+  width: min(520px, 92vw);
+  height: auto;
+  box-shadow: 0 12px 40px rgba(0,0,0,.18);
+}
+
+.appointment-modal-header {
+  gap: 6px;
+}
+
+.appointment-modal-title {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.appointment-modal-subtitle {
+  font-size: 13px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+.appointment-modal-body {
+  background: #f8fafc;
+  padding: 18px 18px 10px;
+  gap: 14px;
+}
+
+.appointment-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.appointment-field input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+}
+
+.appointment-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.appointment-icon-btn {
+  background-color: transparent;
+  color: #1f2937;
+  width: 44px;
+  height: 44px;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
 
 
 </style>
@@ -2895,8 +3386,8 @@ input#clientAutocomplete, select#clientSelect {
 
   <!-- Calendar button -->
   <button id="calendarBtn" class="calendar-btn" title="Open calendar">
-    <!-- simple calendar glyph -->
-    🗓️
+    <!-- simple calendar glyph (text style, no color fill) -->
+    <span class="calendar-emoji" aria-hidden="true">&#x1F5D3;&#xFE0E;</span>
   </button>
 </div>
 
@@ -2913,55 +3404,50 @@ input#clientAutocomplete, select#clientSelect {
 
 
 
-<div class="labels-container">
-  <div id="labelsDisplay">
-    <!-- Labels will be displayed here -->
+  <div class="labels-container">
+    <div class="labels-notes-left">
+      <div class="labels-top-row">
+          <select id="labelsDropdown" onchange="addLabelToClient(this.value)">
+            <option value="" disabled selected>ADD</option>
+          <!-- Options will be dynamically populated here -->
+          <option value="NEW LABEL">NEW LABEL</option>
+        </select>
+        <div id="labelsChipSlot" class="labels-chip-slot"></div>
+      </div>
+      <div id="labelsDisplay">
+        <!-- Labels will be displayed here -->
+      </div>
+      <div id="notesDisplay">
+          <!-- Notes will be displayed here -->
+      </div>
+    </div>
+    <div id="labelsAdditionSection">
+        <div id="categoryChangeSection" class="category-overlay" aria-hidden="true" style="display:none;">
+          <select id="categorySelect" class="category-select">
+            <option value="">▼</option>
+          </select>
+        </div>
+
+      <div id="labelsButtonsRow" class="labels-buttons-row"></div>
+
+
+
+    </div>
   </div>
-  <div id="labelsAdditionSection">
-       <select id="labelsDropdown" onchange="addLabelToClient(this.value)" style="width: 100%;">
-      <option value="" disabled selected>Add a Label</option>
-      <!-- Options will be dynamically populated here -->
-      <option value="NEW LABEL">NEW LABEL</option>
-    </select>
-   
-   
-   
-
-  </div>
-</div>
 
 
 
 
-
-
-
-<!-- The rest of your HTML remains unchanged -->
-
-
-<!-- Labels display section -->
-
-
-<!-- Notes display, shown after client selection -->
-<div id="notesDisplay">
-    <!-- Notes will be displayed here -->
-</div>
-
-<!-- Rest of your code... -->
-
-
-
-              <!-- Notes will be displayed here -->
 
   <div id="workSectionsContainer" style="display: flex; flex-direction: row; justify-content: space-between; align-items: stretch;">
 
     
     <!-- Past Work submission -->
-<div id="pastWorkSection" style="flex: 1 1 100%; padding-right: 0; display: none; flex-direction: column; justify-content: flex-end; width: 100%; max-width: 100%;">
-        <textarea id="newPastWork" class="past-work-textarea"></textarea>
-        <br>
-        <button class="update-team-task-btn" onclick="submitPastWork()">Submit Note</button>
-        <br>
+    <div id="pastWorkSection" style="flex: 1 1 100%; padding-right: 0; display: none; flex-direction: column; justify-content: flex-end; width: 100%; max-width: 100%;">
+        <div class="past-work-wrapper">
+          <textarea id="newPastWork" class="past-work-textarea"></textarea>
+          <button type="button" class="update-team-task-btn" onclick="submitPastWork()">SUBMIT</button>
+        </div>
 <!-- In-Progress (Loaded) with left-side bulb -->
 <div class="inprogress-bulb-row" style="background-color:#90EE90; padding:10px; border:1px solid #ccc; border-radius:4px; display:flex; align-items:flex-start; gap:10px;">
   <span aria-hidden="true" style="font-size:1.25em; line-height:1; margin-top:4px;">💡</span>
@@ -2992,35 +3478,36 @@ input#clientAutocomplete, select#clientSelect {
     <!-- Clients will be displayed here -->
 </div>
 
-<!-- Category update selection, initially hidden until a client is selected -->
-<div id="categoryChangeSection" style="display:none;">
-  <select id="categorySelect" class="category-select">
-    <option value="">Select a category...</option>
-  </select>
-</div>
-
-
-
-
 <br>
-<!-- Button to show appointment scheduling inputs -->
-<button id="addAppointmentBtn" class="secondary-button" onclick="showAppointmentInput()" style="display:none;">Add APPOINTMENT to Calendar for This Client</button>
-
-<!-- Appointment scheduling inputs, initially hidden -->
-<div id="appointmentInputSection" style="display:none;">
-    <label for="appointmentDate" class="appointment-label">Appointment Date:</label>
-    <input type="date" id="appointmentDate" class="appointment-input">
-
-    <label for="appointmentTime" class="appointment-label">Appointment Time:</label>
-    <input type="time" id="appointmentTime" class="appointment-input">
-
-    <button onclick="submitAppointmentToCalendar()">Submit APPOINTMENT to Calendar</button>
-</div>
-
-
-
 <!-- Add the HIDE CLIENT NOTES button here -->
 <button id="hideClientNotesBtn" class="secondary-button" onclick="hideClientNotes()" style="display:none;">HIDE CLIENT NOTES</button>
+
+<!-- Appointment scheduling modal -->
+<div id="appointmentModal" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="appointmentModalTitle" aria-hidden="true">
+  <div class="modal-card appointment-modal-card">
+    <div class="modal-header appointment-modal-header">
+      <div>
+        <div id="appointmentModalTitle" class="appointment-modal-title">Schedule appointment</div>
+        <div id="appointmentModalSubtitle" class="appointment-modal-subtitle">Choose a date and start time for this client.</div>
+      </div>
+      <button type="button" class="modal-close" aria-label="Close appointment modal" onclick="closeAppointmentModal()">✕</button>
+    </div>
+    <div class="modal-body appointment-modal-body">
+      <label class="appointment-field">
+        <span>Date</span>
+        <input type="date" id="appointmentDate" class="appointment-input">
+      </label>
+      <label class="appointment-field">
+        <span>Start time</span>
+        <input type="time" id="appointmentTime" class="appointment-input">
+      </label>
+    </div>
+    <div class="modal-footer appointment-modal-footer">
+      <button type="button" class="btn-secondary" onclick="closeAppointmentModal()">Cancel</button>
+      <button type="button" class="btn-primary" onclick="submitAppointmentToCalendar()">Add to calendar</button>
+    </div>
+  </div>
+</div>
 
 
 <hr style="border: 4px solid black;">
@@ -3304,7 +3791,7 @@ function fitElementTextToOneLine(el, opts){
 function fitClientInputNow(){
   const input = document.getElementById('clientAutocomplete');
   if (!input) return;
-  fitElementTextToOneLine(input, { minPx: 10 });
+  fitElementTextToOneLine(input, { minPx: 6 });
 }
 
 /* === HELPER: shrink a suggestion row only if it overflows === */
@@ -4350,6 +4837,16 @@ document.getElementById('scrollBottomBtn').style.display = 'inline-block';
 }
 /***** END SNIPPET *****/
 
+    // Hide label controls until a client is selected
+    (function(){
+      var labelsTopRow = document.querySelector('.labels-top-row');
+      var labelsDisplay = document.getElementById('labelsDisplay');
+      var labelsAddition = document.getElementById('labelsAdditionSection');
+      if (labelsTopRow) labelsTopRow.style.display = 'none';
+      if (labelsDisplay) labelsDisplay.style.display = 'none';
+      if (labelsAddition) labelsAddition.style.display = 'none';
+    })();
+
     google.script.run.withSuccessHandler(function(data){
       clientsData = data;
       rebuildClientNameIndex();
@@ -4394,18 +4891,58 @@ function ensureHeaderSpacing() {
     setTimeout(adjustBodyMarginTop, 0);
   } catch (e) {}
 }
-/* === RECENT CHIPS: update only when client notes are HIDDEN (MAX 3) === */
-window.__recentClients = Array.isArray(window.__recentClients) ? window.__recentClients : []; // most-recent-first, max 3
+/* === RECENT CHIPS: update only when client notes are HIDDEN (cache 4, show up to 3) === */
+// Keep an extra slot in memory so we can drop the active client and still show up to 3 recents
+var RECENT_CACHE_LIMIT = 4;
+window.__recentClients = Array.isArray(window.__recentClients) ? window.__recentClients : []; // most-recent-first, max 4
+
+function getActiveClientName() {
+  // Prefer the tracked autocomplete text, then fall back to the select/dropdown
+  if (typeof currentClientName !== 'undefined' && currentClientName) {
+    return String(currentClientName).trim();
+  }
+
+  var select = document.getElementById('clientSelect');
+  if (select && select.value) return String(select.value).trim();
+
+  var auto = document.getElementById('clientAutocomplete');
+  if (auto && auto.value) return String(auto.value).trim();
+
+  return '';
+}
+
+function formatRecentClientName(name) {
+  if (!name) return '';
+
+  const cleaned = String(name)
+    .replace(/\[.*?\]/g, ' ')
+    .replace(/dob[^a-zA-Z]*/gi, ' ');
+
+  const parts = cleaned.match(/[A-Za-z]+/g);
+  if (!parts || !parts.length) return '';
+
+  const firstInitial = parts[0] ? parts[0][0].toUpperCase() : '';
+  const lastName = parts.length > 1 ? parts[parts.length - 1].toUpperCase() : '';
+
+  return lastName ? `${firstInitial} ${lastName}` : firstInitial;
+}
 
 function renderRecentClientsBar(){
   var bar = document.getElementById('recentClientsBar');
   if (!bar) return;
 
-  // Enforce exactly 3 max at render time as well
-  var list = (window.__recentClients || []).slice(0, 3);
+  // Desktop can show up to 3 recents; on narrow/mobile viewports, cap at 2
+  var maxRecents = (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 640px)').matches) ? 2 : 3;
+
+  // Enforce the viewport-specific cap at render time as well, excluding the active client
+  var active = getActiveClientName();
+  var activeNorm = active ? active.toLowerCase() : '';
+  var list = (window.__recentClients || []).filter(function(name){
+    return !activeNorm || String(name).toLowerCase() !== activeNorm;
+  }).slice(0, maxRecents);
 
   bar.innerHTML = list.map(function(name){
-    return '<span class="recent-pill"><span class="rc-name">'+ escapeHTML(String(name || '')) +'</span></span>';
+    return '<span class="recent-pill"><span class="rc-name">'+ escapeHTML(formatRecentClientName(name || '')) +'</span></span>';
   }).join('');
 
   // keep the fixed header spacing correct if anything changes height
@@ -4413,6 +4950,11 @@ function renderRecentClientsBar(){
 
   // After drawing chips, fit the whole row to one line
   if (typeof fitRecentRowOneLine === 'function') fitRecentRowOneLine();
+}
+
+// Repaint the recent chips when the viewport crosses the mobile breakpoint
+if (typeof window !== 'undefined' && window.addEventListener) {
+  window.addEventListener('resize', renderRecentClientsBar);
 }
 
 function updateRecentsOnHide(clientName){
@@ -4427,8 +4969,8 @@ function updateRecentsOnHide(clientName){
   // add to the front
   arr.unshift(clientName);
 
-  // cap at 3
-  window.__recentClients = arr.slice(0, 3);
+  // cap at cache limit so we can drop the active client and still show 3 recents
+  window.__recentClients = arr.slice(0, RECENT_CACHE_LIMIT);
 
   // persist (merge with current UI state if available)
   try {
@@ -4455,7 +4997,7 @@ function updateRecentsOnHide(clientName){
     if (typeof restoreUIState === 'function') {
       var st = restoreUIState();
       if (st && Array.isArray(st.recents)) {
-        window.__recentClients = st.recents.slice(0, 3);
+        window.__recentClients = st.recents.slice(0, RECENT_CACHE_LIMIT);
         renderRecentClientsBar();
         return;
       }
@@ -4465,7 +5007,7 @@ function updateRecentsOnHide(clientName){
       if (raw) {
         var arr = JSON.parse(raw);
         if (Array.isArray(arr)) {
-          window.__recentClients = arr.slice(0, 3);
+          window.__recentClients = arr.slice(0, RECENT_CACHE_LIMIT);
           renderRecentClientsBar();
         }
       }
@@ -4502,7 +5044,7 @@ function fitRecentRowOneLine() {
   // Early exit: if it already fits, keep the big size
   if (row.scrollWidth <= available) return;
 
-  var minPx = 10;                 // don't go below 10px (tweak if you want)
+  var minPx = 6;                  // allow tighter shrink before wrapping
   var lo = minPx, hi = row.__baseFontPx, best = lo;
 
   // Binary search for the largest font-size that still fits
@@ -4558,6 +5100,66 @@ window.addEventListener('load',   fitRecentRowOneLine);
 
   // 4) Run once after load
   window.addEventListener('load', ensureHeaderSpacing);
+})();
+
+// Hide the recent clients/new client bar when scrolling down to maximize space
+(function installRecentHideOnScroll(){
+  var container = document.querySelector('.client-container');
+  var row = document.getElementById('recentRow');
+  if (!container || !row) return;
+
+  var lastY = window.scrollY || document.documentElement.scrollTop || 0;
+  var ticking = false;
+  var revealAt = 30;   // show once the user scrolls a bit
+  var collapseAt = 12; // collapse again only when back near the very top
+
+  function applyState(shouldHide){
+    var changed = false;
+    var suggestionsEl = document.getElementById('autocompleteSuggestions');
+    if (shouldHide && !container.classList.contains('hide-recents')) {
+      container.classList.add('hide-recents');
+      changed = true;
+    } else if (!shouldHide && container.classList.contains('hide-recents')) {
+      container.classList.remove('hide-recents');
+      changed = true;
+    }
+
+    if (suggestionsEl) {
+      if (shouldHide) {
+        suggestionsEl.classList.add('is-contracted');
+        suggestionsEl.style.display = 'none';
+      } else {
+        suggestionsEl.classList.remove('is-contracted');
+        suggestionsEl.style.display = '';
+      }
+    }
+
+    if (changed && typeof ensureHeaderSpacing === 'function') {
+      ensureHeaderSpacing();
+    }
+  }
+
+  function onScrollPosition(y){
+    if (y <= collapseAt) {
+      applyState(true);
+    } else if (y >= revealAt) {
+      applyState(false);
+    }
+
+    lastY = y;
+    ticking = false;
+  }
+
+  window.addEventListener('scroll', function(){
+    var currentY = window.scrollY || document.documentElement.scrollTop || 0;
+    if (!ticking) {
+      ticking = true;
+      requestAnimationFrame(function(){ onScrollPosition(currentY); });
+    }
+  }, { passive: true });
+
+  // Start collapsed until the user scrolls down a bit
+  applyState((window.scrollY || document.documentElement.scrollTop || 0) <= collapseAt);
 })();
 
 
@@ -4647,6 +5249,10 @@ var inputElement = document.getElementById('clientAutocomplete');
     requestAnimationFrame(fitClientInputNow);
   });
 
+  window.addEventListener('resize', function(){
+    requestAnimationFrame(fitClientInputNow);
+  });
+
   // Programmatic changes (e.g., when a client is loaded into the input)
   // Wrap showClientNotes to run the fitter after it sets the input value.
   (function wrapShowClientNotesOnce(){
@@ -4687,6 +5293,12 @@ var inputElement = document.getElementById('clientAutocomplete');
       enumerable: false
     });
   })();
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', function(){
+      requestAnimationFrame(fitClientInputNow);
+    });
+  }
 
 
   // Also fit immediately on first load (in case a value is prefilled)
@@ -5034,6 +5646,11 @@ function showClientNotes() {
     if (clientName) {
         clientAutocomplete.style.color = 'black'; // Set text color to black when client is loaded
         currentClientName = clientAutocomplete.value; // Store the current client name
+
+        // Log the open client so the recent buttons stay populated on first load
+        if (typeof onClientOpened === 'function') {
+            onClientOpened(clientName);
+        }
     } else {
         clientAutocomplete.style.color = ''; // Default color
         currentClientName = '';
@@ -5041,8 +5658,20 @@ function showClientNotes() {
 // Reset values and set displays based on selection
 document.getElementById('newPastWork').value = '';
 document.getElementById('categorySelect').value = '';
+setCategoryPlaceholderText('');
+hideCategoryOverlay();
 
 var displayStyle = clientName ? 'block' : 'none';
+
+// Only show the labels row and label list when a client is loaded
+var labelsTopRow = document.querySelector('.labels-top-row');
+if (labelsTopRow) {
+  labelsTopRow.style.display = clientName ? '' : 'none';
+}
+var labelsDisplayEl = document.getElementById('labelsDisplay');
+if (labelsDisplayEl) {
+  labelsDisplayEl.style.display = clientName ? '' : 'none';
+}
 
 // Show only the Past Work section (Future Work is deprecated)
 document.getElementById('workSectionsContainer').style.display = clientName ? 'flex' : 'none';
@@ -5054,10 +5683,15 @@ if (fw) fw.style.display = 'none';
 
 // Keep the rest of the UI behavior unchanged
 document.getElementById('categoryChangeSection').style.display = displayStyle;
-document.getElementById('appointmentInputSection').style.display = 'none';
-document.getElementById('addAppointmentBtn').style.display = displayStyle;
+var appointmentBtn = document.getElementById('addAppointmentBtn');
+if (appointmentBtn) {
+  appointmentBtn.style.display = displayStyle;
+}
 document.getElementById('labelsAdditionSection').style.display = displayStyle;
-document.getElementById('hideClientNotesBtn').style.display = displayStyle; // Show or hide the button
+var hideClientNotesBtn = document.getElementById('hideClientNotesBtn');
+if (hideClientNotesBtn) {
+  hideClientNotesBtn.style.display = 'none';
+}
 document.getElementById('notesDisplay').style.display = 'block';
 
 
@@ -5094,6 +5728,8 @@ displayClientDetails(data);
 
 // Update the category select value based on fetched client data
 updateCategorySelectValue(data.category);
+setCategoryPlaceholderText(data.category || __currentCategory || '');
+positionCategoryDropdownOverAutocomplete();
 
         pendingOps--;
         if (pendingOps === 0) {
@@ -5120,12 +5756,16 @@ inputElement.addEventListener('click', function() {
     if (suggestions) {
         suggestions.innerHTML = ''; // Clear existing suggestions
     }
+    hideCategoryOverlay();
 });
 
 // Reset text color when the user types
 inputElement.addEventListener('input', function() {
     inputElement.style.color = ''; // Reset color to default
+    hideCategoryOverlay();
 });
+
+window.addEventListener('resize', positionCategoryDropdownOverAutocomplete);
 
 function setupColumnDropdowns(data) {
     setupColumnBDropdown(data);
@@ -5157,6 +5797,8 @@ function wireCategorySelectChange(){
     const newCat = (sel.value || '').trim();
     // Dedupe: don't call server if the value didn't actually change
     if (newCat === (__currentCategory || '')) return;
+    setCategoryPlaceholderText(newCat || '');
+    positionCategoryDropdownOverAutocomplete();
     requestCategoryChange(newCat);
   });
 
@@ -5170,6 +5812,8 @@ function updateCategorySelectValue(newValue){
   __suppressCategoryChange = true;
   sel.value = (newValue || '');
   __currentCategory = (newValue || '');  // keep our local notion in sync
+  setCategoryPlaceholderText(__currentCategory || '');
+  positionCategoryDropdownOverAutocomplete();
   // release on next tick so real user changes still work
   setTimeout(() => { __suppressCategoryChange = false; }, 0);
 }
@@ -5189,6 +5833,8 @@ function requestCategoryChange(newCategory){
       if (token !== __categoryReqToken) return;
       __currentCategory = newCategory;                       // lock in
       __categoryInFlight = false;
+      setCategoryPlaceholderText(__currentCategory || '');
+      positionCategoryDropdownOverAutocomplete();
       try { if (typeof hideLoadingBar === 'function') hideLoadingBar(); } catch(_){}
       // Optional toast near the select
       try {
@@ -5347,6 +5993,13 @@ function labelContainsEmoji(labelText) {
 function displayLabels(labelsArray) {
     var labelsDisplay = document.getElementById('labelsDisplay');
     labelsDisplay.innerHTML = '';
+
+    // Reuse the dropdown as an inline label-like control at the end of the list
+    var addLabelDropdown = document.getElementById('labelsDropdown');
+    if (addLabelDropdown) {
+        addLabelDropdown.classList.add('label-box', 'add-label-dropdown');
+        addLabelDropdown.selectedIndex = 0; // Keep placeholder visible after refresh
+    }
     
     var emojiLabels = [];
     var nonEmojiLabels = [];
@@ -5383,6 +6036,10 @@ function displayLabels(labelsArray) {
 
         labelsDisplay.appendChild(labelDiv);
     });
+
+    if (addLabelDropdown) {
+        labelsDisplay.appendChild(addLabelDropdown);
+    }
 }
 
 
@@ -5635,7 +6292,7 @@ REPLACE ENTIRE toggleNotesVisibility FUNCTION WITH THIS
 REPLACE ENTIRE toggleNotesVisibility FUNCTION WITH THIS
 ***************************************/
 function toggleNotesVisibility() {
-  // Capture previous state to detect a click on the "LESS" button
+  // Capture previous state to detect a click on the "-" button
   var wasExpanded = !!notesExpanded;
 
   // Flip the global boolean
@@ -5652,11 +6309,11 @@ function toggleNotesVisibility() {
 
   var toggleButton = document.getElementById('toggleNotesButton');
   if (toggleButton) {
-    // If expanded now, the button should read LESS; if collapsed, MORE
-    toggleButton.innerText = notesExpanded ? 'LESS' : 'MORE';
+    // If expanded now, the button should read -; if collapsed, +
+    toggleButton.innerText = notesExpanded ? '-' : '+';
   }
 
-  // If the user just clicked the LESS button (i.e., was expanded → now collapsed),
+  // If the user just clicked the - button (i.e., was expanded → now collapsed),
   // scroll to the top.
   if (wasExpanded && !notesExpanded) {
     // Use the global helper (defined below). If you have your own scrollToTop already, this will call it.
@@ -5768,6 +6425,10 @@ function displayNotes(notes) {
   var notesDisplay = document.getElementById('notesDisplay');
   notesDisplay.innerHTML = '';
 
+  // Toggle note action visibility based on whether a client is selected
+  var hasClient = !!((document.getElementById('clientSelect') || {}).value);
+  var displayStyle = hasClient ? 'flex' : 'none';
+
   if (!notes || notes.length === 0) {
     notesDisplay.innerHTML = '<p>No notes to display.</p>';
     return;
@@ -5808,27 +6469,36 @@ function displayNotes(notes) {
   unhighlightedWrap.style.gap = '5px';
   container.appendChild(unhighlightedWrap);
 
-  // === BUTTON ROW (MORE/LESS + ✏️) ===
-  var buttonRow = document.createElement('div');
-  buttonRow.style.display = 'inline-flex';
-  buttonRow.style.alignSelf = 'center';
-  buttonRow.style.alignItems = 'center';
-  buttonRow.style.margin = '6px 0';
-  buttonRow.style.gap = '0';
-
   var toggleBtn = document.createElement('button');
   toggleBtn.id = 'toggleNotesButton';
   toggleBtn.onclick = toggleNotesVisibility;
-  toggleBtn.style.fontSize = '0.66em';
-  toggleBtn.innerText = 'MORE';
+  toggleBtn.style.fontSize = '0.5em';
+  toggleBtn.style.padding = '0';
+  toggleBtn.style.width = '24px';
+  toggleBtn.style.height = '24px';
+  toggleBtn.innerText = '+';
+
+  var toggleRow = document.createElement('div');
+  toggleRow.style.display = 'flex';
+  toggleRow.style.justifyContent = 'center';
+  toggleRow.style.margin = '0';
+  toggleRow.appendChild(toggleBtn);
+  container.appendChild(toggleRow);
+
+  // === BUTTON ROW (moved beside the label dropdown) ===
+  var buttonRow = document.createElement('div');
+  buttonRow.className = 'labels-buttons-row';
+  buttonRow.style.flexDirection = 'column';
+  buttonRow.style.alignItems = 'center';
+  buttonRow.style.gap = '10px';
 
   var editBtn = document.createElement('button');
   editBtn.id = 'editNotesButton';
   editBtn.className = 'secondary-button inline-button';
   editBtn.title = 'Edit notes';
   editBtn.setAttribute('aria-label', 'Edit notes');
-  editBtn.style.fontSize = '0.66em';
-  editBtn.style.marginLeft = '6px';
+  editBtn.style.fontSize = '1em';
+  editBtn.style.marginLeft = '0';
   editBtn.innerHTML = '✏️';
   editBtn.onclick = function (e) {
     e.stopPropagation();
@@ -5843,9 +6513,49 @@ function displayNotes(notes) {
     editCombinedNotes(container, flattened.join('\n'));
   };
 
-  buttonRow.appendChild(toggleBtn);
+  var apptBtn = document.getElementById('addAppointmentBtn');
+  if (!apptBtn) {
+    apptBtn = document.createElement('button');
+    apptBtn.id = 'addAppointmentBtn';
+    apptBtn.type = 'button';
+  }
+  apptBtn.className = 'secondary-button inline-button appointment-icon-btn';
+  apptBtn.title = 'Add appointment to calendar for this client';
+  apptBtn.setAttribute('aria-label', 'Add appointment to calendar for this client');
+  apptBtn.innerHTML = '📅';
+  apptBtn.style.display = displayStyle;
+  apptBtn.onclick = function (e) {
+    e.stopPropagation();
+    showAppointmentInput();
+  };
+
+  buttonRow.appendChild(apptBtn);
   buttonRow.appendChild(editBtn);
-  container.appendChild(buttonRow);
+
+  var labelsButtonsRow = document.getElementById('labelsButtonsRow');
+  if (labelsButtonsRow) {
+    labelsButtonsRow.innerHTML = '';
+    labelsButtonsRow.appendChild(buttonRow);
+  } else {
+    container.appendChild(buttonRow);
+  }
+
+  var chipSlot = document.getElementById('labelsChipSlot');
+  if (chipSlot) {
+    chipSlot.innerHTML = '';
+  }
+
+  var chipInfo = window.__chipForCurrentClient || { initials: "", date: "" };
+  var currentClientId = document.getElementById('clientSelect').value || "";
+  var noteChipEl = null;
+  if (currentClientId) {
+    noteChipEl = createChipElement(
+      currentClientId,
+      (chipInfo.initials || "").toUpperCase(),
+      chipInfo.date || ""
+    );
+    noteChipEl.classList.add('note-chip-inline');
+  }
 
   // === HIGHLIGHTED (newest 3 blocks) ===
   var highlightedWrap = document.createElement('div');
@@ -5876,17 +6586,6 @@ function displayNotes(notes) {
       div.style.backgroundColor = 'yellow';
       highlightedWrap.appendChild(div);
 
-      // CHIP only on the newest block (the very last one)
-      if (i === lastIdx) {
-        var chipInfo = window.__chipForCurrentClient || { initials: "", date: "" };
-        var chipEl = createChipElement(
-          document.getElementById('clientSelect').value || "",
-          (chipInfo.initials || "").toUpperCase(),
-          chipInfo.date || ""
-        );
-        div.appendChild(chipEl);
-      }
-
     } else {
       // Older blocks → hidden by default; toggled by MORE/LESS
       div.classList.add('older-note');
@@ -5895,10 +6594,21 @@ function displayNotes(notes) {
     }
   });
 
-// Always show the row; only hide the MORE/LESS button if no older blocks
+  if (noteChipEl && highlightedWrap.children.length) {
+    var latestNote = highlightedWrap.lastElementChild;
+    if (latestNote) {
+      // Remove trailing line breaks so the chip sits on the last text line
+      latestNote.innerHTML = latestNote.innerHTML.replace(/(<br\s*\/?>(\s|&nbsp;)*)+$/i, '');
+      // Ensure a single space before the chip for inline alignment with the final text
+      latestNote.append(document.createTextNode(' '));
+      latestNote.appendChild(noteChipEl);
+    }
+  }
+
+// Always show the row; only hide the toggle button if no older blocks
 var hasOlder = unhighlightedWrap.children.length > 0;
 toggleBtn.style.display = hasOlder ? 'inline-block' : 'none';
-buttonRow.style.display = 'inline-flex'; // keep the row visible so ✏️ stays
+buttonRow.style.display = 'flex'; // keep the row visible so ✏️ stays
 
 
   notesDisplay.appendChild(container);
@@ -6137,6 +6847,17 @@ function showCalendarInput() {
     }
 }
 
+function logPastWorkSubmissionToInbox(noteText, clientName) {
+    var trimmed = (noteText || '').trim();
+    if (!trimmed) return;
+
+    try {
+        google.script.run.inboxAddNote(trimmed, clientName || '');
+    } catch (e) {
+        console.log('Unable to mirror submit to inbox:', e);
+    }
+}
+
 function submitPastWork() {
     var clientName = document.getElementById('clientSelect').value;
     var pastWorkContent = document.getElementById('newPastWork').value;
@@ -6151,6 +6872,8 @@ showStarAnimation(); // SNIPPET #3
 
 
             alert('Past work updated successfully.');
+
+            logPastWorkSubmissionToInbox(pastWorkContent, clientName);
 
 retriggerTopClientsFilter();
 
@@ -6737,12 +7460,46 @@ function showClientsByCategory(clients) {
 }
 
 function showAppointmentInput() {
-    var appointmentSection = document.getElementById('appointmentInputSection');
-    if (appointmentSection.style.display === 'none' || appointmentSection.style.display === '') {
-        appointmentSection.style.display = 'block';
-    } else {
-        appointmentSection.style.display = 'none';
+    var modal = document.getElementById('appointmentModal');
+    if (!modal) return;
+
+    var clientName = document.getElementById('clientSelect').value;
+    var now = new Date();
+    var dateInput = document.getElementById('appointmentDate');
+    var timeInput = document.getElementById('appointmentTime');
+    var modalTitle = document.getElementById('appointmentModalTitle');
+    var modalSubtitle = document.getElementById('appointmentModalSubtitle');
+
+    if (modalTitle) {
+      modalTitle.textContent = clientName ? `Schedule appointment for ${clientName}` : 'Schedule appointment';
     }
+    if (modalSubtitle) {
+      modalSubtitle.textContent = 'Choose a date and start time for this client.';
+    }
+
+    if (dateInput && !dateInput.value) {
+      dateInput.value = now.toISOString().split('T')[0];
+    }
+    if (timeInput && !timeInput.value) {
+      var hours = String(now.getHours()).padStart(2, '0');
+      var minutes = String(now.getMinutes()).padStart(2, '0');
+      timeInput.value = `${hours}:${minutes}`;
+    }
+
+    modal.style.display = 'flex';
+    modal.setAttribute('aria-hidden', 'false');
+
+    if (dateInput) {
+      dateInput.focus();
+    }
+}
+
+function closeAppointmentModal() {
+    var modal = document.getElementById('appointmentModal');
+    if (!modal) return;
+
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden', 'true');
 }
 
 function submitAppointmentToCalendar() {
@@ -6750,10 +7507,16 @@ function submitAppointmentToCalendar() {
     var appointmentDate = document.getElementById('appointmentDate').value;
     var appointmentTime = document.getElementById('appointmentTime').value;
 
+    if (!appointmentDate || !appointmentTime) {
+        alert('Please select both a date and start time.');
+        return;
+    }
+
     google.script.run.withSuccessHandler(function(response) {
         alert(response); // Display the returned message
         // Assuming 'refreshClientData' is a function to refresh client data
         refreshClientData(); // Call this function to refresh the client data
+        closeAppointmentModal();
     }).addAppointmentToCalendar(clientName, appointmentDate, appointmentTime);
 }
 
@@ -6802,47 +7565,69 @@ var suggestions; // Keep this global to store suggestions
 
 function autocompleteClient() {
   var clientSelect = document.getElementById('clientSelect');
+  var inputElement = document.getElementById('clientAutocomplete');
+  if (!inputElement) return;
 
-    var inputElement = document.getElementById('clientAutocomplete');
-    suggestions = document.getElementById('autocompleteSuggestions');
-    if (!suggestions) {
-        suggestions = document.createElement('div');
-        suggestions.id = 'autocompleteSuggestions';
-        inputElement.parentNode.appendChild(suggestions);
+  suggestions = document.getElementById('autocompleteSuggestions');
+  if (!suggestions) {
+    suggestions = document.createElement('div');
+    suggestions.id = 'autocompleteSuggestions';
+    inputElement.parentNode.appendChild(suggestions);
+    var clientContainer = document.querySelector('.client-container');
+    if (clientContainer && clientContainer.classList.contains('hide-recents')) {
+      suggestions.classList.add('is-contracted');
+      suggestions.style.display = 'none';
     }
+  }
 
-    inputElement.addEventListener('input', function() {
-        var inputValue = inputElement.value.toLowerCase();
+  var inputValue = (inputElement.value || '').trim().toLowerCase();
 
-        // Clear current suggestions
-        suggestions.innerHTML = '';
+  // Clear current suggestions
+  suggestions.innerHTML = '';
 
-        // Calculate the available height below the input field
-        var rect = inputElement.getBoundingClientRect();
-        var availableHeight = window.innerHeight - rect.bottom;
+  // Calculate the available height below the input field
+  var rect = inputElement.getBoundingClientRect();
+  var availableHeight = window.innerHeight - rect.bottom;
 
-        // Set the max-height of suggestions to the available height
-        suggestions.style.maxHeight = availableHeight + 'px';
+  // Set the max-height of suggestions to the available height
+  suggestions.style.maxHeight = availableHeight + 'px';
 
-        // Populate suggestions
-        clientsData.forEach(function(client) {
-            if (client.rowText.includes(inputValue) && inputValue) {
-                var suggestion = document.createElement('div');
-                suggestion.innerHTML = client.clientName + (client.category ? ' (' + client.category + ')' : '');
+  if (!inputValue || !Array.isArray(clientsData) || !clientsData.length) {
+    suggestions.style.display = 'none';
+    return;
+  }
 
-                suggestion.onclick = function() {
-                    inputElement.value = this.innerHTML;
-                    clientSelect.value = client.clientName;
-                    showClientNotes();
-                        scrollToTop(); // Add this line to scroll to the top
+  // Populate suggestions using case-insensitive matching against name, category, or row text
+  var matchedClients = clientsData.filter(function(client) {
+    var name = (client.clientName || '').toLowerCase();
+    var category = (client.category || '').toLowerCase();
+    var rowText = (client.rowText || '').toLowerCase();
+    return name.includes(inputValue) || category.includes(inputValue) || rowText.includes(inputValue);
+  });
 
-                    suggestions.innerHTML = ''; // Hide suggestions after selection
-                };
+  if (!matchedClients.length) {
+    suggestions.style.display = 'none';
+    return;
+  }
 
-                suggestions.appendChild(suggestion);
-            }
-        });
-    });
+  matchedClients.forEach(function(client) {
+    var suggestion = document.createElement('div');
+    suggestion.innerHTML = client.clientName + (client.category ? ' (' + client.category + ')' : '');
+
+    suggestion.onclick = function() {
+      inputElement.value = this.innerHTML;
+      if (clientSelect) clientSelect.value = client.clientName;
+      showClientNotes();
+      scrollToTop(); // Add this line to scroll to the top
+
+      suggestions.innerHTML = ''; // Hide suggestions after selection
+      suggestions.style.display = 'none';
+    };
+
+    suggestions.appendChild(suggestion);
+  });
+
+  suggestions.style.display = 'block';
 }
 
 
@@ -6904,9 +7689,20 @@ function selectClientFromButton(clientText) {
 function paintRecentBar(list){
   const wrap = document.getElementById('recentClientsBar');
   if (!wrap) return;
-  if (!list || !list.length) { wrap.innerHTML = ''; return; }
+  const active = (typeof getActiveClientName === 'function') ? getActiveClientName() : '';
+  const activeNorm = active ? String(active).trim().toLowerCase() : '';
 
-  wrap.innerHTML = list.map(e => {
+  const filtered = (list || []).filter(e => {
+    const nm = (e && e.name) ? String(e.name).trim().toLowerCase() : '';
+    return !activeNorm || nm !== activeNorm;
+  });
+
+  if (!filtered.length) { wrap.innerHTML = ''; return; }
+
+  const renderList = filtered.slice(0, 3);
+
+  wrap.innerHTML = renderList.map(e => {
+    const displayName = formatRecentClientName(e.name);
     const muted = e.columnL ? '' : ' rc-muted';
     const cat   = e.category ? `<span class="rc-cat">${e.category}</span>` : '';
     const chip  = (e.chipInitials || e.chipDate)
@@ -6915,7 +7711,7 @@ function paintRecentBar(list){
     return `
       <div class="recent-pill${muted}" data-name="${e.name}" title="${e.name}">
         ${dot}
-        <span class="rc-name">${e.name}</span>
+        <span class="rc-name">${displayName}</span>
         ${cat}
         ${chip}
       </div>`;
@@ -6948,12 +7744,12 @@ function loadRecentBar() {
   // Fast: use cached metadata
   google.script.run
     .withSuccessHandler(list => paintRecentBar(list))
-    .getRecentClients(3, false);
+    .getRecentClients(4, false);
 
   // Optional: refresh metadata in a second pass so chips/categories are up to date
   google.script.run
     .withSuccessHandler(list => paintRecentBar(list))
-    .getRecentClients(3, true);
+    .getRecentClients(4, true);
 }
 
 // Kick it off as soon as DOM is ready
@@ -6963,7 +7759,7 @@ document.addEventListener('DOMContentLoaded', loadRecentBar);
 function onClientOpened(name){
   google.script.run
     .withSuccessHandler(() => loadRecentBar())
-    .logRecentClient(name, 3);
+    .logRecentClient(name, 4);
 }
 
 // If you have a central place that runs when a client is selected, call onClientOpened there.
@@ -7607,14 +8403,67 @@ function updateCategoryLabel() {
     if (clientSelect.value) {
         // Extract client name and category from the selected option
         var clientName = selectedOption.value;
-        var clientCategory = selectedOption.textContent.split(' (')[1].slice(0, -1);
+        var rawText = selectedOption && selectedOption.textContent ? selectedOption.textContent : '';
+        var split = rawText.split(' (');
+        var clientCategory = split.length > 1 ? split[1].slice(0, -1) : '';
+        var effectiveCategory = clientCategory || __currentCategory || '';
 
-        // Updating only the placeholder for the category selection dropdown
-        categorySelect.options[0].text = 'Change Category for ' + clientName + ' (' + clientCategory + ')';
+        // Overlay the dropdown with the current category so it sits on top of the "(Category)" text
+        setCategoryPlaceholderText(effectiveCategory);
+        positionCategoryDropdownOverAutocomplete();
     } else {
-        // Set the placeholder text when no client is selected
-        categorySelect.options[0].text = 'Select a category...';
+        // Set the placeholder text when no client is selected and hide the overlay
+        setCategoryPlaceholderText('');
+        hideCategoryOverlay();
     }
+}
+
+function setCategoryPlaceholderText(text) {
+    var categorySelect = document.getElementById('categorySelect');
+    if (!categorySelect) return;
+
+    var fallbackFromClient = (function() {
+        var clientSel = document.getElementById('clientSelect');
+        if (!clientSel || !clientSel.value || !clientSel.selectedOptions.length) return '';
+        var raw = clientSel.selectedOptions[0].textContent || '';
+        var parts = raw.split(' (');
+        return parts.length > 1 ? parts[1].replace(/\)$/, '') : '';
+    })();
+
+    if (categorySelect.options.length === 0) {
+        var placeholderOption = document.createElement('option');
+        placeholderOption.value = '';
+        categorySelect.appendChild(placeholderOption);
+    }
+
+    var effectiveText = (text || '').trim() || __currentCategory || fallbackFromClient || '▼';
+    if (effectiveText) {
+        __currentCategory = effectiveText;
+    }
+    categorySelect.options[0].text = effectiveText;
+}
+
+function hideCategoryOverlay() {
+    var overlay = document.getElementById('categoryChangeSection');
+    if (overlay) {
+        overlay.style.display = 'none';
+        overlay.setAttribute('aria-hidden', 'true');
+    }
+}
+
+function positionCategoryDropdownOverAutocomplete() {
+    var overlay = document.getElementById('categoryChangeSection');
+    var categorySelect = document.getElementById('categorySelect');
+    var clientSelect = document.getElementById('clientSelect');
+    if (!overlay || !categorySelect || !clientSelect) return;
+
+    if (!clientSelect.value) {
+        hideCategoryOverlay();
+        return;
+    }
+
+    overlay.style.display = 'block';
+    overlay.setAttribute('aria-hidden', 'false');
 }
 
 
@@ -7627,7 +8476,7 @@ function populateLabelsDropdown(labels) {
     // Add a disabled and selected placeholder option at the beginning
     var placeholderOption = document.createElement('option');
     placeholderOption.value = "";
-    placeholderOption.textContent = "Add Label";
+    placeholderOption.textContent = "ADD";
     placeholderOption.disabled = true;
     placeholderOption.selected = true;
     dropdown.appendChild(placeholderOption);
@@ -7711,7 +8560,7 @@ function populateCategoryDropdown(categories) {
 
   var ph = document.createElement('option');
   ph.value = '';
-  ph.textContent = 'Select a category...';
+  ph.textContent = __currentCategory || '';
   sel.appendChild(ph);
 
   (categories || []).forEach(function (cat) {
@@ -7863,7 +8712,6 @@ function hideClientNotes() {
     'workSectionsContainer',
     'pastWorkSection',
     'categoryChangeSection',
-    'appointmentInputSection',
     'addAppointmentBtn',
     'labelsAdditionSection',
     'hideClientNotesBtn'
@@ -7872,6 +8720,10 @@ function hideClientNotes() {
     var el = document.getElementById(id);
     if (el && el.style) el.style.display = 'none';
   });
+
+  if (typeof closeAppointmentModal === 'function') {
+    closeAppointmentModal();
+  }
 
   // Safety: Future Work section should stay hidden if it still exists
   var fw = document.getElementById('futureWorkSection');
@@ -7919,7 +8771,7 @@ function hideClientNotes() {
         return String(n).toLowerCase() !== norm;
       });
       window.__recentClients.unshift(justHiddenClient);
-      window.__recentClients = window.__recentClients.slice(0, 3);
+      window.__recentClients = window.__recentClients.slice(0, RECENT_CACHE_LIMIT);
       if (typeof renderRecentClientsBar === 'function') renderRecentClientsBar();
     }
   }
@@ -8077,7 +8929,7 @@ function displayClient(client, container) {
 
   /* ── Top row: Client button ONLY (no day-of-week dropdown in Top Clients list) ── */
   var topRow = document.createElement('div');
-  topRow.style.cssText = "display:flex; align-items:center;";
+  topRow.style.cssText = "display:flex; align-items:center; justify-content:center; width:100%;";
 
   var clientButton = document.createElement('button');
   clientButton.className = 'inline-button client-button';
@@ -8213,24 +9065,39 @@ function displayClient(client, container) {
 
 function updateCategorySelectValue(clientCategory) {
     var categorySelect = document.getElementById('categorySelect');
-    if (clientCategory) {
-        // Ensure the category exists in the dropdown
+    if (!categorySelect) return;
+
+    var normalizedCategory = (clientCategory || '').trim();
+
+    // Ensure the category exists in the dropdown
+    if (normalizedCategory) {
         var optionExists = Array.from(categorySelect.options).some(function(option) {
-            return option.value === clientCategory;
+            return option.value === normalizedCategory;
         });
 
         // If not, add it to the dropdown
         if (!optionExists) {
             var newOption = document.createElement('option');
-            newOption.value = clientCategory;
-            newOption.textContent = clientCategory;
+            newOption.value = normalizedCategory;
+            newOption.textContent = normalizedCategory;
             categorySelect.appendChild(newOption);
         }
 
-        // Set the dropdown's value to the client's category
-        categorySelect.value = clientCategory;
+        __suppressCategoryChange = true;
+        categorySelect.value = normalizedCategory;
+        __suppressCategoryChange = false;
+
+        __currentCategory = normalizedCategory;
+        setCategoryPlaceholderText(__currentCategory);
+        positionCategoryDropdownOverAutocomplete();
     } else {
+        __suppressCategoryChange = true;
         categorySelect.value = '';
+        __suppressCategoryChange = false;
+
+        __currentCategory = '';
+        setCategoryPlaceholderText(__currentCategory);
+        hideCategoryOverlay();
     }
 }
 
@@ -9348,10 +10215,11 @@ document.addEventListener('DOMContentLoaded', ensureSuggestionsButtonInToolbar);
       const cat = it.category ? `<span class="rc-cat" title="Category">${it.category}</span>` : '';
       const chip = (it.chipInitials || it.chipDate)
           ? `<span class="rc-chip" title="Owner/Date">${(it.chipInitials||'').trim()} ${(it.chipDate||'').trim()}</span>` : '';
+      const displayName = formatRecentClientName(it.name);
       return `
         <button class="recent-pill" onclick="selectClientFromRecent('${escapeHtml(it.name)}')">
           ${dot}
-          <span class="rc-name">${escapeHtml(it.name)}</span>
+          <span class="rc-name">${escapeHtml(displayName)}</span>
           ${cat}
           ${chip}
         </button>
@@ -9412,10 +10280,11 @@ document.addEventListener('DOMContentLoaded', ensureSuggestionsButtonInToolbar);
       const chip = (it.chipInitials || it.chipDate)
         ? `<span class="rc-chip" title="Owner/Date">${escapeHTML(it.chipInitials || '')} ${escapeHTML(it.chipDate || '')}</span>`
         : '';
+      const displayName = formatRecentClientName(it.name);
       return `
         <button class="recent-pill" onclick="selectClientFromRecent('${escapeHTML(it.name)}')">
           ${dot}
-          <span class="rc-name">${escapeHTML(it.name)}</span>
+          <span class="rc-name">${escapeHTML(displayName)}</span>
           ${cat}
           ${chip}
         </button>
