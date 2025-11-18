@@ -32,6 +32,63 @@ function logUsageEvent(entry) {
   sheet.appendRow([action, ts, isTargetUser, userEmail]);
 }
 
+// Generates a PDF snapshot of the first sheet and emails it with the date and "JB" in the subject/body.
+function sendDailyDashboardScreenshot() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var firstSheet = spreadsheet.getSheets()[0];
+
+  var formattedDate = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'EEE, MMM d');
+  var subject = formattedDate + ' JB - Daily Dashboard Snapshot';
+  var body = 'Attached is the dashboard snapshot for ' + formattedDate + ' (JB).';
+
+  var exportUrl = spreadsheet.getUrl().replace(/edit$/, '') +
+    'export?format=pdf' +
+    '&size=letter' +
+    '&portrait=false' +
+    '&fitw=true' +
+    '&top_margin=0.5' +
+    '&bottom_margin=0.5' +
+    '&left_margin=0.5' +
+    '&right_margin=0.5' +
+    '&sheetnames=false' +
+    '&printtitle=false' +
+    '&pagenumbers=false' +
+    '&gridlines=false' +
+    '&fzr=false' +
+    '&gid=' + firstSheet.getSheetId();
+
+  var response = UrlFetchApp.fetch(exportUrl, {
+    headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+    muteHttpExceptions: true
+  });
+
+  var pdfName = 'Dashboard_' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd') + '.pdf';
+  var attachment = response.getBlob().setName(pdfName);
+
+  MailApp.sendEmail({
+    to: 'rbarrio1@alumni.nd.edu',
+    subject: subject,
+    body: body,
+    attachments: [attachment]
+  });
+}
+
+// Creates a daily 8 AM trigger (script time zone) for sending the dashboard snapshot if one does not already exist.
+function ensureDailyScreenshotTrigger() {
+  var handler = 'sendDailyDashboardScreenshot';
+  var existing = ScriptApp.getProjectTriggers().some(function(trigger) {
+    return trigger.getHandlerFunction() === handler;
+  });
+
+  if (!existing) {
+    ScriptApp.newTrigger(handler)
+      .timeBased()
+      .everyDays(1)
+      .atHour(8)
+      .create();
+  }
+}
+
 
 
 
