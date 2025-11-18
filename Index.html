@@ -7207,37 +7207,40 @@ function autocompleteClient() {
         inputElement.parentNode.appendChild(suggestions);
     }
 
-    inputElement.addEventListener('input', function() {
-        var inputValue = inputElement.value.toLowerCase();
+    var inputValue = inputElement.value.toLowerCase();
 
-        // Clear current suggestions
-        suggestions.innerHTML = '';
+    // Clear current suggestions
+    suggestions.innerHTML = '';
 
-        // Calculate the available height below the input field
-        var rect = inputElement.getBoundingClientRect();
-        var availableHeight = window.innerHeight - rect.bottom;
+    // Calculate the available height below the input field
+    var rect = inputElement.getBoundingClientRect();
+    var availableHeight = window.innerHeight - rect.bottom;
 
-        // Set the max-height of suggestions to the available height
-        suggestions.style.maxHeight = availableHeight + 'px';
+    // Set the max-height of suggestions to the available height
+    suggestions.style.maxHeight = availableHeight + 'px';
 
-        // Populate suggestions
-        clientsData.forEach(function(client) {
-            if (client.rowText.includes(inputValue) && inputValue) {
-                var suggestion = document.createElement('div');
-                suggestion.innerHTML = client.clientName + (client.category ? ' (' + client.category + ')' : '');
+    if (!inputValue) {
+      return;
+    }
 
-                suggestion.onclick = function() {
-                    inputElement.value = this.innerHTML;
-                    clientSelect.value = client.clientName;
-                    showClientNotes();
-                        scrollToTop(); // Add this line to scroll to the top
+    // Populate suggestions
+    clientsData.forEach(function(client) {
+        var rowText = (client.rowText || '').toLowerCase();
+        if (rowText.includes(inputValue)) {
+            var suggestion = document.createElement('div');
+            suggestion.innerHTML = client.clientName + (client.category ? ' (' + client.category + ')' : '');
 
-                    suggestions.innerHTML = ''; // Hide suggestions after selection
-                };
+            suggestion.onclick = function() {
+                inputElement.value = this.innerHTML;
+                clientSelect.value = client.clientName;
+                showClientNotes();
+                    scrollToTop(); // Add this line to scroll to the top
 
-                suggestions.appendChild(suggestion);
-            }
-        });
+                suggestions.innerHTML = ''; // Hide suggestions after selection
+            };
+
+            suggestions.appendChild(suggestion);
+        }
     });
 }
 
