@@ -1876,6 +1876,10 @@ button:active {
   max-height: 200px;
 }
 
+.client-container {
+  transition: padding .2s ease;
+}
+
 /* Let the green autocomplete slide away like the recent bar when we hide it */
 #clientAutocomplete {
   transition: transform .2s ease, opacity .2s ease, max-height .2s ease, margin .2s ease, padding .2s ease;
@@ -1912,6 +1916,20 @@ button:active {
   margin-top: 0;
   pointer-events: none;
   overflow: hidden;
+}
+
+/* Keep the blue box almost fully minimized while collapsed */
+.client-container.hide-recents {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.client-container.hide-recents .client-input-wrap {
+  padding: 2px 6px !important;
+  max-height: 8px;
+  border-width: 1px;
+  overflow: hidden;
+  transition: padding .2s ease, max-height .2s ease, border-width .2s ease;
 }
 
 
@@ -5092,6 +5110,7 @@ window.addEventListener('load',   fitRecentRowOneLine);
 
   var lastY = window.scrollY || document.documentElement.scrollTop || 0;
   var ticking = false;
+  var deltaToToggle = 6; // minimum px movement before changing state
 
   function applyState(shouldHide){
     var changed = false;
@@ -5121,11 +5140,19 @@ window.addEventListener('load',   fitRecentRowOneLine);
 
   function onScrollPosition(y){
     var delta = y - lastY;
-    var hide = y > 40 && delta > 3;
-    var show = delta < -3 || y <= 10;
 
-    if (hide) applyState(true);
-    else if (show) applyState(false);
+    if (Math.abs(delta) < deltaToToggle) {
+      ticking = false;
+      return;
+    }
+
+    if (delta > 0) {
+      // Scrolling down: collapse to maximize space
+      applyState(true);
+    } else {
+      // Scrolling up: reveal the controls again
+      applyState(false);
+    }
 
     lastY = y;
     ticking = false;
@@ -5138,6 +5165,9 @@ window.addEventListener('load',   fitRecentRowOneLine);
       requestAnimationFrame(function(){ onScrollPosition(currentY); });
     }
   }, { passive: true });
+
+  // Start collapsed until the user scrolls upward
+  applyState(true);
 })();
 
 
