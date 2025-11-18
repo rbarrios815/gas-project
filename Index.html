@@ -1983,10 +1983,18 @@ input#clientAutocomplete, select#clientSelect {
 
 
 #toggleNotesButton {
-  background-color: #FFDAB9; /* Peach Puff color, a light orange shade */
-  margin-top: 5px;
-  font-size: 1em;
-  }
+  background-color: #ff9500; /* Solid orange square */
+  margin: 0;
+  font-size: 18px;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  border-radius: 4px;
+}
 
 #hideClientNotesBtn {
   display: none !important;
@@ -3196,8 +3204,17 @@ input#clientAutocomplete, select#clientSelect {
 
 /* Calendar icon button */
 .calendar-btn {
-  border: 0; background: #21a45e; color: #fff; border-radius: 8px;
-  height: 32px; width: 36px; cursor: pointer;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  border-radius: 4px;
+  height: 40px;
+  width: 40px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
 }
 
 /* Modal */
@@ -3255,14 +3272,15 @@ input#clientAutocomplete, select#clientSelect {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  font-size: 14px;
   font-weight: 700;
   color: #1f2937;
 }
 
 .appointment-field input {
   width: 100%;
-  padding: 14px;
-  font-size: 18px;
+  padding: 10px 12px;
+  font-size: 14px;
   border-radius: 10px;
   border: 1px solid #cbd5e1;
   background: #fff;
@@ -6421,14 +6439,16 @@ function displayNotes(notes) {
   var toggleBtn = document.createElement('button');
   toggleBtn.id = 'toggleNotesButton';
   toggleBtn.onclick = toggleNotesVisibility;
-  toggleBtn.style.fontSize = '0.85em';
-  toggleBtn.style.padding = '4px 12px';
+  toggleBtn.style.fontSize = '0.5em';
+  toggleBtn.style.padding = '0';
+  toggleBtn.style.width = '24px';
+  toggleBtn.style.height = '24px';
   toggleBtn.innerText = '+';
 
   var toggleRow = document.createElement('div');
   toggleRow.style.display = 'flex';
   toggleRow.style.justifyContent = 'center';
-  toggleRow.style.margin = '6px 0 4px';
+  toggleRow.style.margin = '0';
   toggleRow.appendChild(toggleBtn);
   container.appendChild(toggleRow);
 
