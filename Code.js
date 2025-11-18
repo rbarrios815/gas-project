@@ -11,6 +11,27 @@ function doGet(e) {
   }
 }
 
+function logUsageEvent(entry) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('TIME SHEET');
+  if (!sheet) {
+    sheet = ss.insertSheet('TIME SHEET');
+  }
+
+  if (sheet.getLastRow() === 0) {
+    sheet.getRange(1, 1, 1, 4).setValues([
+      ['BUTTON PRESSED / FUNCTION USED', 'TIME BUTTON PRESSED', 'USER WAS RBARRIOS815@GMAIL.COM Y/N?', 'USER EMAIL']
+    ]);
+  }
+
+  var userEmail = (Session.getActiveUser().getEmail() || '').toLowerCase();
+  var isTargetUser = userEmail === 'rbarrios815@gmail.com' ? 'Y' : 'N';
+  var ts = (entry && entry.timestamp) ? new Date(entry.timestamp) : new Date();
+  var action = (entry && entry.action) ? entry.action : 'Unknown';
+
+  sheet.appendRow([action, ts, isTargetUser, userEmail]);
+}
+
 
 
 

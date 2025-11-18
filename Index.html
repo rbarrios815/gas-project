@@ -197,7 +197,30 @@
   #actionRow { flex-direction: row !important; }
   #actionRow .btn,
   #actionRow #addBtn,
-  #actionRow #voiceToggleBtn { width: auto !important; }
+#actionRow #voiceToggleBtn { width: auto !important; }
+}
+
+
+.usage-counter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#usageCounterBtn {
+  border: 1px solid #ced4da;
+  background: #f8f9fa;
+  border-radius: 10px;
+  font-size: 28px;
+  padding: 8px 12px;
+}
+
+.usage-counter .usage-meta {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  font-size: 14px;
+  color: #495057;
 }
 
 
@@ -641,6 +664,13 @@ a:focus {
 
   <!-- RIGHT: ADD button + status -->
   <div class="right-actions" style="display:flex; align-items:center; gap:8px;">
+    <div id="usageCounterWrap" class="usage-counter" aria-live="polite">
+      <button id="usageCounterBtn" class="btn emoji-btn" aria-label="Usage counter" title="Usage counter">🧮</button>
+      <div class="usage-meta">
+        <div id="usageCountDisplay" class="usage-line">0 actions</div>
+        <div id="usageMinutesDisplay" class="usage-line">0 min</div>
+      </div>
+    </div>
     <button id="addBtn" class="btn">ADD</button>
     <span id="addStatus" class="meta" style="margin-left:4px"></span>
   </div>
@@ -794,6 +824,72 @@ voiceToggleBtn?.addEventListener('click', ()=>{
   // We add a small interval-based guard to nudge UI if needed.
   setInterval(()=>{ setVoiceButtonUI(!!recognizing); }, 500);
 })();
+
+
+/* =========================
+   Usage counter + event log
+   ========================= */
+const usageTracker = {
+  count: 0,
+  activeMinutes: 0,
+  lastTimestamp: null
+};
+
+function updateUsageDisplay(){
+  const countEl = document.getElementById('usageCountDisplay');
+  const minutesEl = document.getElementById('usageMinutesDisplay');
+
+  if (countEl) countEl.textContent = `${usageTracker.count} actions`;
+  if (minutesEl) minutesEl.textContent = `${usageTracker.activeMinutes.toFixed(1)} min`;
+}
+
+function sendUsageToServer(actionLabel, ts){
+  try {
+    if (google && google.script && google.script.run && typeof google.script.run.logUsageEvent === 'function') {
+      google.script.run.logUsageEvent({ action: actionLabel, timestamp: ts });
+    }
+  } catch(_) { /* ignore logging failures */ }
+}
+
+function recordUsage(actionLabel){
+  const now = Date.now();
+  if (usageTracker.lastTimestamp && (now - usageTracker.lastTimestamp) <= 5 * 60 * 1000) {
+    usageTracker.activeMinutes += (now - usageTracker.lastTimestamp) / 60000;
+  }
+  usageTracker.lastTimestamp = now;
+  usageTracker.count += 1;
+
+  updateUsageDisplay();
+  sendUsageToServer(actionLabel, now);
+}
+
+document.addEventListener('click', function(evt){
+  const button = evt.target.closest('button');
+  if (button) {
+    const label = button.getAttribute('aria-label') || button.textContent.trim() || button.id || 'Button';
+    recordUsage(`Button: ${label}`);
+    return;
+  }
+
+  const suggestion = evt.target.closest('#autocompleteSuggestions > div');
+  if (suggestion) {
+    recordUsage(`Autocomplete: ${suggestion.textContent.trim()}`);
+  }
+}, true);
+
+document.addEventListener('change', function(evt){
+  const select = evt.target.closest('select');
+  if (!select) return;
+  const label = select.getAttribute('aria-label') || select.name || select.id || 'Dropdown';
+  const value = select.value || '';
+  recordUsage(`Dropdown: ${label}${value ? ' -> ' + value : ''}`);
+}, true);
+
+document.getElementById('usageCounterBtn')?.addEventListener('click', function(){
+  if (typeof showToast === 'function') {
+    showToast(`Tracked ${usageTracker.count} actions · ${usageTracker.activeMinutes.toFixed(1)} min`);
+  }
+});
 
 
 function ensureRecognition(){
@@ -1718,6 +1814,20 @@ button:active {
   max-height: 0;
   margin: 0;
   pointer-events: none;
+}
+
+#autocompleteSuggestions {
+  transition: transform .2s ease, opacity .2s ease, max-height .2s ease, margin .2s ease;
+}
+
+.client-container.hide-recents #autocompleteSuggestions,
+#autocompleteSuggestions.is-contracted {
+  transform: translateY(-12px);
+  opacity: 0;
+  max-height: 0 !important;
+  margin-top: 0;
+  pointer-events: none;
+  overflow: hidden;
 }
 
 
@@ -4872,12 +4982,22 @@ window.addEventListener('load',   fitRecentRowOneLine);
 
   function applyState(shouldHide){
     var changed = false;
+    var suggestionsEl = document.getElementById('autocompleteSuggestions');
     if (shouldHide && !container.classList.contains('hide-recents')) {
       container.classList.add('hide-recents');
       changed = true;
     } else if (!shouldHide && container.classList.contains('hide-recents')) {
       container.classList.remove('hide-recents');
       changed = true;
+    }
+
+    if (suggestionsEl) {
+      if (shouldHide) {
+        suggestionsEl.classList.add('is-contracted');
+        suggestionsEl.style.display = 'none';
+      } else {
+        suggestionsEl.classList.remove('is-contracted');
+      }
     }
 
     if (changed && typeof ensureHeaderSpacing === 'function') {
@@ -7308,6 +7428,11 @@ function autocompleteClient() {
     suggestions = document.createElement('div');
     suggestions.id = 'autocompleteSuggestions';
     inputElement.parentNode.appendChild(suggestions);
+    var clientContainer = document.querySelector('.client-container');
+    if (clientContainer && clientContainer.classList.contains('hide-recents')) {
+      suggestions.classList.add('is-contracted');
+      suggestions.style.display = 'none';
+    }
   }
 
   var inputValue = (inputElement.value || '').trim().toLowerCase();
