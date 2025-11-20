@@ -1760,13 +1760,17 @@ function updateClientCategory(clientName, newCategory) {
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sh = ss.getSheetByName('DASHBOARD 8.0');
-  const data = sh.getRange(2, 1, sh.getLastRow() - 1, 6).getValues(); // A..F
+  const startRow = 2; // first data row (row 1 is header)
+  const totalRows = sh.getLastRow() - startRow + 1;
+  if (totalRows < 1) throw new Error('No clients available.');
+
+  const data = sh.getRange(startRow, 1, totalRows, 6).getValues(); // A..F
 
   let foundRow = -1;
   for (let i = 0; i < data.length; i++) {
     const name = String(data[i][0] || '').trim();
     if (name.toLowerCase() === String(clientName).trim().toLowerCase()) {
-      foundRow = i + 2; // sheet row (offset from header)
+      foundRow = startRow + i; // sheet row (offset from header)
       break;
     }
   }
