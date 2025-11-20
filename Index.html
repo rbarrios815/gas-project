@@ -717,8 +717,6 @@ a:focus {
       <div class="usage-meta">
         <div id="usageCountDisplay" class="usage-line">0 actions</div>
         <div id="usageMinutesDisplay" class="usage-line">0 min</div>
-        <div id="usageTodayTotal" class="usage-line">Today: -- min</div>
-        <div id="usageWeekTotal" class="usage-line">Week: -- min</div>
       </div>
     </div>
     <button id="addBtn" class="btn">ADD</button>
@@ -882,24 +880,17 @@ voiceToggleBtn?.addEventListener('click', ()=>{
 const usageTracker = {
   count: 0,
   activeMinutes: 0,
-  lastTimestamp: null,
-  summary: { todayMinutes: 0, weekMinutes: 0 }
+  lastTimestamp: null
 };
 
 function updateUsageDisplay(){
   const countEl = document.getElementById('usageCountDisplay');
   const minutesEl = document.getElementById('usageMinutesDisplay');
-  const trackedTotalsEl = document.getElementById('usageTrackedTotals');
   const floatingCountEl = document.getElementById('floatingUsageCount');
   const floatingMinutesEl = document.getElementById('floatingUsageMinutes');
 
   if (countEl) countEl.textContent = `${usageTracker.count} actions`;
   if (minutesEl) minutesEl.textContent = `${usageTracker.activeMinutes.toFixed(1)} min`;
-  if (trackedTotalsEl) {
-    const today = usageTracker.summary?.todayMinutes ?? 0;
-    const week = usageTracker.summary?.weekMinutes ?? 0;
-    trackedTotalsEl.textContent = `Today: ${today.toFixed(1)} min · Week: ${week.toFixed(1)} min`;
-  }
   if (floatingCountEl) floatingCountEl.textContent = usageTracker.count.toString();
   if (floatingMinutesEl) floatingMinutesEl.textContent = `${usageTracker.activeMinutes.toFixed(1)}m`;
 
@@ -907,42 +898,10 @@ function updateUsageDisplay(){
   if (minutesEl) minutesEl.textContent = `${usageTracker.activeMinutes.toFixed(1)} min`;
 }
 
-function renderUsageSummary(summary){
-  if(!summary) return;
-  const todayEl = document.getElementById('usageTodayTotal');
-  const weekEl = document.getElementById('usageWeekTotal');
-  if(todayEl && typeof summary.todayMinutes === 'number'){
-    todayEl.textContent = `Today: ${summary.todayMinutes.toFixed(1)} min`;
-  }
-  if(weekEl && typeof summary.weekMinutes === 'number'){
-    weekEl.textContent = `Week: ${summary.weekMinutes.toFixed(1)} min`;
-  }
-}
-
-function fetchUsageSummary(){
-  try{
-    if(google && google.script && google.script.run && typeof google.script.run.getUsageSummary === 'function'){
-      google.script.run.withSuccessHandler(renderUsageSummary).getUsageSummary();
-    }
-  }catch(_){ /* ignore */ }
-function refreshTrackedTimeSummary(){
-  try {
-    if (google && google.script && google.script.run && typeof google.script.run.getTrackedUsageSummary === 'function') {
-      google.script.run
-        .withSuccessHandler(function(res){
-          if (!res) return;
-          usageTracker.summary = res;
-          updateUsageDisplay();
-        })
-        .getTrackedUsageSummary();
-    }
-  } catch (_) { /* ignore */ }
-}
-
 function sendUsageToServer(actionLabel, ts){
   try {
     if (google && google.script && google.script.run && typeof google.script.run.logUsageEvent === 'function') {
-      google.script.run.withSuccessHandler(fetchUsageSummary).logUsageEvent({ action: actionLabel, timestamp: ts });
+      google.script.run.logUsageEvent({ action: actionLabel, timestamp: ts });
     }
   } catch(_) { /* ignore logging failures */ }
 }
@@ -957,7 +916,6 @@ function recordUsage(actionLabel){
 
   updateUsageDisplay();
   sendUsageToServer(actionLabel, now);
-  refreshTrackedTimeSummary();
 }
 
 document.addEventListener('click', function(evt){
@@ -1000,8 +958,6 @@ document.getElementById('floatingEmailBtn')?.addEventListener('click', function(
 
 // Initialize displays on load
 updateUsageDisplay();
-fetchUsageSummary();
-refreshTrackedTimeSummary();
 
 
 function ensureRecognition(){
@@ -1934,7 +1890,6 @@ button:active {
   opacity: 0;
   max-height: 0;
   margin: 0;
-  display: none;
   pointer-events: none;
 }
 
@@ -1946,15 +1901,7 @@ button:active {
   margin-bottom: 0;
   padding-top: 0;
   padding-bottom: 0;
-  display: none;
   pointer-events: none;
-}
-
-/* When collapsed, remove the bars entirely so nothing peeks through */
-.client-container.hide-recents #recentRow,
-.client-container.hide-recents #clientAutocomplete,
-.client-container.hide-recents .correlated-chip-slot[data-correlated-chip-slot="client-autocomplete"] {
-  display: none !important;
 }
 
 #autocompleteSuggestions {
@@ -1967,10 +1914,6 @@ button:active {
   opacity: 0;
   max-height: 0 !important;
   margin-top: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  border-width: 0;
-  display: none;
   pointer-events: none;
   overflow: hidden;
 }
@@ -1979,17 +1922,16 @@ button:active {
 .client-container.hide-recents {
   padding-top: 0;
   padding-bottom: 0;
+  min-height: 6px;
+  box-shadow: none;
 }
 
 .client-container.hide-recents .client-input-wrap {
-  padding: 0 !important;
-  max-height: 0;
-  height: 0;
-  border-width: 0;
-  min-height: 0;
-  margin: 0;
+  padding: 0 6px !important;
+  max-height: 8px;
+  border-width: 1px;
   overflow: hidden;
-  transition: padding .2s ease, max-height .2s ease, border-width .2s ease, height .2s ease, margin .2s ease;
+  transition: padding .2s ease, max-height .2s ease, border-width .2s ease;
 }
 
 
@@ -2064,9 +2006,9 @@ input#clientAutocomplete, select#clientSelect {
   background-color: #ff9500; /* Solid orange square */
   margin: 0;
   font-size: 24px;
-  width: 120px;
-  height: 120px;
-  padding: 0;
+  width: 60px;
+  height: 60px;
+  padding: 4px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2107,18 +2049,6 @@ input#clientAutocomplete, select#clientSelect {
   display: inline-flex;
   margin-left: 10px;
   vertical-align: baseline;
-}
-
-.correlated-chip-slot {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 6px;
-  min-height: 32px;
-}
-
-.correlated-chip-slot:empty {
-  display: none;
 }
 
 
@@ -2451,7 +2381,7 @@ input#clientAutocomplete, select#clientSelect {
 
 
 
-#columnDDropdown {
+#toggleNotesButton, #columnDDropdown {
   padding-top: 5px; /* Reduce padding-top */
   padding-bottom: 5px; /* Reduce padding-bottom */
 }
@@ -3440,8 +3370,6 @@ input#clientAutocomplete, select#clientSelect {
            placeholder="Type Client Name"
            oninput="autocompleteClient()">
 
-    <div class="correlated-chip-slot" data-correlated-chip-slot="client-autocomplete"></div>
-
            <!-- Category combo + Calendar icon (hidden until a client is selected) -->
 <div id="catCalWrap" style="display:none; gap:8px; align-items:center; margin-left:auto;">
   <!-- Category pill (combobox) -->
@@ -3520,7 +3448,6 @@ input#clientAutocomplete, select#clientSelect {
     <div id="pastWorkSection" style="flex: 1 1 100%; padding-right: 0; display: none; flex-direction: column; justify-content: flex-end; width: 100%; max-width: 100%;">
         <div class="past-work-wrapper">
           <textarea id="newPastWork" class="past-work-textarea"></textarea>
-          <div class="correlated-chip-slot" data-correlated-chip-slot="past-work"></div>
           <button type="button" class="update-team-task-btn" onclick="submitPastWork()">SUBMIT</button>
         </div>
 <!-- In-Progress (Loaded) with left-side bulb -->
@@ -3530,7 +3457,6 @@ input#clientAutocomplete, select#clientSelect {
             style="flex:1 1 auto; width:100%; min-height:60px; background-color:white; box-sizing:border-box;"
             onblur="onInProgressLoadedBlur(this.value)"></textarea>
 </div>
-<div class="correlated-chip-slot" data-correlated-chip-slot="in-progress"></div>
 
 <br>
 
@@ -4298,7 +4224,7 @@ function fitTopClientsHeaderControls(preferShortFormat) {
 
   var baseSize = parseFloat(container.dataset.baseFontSize || getComputedStyle(container).fontSize) || 16;
   container.dataset.baseFontSize = baseSize;
-  var minSize = 6;
+  var minSize = 8;
   var baseGap = parseFloat(container.dataset.baseGap || getComputedStyle(container).columnGap || 12);
   container.dataset.baseGap = baseGap;
 
@@ -4310,33 +4236,6 @@ function fitTopClientsHeaderControls(preferShortFormat) {
     bulb.style.fontSize = val;
     var gapPx = Math.max(4, baseGap * (px / baseSize));
     container.style.columnGap = gapPx + 'px';
-  }
-
-  function hasDateDropdownOverlap() {
-    var dateRect = dateEl.getBoundingClientRect();
-    var ddRect = dd.getBoundingClientRect();
-    return dateRect.right > ddRect.left;
-  }
-
-  function shrinkLineToAvoidOverlap() {
-    var lo = minSize, hi = baseSize, best = lo;
-
-    while (lo <= hi) {
-      var mid = Math.floor((lo + hi) / 2);
-      applySize(mid);
-      updateDropdownWidthToFit(dd);
-
-      var fits = container.scrollWidth <= container.clientWidth && !hasDateDropdownOverlap();
-      if (fits) {
-        best = mid;
-        lo = mid + 1;
-      } else {
-        hi = mid - 1;
-      }
-    }
-
-    applySize(best);
-    updateDropdownWidthToFit(dd);
   }
 
   function tryDate(text) {
@@ -4359,13 +4258,15 @@ function fitTopClientsHeaderControls(preferShortFormat) {
   var firstChoice = preferShortFormat ? shortDate : longDate;
   var fitsLong = tryDate(firstChoice);
   if (!fitsLong && firstChoice !== shortDate) {
-    fitsLong = tryDate(shortDate);
+    tryDate(shortDate);
   }
 
-  // Final guard: if space is still tight, shrink the entire row until there is no overlap.
-  if (container.scrollWidth > container.clientWidth || hasDateDropdownOverlap()) {
+  // Final guard: if space is still tight, lock to the compact date and minimum size
+  // so the dropdown and bulb never overlap the date text.
+  if (container.scrollWidth > container.clientWidth) {
     dateEl.textContent = shortDate;
-    shrinkLineToAvoidOverlap();
+    applySize(minSize);
+    updateDropdownWidthToFit(dd);
   }
 }
 
@@ -5211,8 +5112,9 @@ window.addEventListener('load',   fitRecentRowOneLine);
 
   var lastY = window.scrollY || document.documentElement.scrollTop || 0;
   var ticking = false;
-  var collapseAt = 12; // always reveal when close to the top
-  var directionThreshold = 8; // px needed before we treat it as intentional
+  var downThreshold = 6;  // pixels of downward movement before hiding
+  var upThreshold = 6;    // pixels of upward movement before showing
+  var topReveal = 6;      // always show when the user is near the top
 
   function applyState(shouldHide){
     var changed = false;
@@ -5243,14 +5145,14 @@ window.addEventListener('load',   fitRecentRowOneLine);
   function onScrollPosition(y){
     var delta = y - lastY;
 
-    // Always reveal when approaching the very top.
-    if (y <= collapseAt) {
+    // Always reveal near the very top of the page
+    if (y <= topReveal) {
       applyState(false);
-    } else if (delta > directionThreshold) {
-      // Scrolling down hides the bars to maximize space.
+    } else if (delta > downThreshold) {
+      // Scrolling down: collapse the bars
       applyState(true);
-    } else if (delta < -directionThreshold) {
-      // Scrolling up reveals them again.
+    } else if (delta < -upThreshold) {
+      // Scrolling up: reveal the bars
       applyState(false);
     }
 
@@ -5266,7 +5168,7 @@ window.addEventListener('load',   fitRecentRowOneLine);
     }
   }, { passive: true });
 
-  // Start fully visible; the first downward scroll will collapse it.
+  // Start expanded; scrolling down will collapse the bars
   applyState(false);
 })();
 
@@ -5831,8 +5733,6 @@ window.__chipForCurrentClient = {
   initials: (data.chipInitials || "").toUpperCase(),
   date: data.chipDate || ""   // already MM/DD/YY per our server plan
 };
-
-syncCorrelatedChips();
 
 displayClientDetails(data);
 
@@ -6402,7 +6302,7 @@ REPLACE ENTIRE toggleNotesVisibility FUNCTION WITH THIS
 REPLACE ENTIRE toggleNotesVisibility FUNCTION WITH THIS
 ***************************************/
 function toggleNotesVisibility() {
-  // Capture previous state before toggling visibility
+  // Capture previous state to detect a click on the "-" button
   var wasExpanded = !!notesExpanded;
 
   // Flip the global boolean
@@ -6419,12 +6319,12 @@ function toggleNotesVisibility() {
 
   var toggleButton = document.getElementById('toggleNotesButton');
   if (toggleButton) {
-    // Update accessibility label to reflect state without visible symbols
-    toggleButton.setAttribute('aria-pressed', notesExpanded ? 'true' : 'false');
-    toggleButton.setAttribute('aria-label', notesExpanded ? 'Hide older notes' : 'Show older notes');
+    // If expanded now, the button should read -; if collapsed, +
+    toggleButton.innerText = notesExpanded ? '-' : '+';
   }
 
-  // If the user collapses the block (was expanded → now collapsed), scroll to the top.
+  // If the user just clicked the - button (i.e., was expanded → now collapsed),
+  // scroll to the top.
   if (wasExpanded && !notesExpanded) {
     // Use the global helper (defined below). If you have your own scrollToTop already, this will call it.
     scrollToTop();
@@ -6582,9 +6482,11 @@ function displayNotes(notes) {
   var toggleBtn = document.createElement('button');
   toggleBtn.id = 'toggleNotesButton';
   toggleBtn.onclick = toggleNotesVisibility;
-  toggleBtn.type = 'button';
-  toggleBtn.setAttribute('aria-label', 'Show older notes');
-  toggleBtn.setAttribute('aria-pressed', 'false');
+  toggleBtn.style.fontSize = '0.5em';
+  toggleBtn.style.padding = '0';
+  toggleBtn.style.width = '24px';
+  toggleBtn.style.height = '24px';
+  toggleBtn.innerText = '+';
 
   var toggleRow = document.createElement('div');
   toggleRow.style.display = 'flex';
@@ -8854,7 +8756,6 @@ function hideClientNotes() {
 
   // Clear chip data (columns P and Q)
   window.__chipForCurrentClient = { initials: '', date: '' };
-  syncCorrelatedChips();
 
   // Clear category selection
   var catSel = document.getElementById('categorySelect');
@@ -10044,39 +9945,6 @@ function createChipElementReadOnly(clientName, initials, mmddyy) {
   return chip;
 }
 
-// Shared renderer for correlated client chips displayed alongside inputs/areas
-function getCorrelatedChipPayload() {
-  var chipInfo = window.__chipForCurrentClient || {};
-  var clientId = (document.getElementById('clientSelect') || {}).value || '';
-  if (!clientId) return null;
-
-  return {
-    clientName: clientId,
-    initials: (chipInfo.initials || '').toUpperCase(),
-    date: chipInfo.date || ''
-  };
-}
-
-function syncCorrelatedChips() {
-  var payload = getCorrelatedChipPayload();
-  var slots = document.querySelectorAll('[data-correlated-chip-slot]');
-
-  slots.forEach(function(slot){
-    if (!slot) return;
-    slot.innerHTML = '';
-
-    if (!payload) {
-      slot.style.display = 'none';
-      return;
-    }
-
-    var chip = createChipElement(payload.clientName, payload.initials, payload.date);
-    chip.classList.add('note-chip-inline');
-    slot.appendChild(chip);
-    slot.style.display = 'flex';
-  });
-}
-
 
 
 
@@ -10150,7 +10018,6 @@ function openChipEditor(anchorEl, clientName, initials, mmddyy) {
       }
 
       renderChipInto(anchorEl, clientName, newInitials, newMmddyy);
-      syncCorrelatedChips();
       closeAnyChipEditor();
       // ---- NEW: ensure BOTH chip instances refresh ----
 try {
