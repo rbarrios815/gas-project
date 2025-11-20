@@ -188,7 +188,7 @@ function getClientNamesAndCategories() {
     var clientName = row[0];
     var category = row[5];
     if (clientName && category && clientsByCategory.hasOwnProperty(category)) {
-      clientName = clientName.replace(/\d+$/, '').trim(); // Remove numbers from the end of the client name
+      clientName = clientName.toString().trim();
       // Check if clientName with category is already added to avoid duplicates when client has multiple rows
       var fullNameWithCategory = clientName + ' - ' + category;
       if (!clientsByCategory[category].includes(fullNameWithCategory)) { // Change logic to use fullNameWithCategory for uniqueness
@@ -512,15 +512,19 @@ function updateCategory(clientName, newCategory) {
   var data = sheet.getDataRange().getValues();
   var updated = false;
 
+  var normalizedTarget = (clientName || '').trim().toLowerCase();
+
   for (var i = 1; i < data.length; i++) {
     var thisClientName = data[i][0];
-    if (thisClientName) {
-      thisClientName = thisClientName.replace(/\d+$/, '').trim(); // Remove numbers from the end
-      if (thisClientName.toLowerCase() === clientName.toLowerCase()) {
-        sheet.getRange(i + 1, 6).setValue(newCategory); // Update column F with the new category
-        updated = true;
-        // break; // Exit loop after updating to avoid unnecessary iterations
-      }
+    if (!thisClientName) {
+      continue;
+    }
+
+    var normalizedName = thisClientName.toString().trim().toLowerCase();
+    if (normalizedName === normalizedTarget) {
+      sheet.getRange(i + 1, 6).setValue(newCategory); // Update column F with the new category
+      updated = true;
+      break; // Exit loop after updating the matching row
     }
   }
 
@@ -1756,13 +1760,17 @@ function updateClientCategory(clientName, newCategory) {
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sh = ss.getSheetByName('DASHBOARD 8.0');
-  const data = sh.getRange(2, 1, sh.getLastRow() - 1, 6).getValues(); // A..F
+  const startRow = 2; // first data row (row 1 is header)
+  const totalRows = sh.getLastRow() - startRow + 1;
+  if (totalRows < 1) throw new Error('No clients available.');
+
+  const data = sh.getRange(startRow, 1, totalRows, 6).getValues(); // A..F
 
   let foundRow = -1;
   for (let i = 0; i < data.length; i++) {
     const name = String(data[i][0] || '').trim();
     if (name.toLowerCase() === String(clientName).trim().toLowerCase()) {
-      foundRow = i + 2; // sheet row (offset from header)
+      foundRow = startRow + i; // sheet row (offset from header)
       break;
     }
   }
