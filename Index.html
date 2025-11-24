@@ -6902,7 +6902,8 @@ function submitPastWork() {
 showStarAnimation(); // SNIPPET #3
 
 
-            alert('Past work updated successfully.');
+            // Show a non-blocking confirmation so the dashboard remains usable
+            showToast('Past work updated successfully.');
 
             logPastWorkSubmissionToInbox(pastWorkContent, clientName);
 
