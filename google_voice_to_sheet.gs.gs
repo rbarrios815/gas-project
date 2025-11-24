@@ -1,40 +1,65 @@
 /***************************************
- * Google Voice → Sheet importer
+ * Google Voice → Sheet importer (voicemail + SMS)
+ *
+ * Behavior:
  * - Reads Gmail messages labeled "GV-To-Sheet"
- * - Appends each message body into the first empty
- *   cell in Column A of a specific sheet
+ * - If it's a VOICEMAIL email:
+ *     Extracts text between ".com>" and "Play message"
+ *     (e.g., "Test 1 2 3") and writes that to Column A.
+ * - If it's a TEXT MESSAGE email:
+ *     Extracts the content between "<https://voice.google.com>"
+ *     and "To respond to this text message" and writes only the
+ *     main content line (e.g., "Test") to Column A.
+ * - Leaves Column B blank.
+ * - Inserts the email's received time into Column C
+ *   on the same row, in MM/DD/YYYY HH:MM:SS format.
  * - Marks messages as processed using label "GV-Processed"
  *
- * No existing code/features in your project are removed.
+ * No existing code/features in your other files are removed.
+ ***************************************/
+/***************************************
+ * Google Voice → Sheet importer (voicemail + SMS)
+ *
+ * Behavior:
+ * - Reads Gmail messages labeled "GV-To-Sheet"
+ * - If it's a VOICEMAIL email:
+ *     Extracts text between the first "https://voice.google.com"
+ *     block and "play message", skipping URL lines.
+ * - If it's a TEXT MESSAGE email:
+ *     Extracts the first non-empty, non-URL line between
+ *     "https://voice.google.com" and
+ *     "To respond to this text message".
+ * - Writes the extracted content into Column A.
+ * - Leaves Column B blank.
+ * - Inserts the email's received time into Column C
+ *   on the same row, in MM/DD/YYYY HH:MM:SS format.
+ * - Marks messages as processed using label "GV-Processed"
  ***************************************/
 
-// 1) CHANGE THIS to the exact name of the sheet tab
-// that corresponds to gid=1564799966.
-// Example: "NOTES INBOX", "Voice Inbox", etc.
+// ✅ Your spreadsheet ID (from the URL of your sheet)
+const GV_SPREADSHEET_ID = '1rzejdmR0hatqESPp9MroCwT229QGM0oB2G9mELaL4Ps';
+
+// Sheet tab name for gid=1564799966
 const GV_SHEET_NAME = 'NOTES INBOX';
 
-// 2) Gmail label that marks Voice emails that should be imported
+// Gmail label that marks Voice emails that should be imported
 const GV_IMPORT_LABEL_NAME = 'GV-To-Sheet';
 
-// 3) Gmail label used to mark threads as already processed
+// Gmail label used to mark threads as already processed
 const GV_PROCESSED_LABEL_NAME = 'GV-Processed';
 
 /**
  * Main function: call this from a time-based trigger.
- * It will:
- *  - Find all Gmail threads with label GV-To-Sheet
- *  - For each message, append the plain-body text to the
- *    first empty row in Column A of the GV_SHEET_NAME sheet
- *  - Then move the thread to a "processed" label
  */
 function importGoogleVoiceToSheet() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  // ✅ Use explicit spreadsheet ID so it always writes to the correct file
+  const ss = SpreadsheetApp.openById(GV_SPREADSHEET_ID);
   const sheet = ss.getSheetByName(GV_SHEET_NAME);
 
   if (!sheet) {
     throw new Error(
       'Sheet with name "' + GV_SHEET_NAME + '" not found. ' +
-      'Open the script and change GV_SHEET_NAME to your actual tab name.'
+      'Check that the tab name matches exactly.'
     );
   }
 
@@ -49,34 +74,43 @@ function importGoogleVoiceToSheet() {
     processedLabel = GmailApp.createLabel(GV_PROCESSED_LABEL_NAME);
   }
 
-  // Grab up to 50 threads per run that have the import label
-  // (You can increase this, but 50 is usually safe for quotas)
-  const threads = importLabel.getThreads(0, 50);
+  // ✅ Search for threads with GV-To-Sheet but NOT yet GV-Processed
+  const searchQuery =
+    'label:"' + GV_IMPORT_LABEL_NAME + '" -label:"' + GV_PROCESSED_LABEL_NAME + '"';
+  const threads = GmailApp.search(searchQuery).slice(0, 50); // limit per run
+
   if (!threads || threads.length === 0) {
-    // Nothing to do
-    return;
+    return; // Nothing to do
   }
 
   threads.forEach(function (thread) {
-    // Skip if already processed
-    const hasProcessed = thread.getLabels().some(function (label) {
-      return label.getName() === GV_PROCESSED_LABEL_NAME;
-    });
-    if (hasProcessed) {
-      return;
-    }
-
     const messages = thread.getMessages();
     messages.forEach(function (message) {
-      const body = message.getPlainBody(); // plain text body
+      const body = message.getPlainBody();
       if (!body) return;
 
-      const cleaned = body.trim();
-      if (!cleaned) return;
+      // Extract only the content we care about
+      const extracted = extractVoiceContent(body);
+      if (!extracted) return;
+
+      // Get the time the email was received
+      const msgDate = message.getDate();
+      const formattedDate = Utilities.formatDate(
+        msgDate,
+        Session.getScriptTimeZone(),
+        'MM/dd/yyyy HH:mm:ss'
+      );
 
       // FIRST EMPTY CELL IN COLUMN A
-      const nextRow = sheet.getLastRow() + 1; // if 0 rows, this becomes 1
-      sheet.getRange(nextRow, 1).setValue(cleaned);
+      const nextRow = sheet.getLastRow() + 1; // if 0 rows, becomes 1
+
+      // Column A: extracted text (e.g., "Test 1 2 3" or "Test")
+      sheet.getRange(nextRow, 1).setValue(extracted);
+
+      // Column B: intentionally left blank
+
+      // Column C: email received time in desired format
+      sheet.getRange(nextRow, 3).setValue(formattedDate);
     });
 
     // Mark thread as processed: add processed label, remove import label
@@ -86,9 +120,112 @@ function importGoogleVoiceToSheet() {
 }
 
 /**
- * OPTIONAL: helper to test with a single run.
- * Manually run testImportGoogleVoiceToSheet() from the editor
- * to confirm it appends data as expected.
+ * Extracts the relevant Google Voice content from the email body.
+ *
+ * Handles two patterns:
+ * 1) Voicemail email:
+ *    - Contains "play message"
+ *    - Returns all non-empty, non-URL lines between
+ *      the first "https://voice.google.com" and "play message".
+ *
+ * 2) Text message email:
+ *    - Contains "To respond to this text message"
+ *    - Returns the first non-empty, non-URL line between
+ *      "https://voice.google.com" and
+ *      "To respond to this text message".
+ *
+ * If no known pattern matches, returns null.
+ */
+function extractVoiceContent(body) {
+  if (!body) return null;
+
+  var trimmedBody = body.trim();
+  var lower = trimmedBody.toLowerCase();
+
+  var hasPlayMessage = lower.indexOf('play message') !== -1;
+  var hasTextReply = lower.indexOf('to respond to this text message') !== -1;
+
+  // Find first "https://voice.google.com"
+  var startIdx = trimmedBody.indexOf('https://voice.google.com');
+  if (startIdx === -1) {
+    // Fallback: try ".com>" pattern you mentioned earlier
+    var dotComIdx = trimmedBody.indexOf('.com>');
+    if (dotComIdx !== -1) {
+      startIdx = dotComIdx + '.com>'.length;
+    } else {
+      startIdx = 0;
+    }
+  }
+
+  /**
+   * Helper to turn a substring into cleaned lines:
+   * - split by newline
+   * - trim
+   * - drop blank lines
+   * - drop pure URLs
+   */
+  function cleanLines(textBlock) {
+    return textBlock
+      .split(/\r?\n/)
+      .map(function (line) { return line.trim(); })
+      .filter(function (line) {
+        if (!line) return false;
+        var clean = line.replace(/^<|>$/g, '');
+        if (/^https?:\/\//i.test(clean)) return false; // skip pure URLs like <https://voice.google.com>
+        return true;
+      });
+  }
+
+  /**
+   * TEXT MESSAGE pattern:
+   * Body contains "to respond to this text message".
+   * We take the first non-empty, non-URL line
+   * between the voice.google.com link and that phrase.
+   */
+  if (hasTextReply) {
+    var endIdxText = lower.indexOf('to respond to this text message');
+    if (endIdxText > startIdx) {
+      var innerText = trimmedBody.substring(startIdx, endIdxText);
+      var contentTextLines = cleanLines(innerText);
+
+      if (contentTextLines.length > 0) {
+        // For SMS, just capture the main line like "Test"
+        return contentTextLines[0];
+      }
+    }
+  }
+
+  /**
+   * VOICEMAIL pattern:
+   * Body contains "play message" (any case).
+   * We take all non-empty, non-URL lines between
+   * the voice.google.com link and "play message",
+   * and join them into a single string.
+   */
+  if (hasPlayMessage) {
+    var endIdxVm = lower.indexOf('play message', startIdx);
+    if (endIdxVm === -1) {
+      endIdxVm = lower.indexOf('play message');
+    }
+
+    if (endIdxVm > startIdx) {
+      var innerVm = trimmedBody.substring(startIdx, endIdxVm);
+      var contentVmLines = cleanLines(innerVm);
+
+      if (contentVmLines.length > 0) {
+        // Join into a single line for Column A
+        return contentVmLines.join(' ');
+      }
+    }
+  }
+
+  // If we can't confidently parse, skip this email
+  return null;
+}
+
+/**
+ * Manual test helper.
+ * Run this from the Script Editor to confirm behavior.
  */
 function testImportGoogleVoiceToSheet() {
   importGoogleVoiceToSheet();
