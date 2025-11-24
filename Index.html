@@ -6341,8 +6341,8 @@ function toggleNotesVisibility() {
 
   var toggleButton = document.getElementById('toggleNotesButton');
   if (toggleButton) {
-    // If expanded now, the button should read -; if collapsed, +
-    toggleButton.innerText = notesExpanded ? '-' : '+';
+    // Remove text labels from the toggle button regardless of state
+    toggleButton.innerText = '';
   }
 
   // If the user just clicked the - button (i.e., was expanded → now collapsed),
@@ -6508,7 +6508,7 @@ function displayNotes(notes) {
   toggleBtn.style.padding = '0';
   toggleBtn.style.width = '24px';
   toggleBtn.style.height = '24px';
-  toggleBtn.innerText = '+';
+  toggleBtn.innerText = '';
 
   var toggleRow = document.createElement('div');
   toggleRow.style.display = 'flex';
