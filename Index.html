@@ -3424,16 +3424,7 @@ input#clientAutocomplete, select#clientSelect {
       </div>
     </div>
     <div id="labelsAdditionSection">
-        <div id="categoryChangeSection" class="category-overlay" aria-hidden="true" style="display:none;">
-          <select id="categorySelect" class="category-select">
-            <option value="">▼</option>
-          </select>
-        </div>
-
       <div id="labelsButtonsRow" class="labels-buttons-row"></div>
-
-
-
     </div>
   </div>
 
@@ -3456,6 +3447,13 @@ input#clientAutocomplete, select#clientSelect {
   <textarea id="loadedInProgressArea"
             style="flex:1 1 auto; width:100%; min-height:60px; background-color:white; box-sizing:border-box;"
             onblur="onInProgressLoadedBlur(this.value)"></textarea>
+</div>
+
+<!-- Category dropdown under the green lightbulb bar -->
+<div id="categoryChangeSection" class="category-overlay" aria-hidden="true" style="display:none;">
+  <select id="categorySelect" class="category-select">
+    <option value="">▼</option>
+  </select>
 </div>
 
 <br>
