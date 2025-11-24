@@ -3581,17 +3581,33 @@ input#clientAutocomplete, select#clientSelect {
   gap: 10px;
 }
 
-  .appointment-icon-btn {
-    background-color: transparent;
-    color: #1f2937;
-    width: 44px;
-    height: 44px;
-    font-size: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
+.appointment-icon-btn {
+  background-color: transparent;
+  color: #1f2937;
+  width: 44px;
+  height: 44px;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+  /* === AUTOCOMPLETE: FULLY HIDE WHEN COLLAPSED === */
+  /* Replace .AUTOCOMPLETE_BAR with your real selector (id or class) */
+  .AUTOCOMPLETE_BAR.autocomplete-collapsed {
+    background: transparent !important;
+    height: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    border: none !important;
+    overflow: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none;
+    display: block; /* keep layout stable; height=0 hides it */
   }
+
 
   /* Autocomplete row + category dropdown inline */
   .client-autocomplete-row {

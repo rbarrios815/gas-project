@@ -2438,13 +2438,9 @@ function collectJbChipClients_(targetDate) {
 
   return { dateString: targetStr, clients: resultClients };
 }
-
 function sendJbChipTasksEmail() {
   var summary = collectJbChipClients_(new Date());
   var lines = [];
-
-  lines.push('JB Tasks for ' + (summary.dateString || 'today') + ':');
-  lines.push('');
 
   if (!summary.clients.length) {
     lines.push('No clients matched the JB chip for today.');
@@ -2472,6 +2468,7 @@ function sendJbChipTasksEmail() {
 
   ensureJbChipDailyTrigger();
 }
+
 
 /***********************************************************************
  SNIPPET #4: SERVER-SIDE TASKS INTEGRATION
