@@ -1213,12 +1213,23 @@ function saveEditedNote(row, text, noteEl){
     .inboxUpdateNote(row, text);
 }
 
-    /* Recent (5) with assign */
+  /* Recent (5) with assign */
   const recentList = document.getElementById('recentList');
+  let recentChipMap = {};
+
+  function normalizeClientKeyForChip(name){
+    return String(name || '')
+      .replace(/\u00A0/g, ' ')
+      .replace(/\s+-\s+.*$/, '')
+      .replace(/\d+$/, '')
+      .trim()
+      .toLowerCase();
+  }
 
   function renderRecent(payload){
     recentList.innerHTML='';
     const items=(payload&&payload.recent)?payload.recent:[];
+    recentChipMap = (payload && payload.chipMap) ? payload.chipMap : {};
     if(!items.length){ return; }
 
     items.forEach(it=>{
@@ -1267,11 +1278,11 @@ function saveEditedNote(row, text, noteEl){
         if(!name) return;
         startLoading();
         google.script.run
-.withSuccessHandler(_=>{
-  stopLoading();
-  showToast('Client note has been updated successfully');
-})
-
+          .withSuccessHandler(_=>{
+            stopLoading();
+            showToast('Client note has been updated successfully');
+            loadRecent();
+          })
           .withFailureHandler(err=>{
             alert(err && err.message ? err.message : String(err));
             stopLoading();
@@ -1289,15 +1300,27 @@ function saveEditedNote(row, text, noteEl){
       });
 
       // Layout row (no Assign button, no green label)
-      const r=document.createElement('div'); 
-      r.className='row'; 
+      const r=document.createElement('div');
+      r.className='row';
       r.appendChild(inp);
+
+      const chipSlot = document.createElement('div');
+      chipSlot.className = 'assigned-chip-slot';
+      const chipInfo = recentChipMap[normalizeClientKeyForChip(it.assigned)];
+      if (chipInfo && (chipInfo.initials || chipInfo.dateMMDDYY)) {
+        const chipEl = createChipElement(it.assigned, chipInfo.initials, chipInfo.dateMMDDYY);
+        chipEl.classList.add('chip--xs');
+        chipSlot.appendChild(chipEl);
+      }
 
       side.appendChild(meta);
       side.appendChild(document.createElement('div')).style.height='6px';
       side.appendChild(r);
+      if (chipSlot.childElementCount) {
+        side.appendChild(chipSlot);
+      }
 
-      row.appendChild(note); 
+      row.appendChild(note);
       row.appendChild(side);
       recentList.appendChild(row);
     });
