@@ -2801,7 +2801,19 @@ function inboxGetRecent(limit) {
     assigned: x.assigned,
     timestamp: x.ts ? Utilities.formatDate(new Date(x.ts), tz, 'MM/dd/yy h:mma') : ''
   }));
-  return { recent: sorted, raw: all };
+
+  // Pull chip data (Columns P/Q) for any assigned clients so the UI can render chips
+  var assignedNames = all
+    .map(function(entry){ return entry.assigned; })
+    .filter(function(name){ return name; });
+  var chipMap = {};
+  try {
+    chipMap = getChipStateForClients(assignedNames);
+  } catch (e) {
+    chipMap = {};
+  }
+
+  return { recent: sorted, raw: all, chipMap: chipMap };
 }
 
 function inboxUpdateNote(row, newNote){
