@@ -108,6 +108,43 @@
 #dashBody #recentList .assigned{font-weight:800;color:#0ca678}
 #dashBody input[type="text"].small{padding:6px 8px;border:1px solid #ced4da;border-radius:8px;font-size:12px}
 
+.assign-hover-input::placeholder{
+  color:#0b6ef6;
+  text-decoration:underline;
+}
+
+.assign-hover-input{cursor:pointer;border-color:#d0e3ff}
+
+.assign-suggestion-pop{
+  position:absolute;
+  background:#fff;
+  border:1px solid #d0d7de;
+  border-radius:10px;
+  box-shadow:0 8px 26px rgba(0,0,0,0.12);
+  padding:8px;
+  width:260px;
+  max-width:90vw;
+  z-index:11000;
+}
+
+.assign-suggestion-pop h5{
+  margin:0 0 6px 0;
+  font-size:12px;
+  color:#364d79;
+  letter-spacing:0.1px;
+}
+
+.assign-suggestion-item{
+  padding:6px 8px;
+  border-radius:8px;
+  cursor:pointer;
+  font-size:13px;
+}
+
+.assign-suggestion-item:hover{
+  background:#f1f5ff;
+}
+
 
 
 /* === Mobile fit & 50% viewport textarea ================================ */
@@ -1217,6 +1254,123 @@ function saveEditedNote(row, text, noteEl){
   const recentList = document.getElementById('recentList');
   let recentChipMap = {};
 
+  let assignSuggestionPopover = null;
+  let assignSuggestionHideTimer = null;
+
+  function levenshteinDistance(a, b) {
+    const s = String(a || '');
+    const t = String(b || '');
+    const m = s.length;
+    const n = t.length;
+    if (m === 0) return n;
+    if (n === 0) return m;
+    const dp = new Array(m + 1);
+    for (let i = 0; i <= m; i++) {
+      dp[i] = new Array(n + 1).fill(0);
+      dp[i][0] = i;
+    }
+    for (let j = 0; j <= n; j++) {
+      dp[0][j] = j;
+    }
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        const cost = s[i - 1] === t[j - 1] ? 0 : 1;
+        dp[i][j] = Math.min(
+          dp[i - 1][j] + 1,
+          dp[i][j - 1] + 1,
+          dp[i - 1][j - 1] + cost
+        );
+      }
+    }
+    return dp[m][n];
+  }
+
+  function scoreClientAgainstNote(clientName, noteText) {
+    const lcNote = String(noteText || '').toLowerCase();
+    const lcName = String(clientName || '').toLowerCase();
+    if (!lcNote || !lcName) return 0;
+
+    let score = 0;
+    const noteTokens = tokenizeNameParts(noteText).map(t => t.toLowerCase());
+    const nameTokens = tokenizeNameParts(clientName).map(t => t.toLowerCase());
+
+    if (lcNote.startsWith(lcName)) score += 120;
+    const firstNotePhrase = noteTokens.slice(0, 3).join(' ');
+    if (firstNotePhrase && lcName.startsWith(firstNotePhrase)) score += 70;
+
+    noteTokens.forEach(tok => {
+      if (!tok) return;
+      if (lcName.includes(tok)) score += 10 + Math.min(8, tok.length);
+      nameTokens.forEach(nt => {
+        const dist = levenshteinDistance(tok, nt);
+        if (tok.length > 3 && dist <= 2) score += 6;
+      });
+    });
+
+    return score;
+  }
+
+  function getClientSuggestionsFromNote(noteText, limit = 5) {
+    if (!Array.isArray(__clientNames) || !__clientNames.length) return [];
+    const scored = __clientNames
+      .map(name => ({ name, score: scoreClientAgainstNote(name, noteText) }))
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+
+    const results = scored.slice(0, limit).map(x => x.name);
+    return results.length ? results : __clientNames.slice(0, limit);
+  }
+
+  function hideAssignSuggestionPopover() {
+    if (assignSuggestionPopover) {
+      assignSuggestionPopover.remove();
+      assignSuggestionPopover = null;
+    }
+  }
+
+  function showAssignSuggestionPopover(anchorEl, noteText, onSelect) {
+    hideAssignSuggestionPopover();
+    const suggestions = getClientSuggestionsFromNote(noteText);
+    if (!suggestions.length) return;
+
+    const pop = document.createElement('div');
+    pop.className = 'assign-suggestion-pop';
+    const heading = document.createElement('h5');
+    heading.textContent = 'Suggested matches';
+    pop.appendChild(heading);
+
+    suggestions.forEach(name => {
+      const item = document.createElement('div');
+      item.className = 'assign-suggestion-item';
+      item.textContent = name;
+      item.addEventListener('click', e => {
+        e.stopPropagation();
+        hideAssignSuggestionPopover();
+        if (typeof onSelect === 'function') onSelect(name);
+      });
+      pop.appendChild(item);
+    });
+
+    const rect = anchorEl.getBoundingClientRect();
+    pop.style.left = (rect.left + window.scrollX) + 'px';
+    pop.style.top = (rect.bottom + window.scrollY + 6) + 'px';
+
+    pop.addEventListener('mouseenter', () => {
+      if (assignSuggestionHideTimer) {
+        clearTimeout(assignSuggestionHideTimer);
+        assignSuggestionHideTimer = null;
+      }
+    });
+    pop.addEventListener('mouseleave', () => {
+      assignSuggestionHideTimer = setTimeout(hideAssignSuggestionPopover, 120);
+    });
+
+    document.body.appendChild(pop);
+    assignSuggestionPopover = pop;
+  }
+
+  document.addEventListener('scroll', hideAssignSuggestionPopover, true);
+
   function normalizeClientKeyForChip(name){
     return String(name || '')
       .replace(/\u00A0/g, ' ')
@@ -1262,20 +1416,29 @@ function saveEditedNote(row, text, noteEl){
       meta.textContent = it.timestamp ? it.timestamp : '';
 
       // Wider input: 360px (twice the previous 180px)
-      const inp=document.createElement('input'); 
-      inp.type='text'; 
-      inp.className='small'; 
-      inp.setAttribute('list','clientNamesList'); 
+      const inp=document.createElement('input');
+      inp.type='text';
+      inp.className='small assign-hover-input';
+      inp.setAttribute('list','clientNamesList');
       inp.style.width='360px';
 
       // Keep selection visible in the input (no extra green label elsewhere)
       inp.value = it.assigned || '';
       inp.placeholder = it.assigned ? 'Change assignment…' : 'Assign…';
 
+      function showHoverSuggestions(){
+        if (inp.value) return;
+        showAssignSuggestionPopover(inp, it.note, function(name){
+          inp.value = name;
+          commitAssign();
+        });
+      }
+
       // Auto-assign handler
       function commitAssign(){
         const name = (inp.value||'').trim();
         if(!name) return;
+        hideAssignSuggestionPopover();
         startLoading();
         google.script.run
           .withSuccessHandler(_=>{
@@ -1293,10 +1456,22 @@ function saveEditedNote(row, text, noteEl){
       // Assign immediately when a value is chosen or Enter is pressed
       inp.addEventListener('change', commitAssign);
       inp.addEventListener('keydown', (e)=>{
-        if(e.key === 'Enter'){ 
-          e.preventDefault(); 
-          commitAssign(); 
+        if(e.key === 'Enter'){
+          e.preventDefault();
+          commitAssign();
         }
+      });
+
+      inp.addEventListener('mouseenter', () => {
+        if (assignSuggestionHideTimer) {
+          clearTimeout(assignSuggestionHideTimer);
+          assignSuggestionHideTimer = null;
+        }
+        showHoverSuggestions();
+      });
+
+      inp.addEventListener('mouseleave', () => {
+        assignSuggestionHideTimer = setTimeout(hideAssignSuggestionPopover, 150);
       });
 
       // Layout row (no Assign button, no green label)
