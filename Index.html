@@ -718,7 +718,7 @@ a:focus {
   <span id="floatingUsageMinutes" class="usage-pill" aria-live="polite">0m</span>
 </button>
 <!-- Floating email trigger next to calculator -->
-<button id="floatingEmailBtn" class="floatingUtilityBtn" aria-label="Send summary email" title="Send summary email">
+<button id="floatingEmailBtn" class="floatingUtilityBtn" aria-label="Send JB chip summary email" title="Send JB chip summary email">
   <span aria-hidden="true">✉️</span>
 </button>
 
@@ -9503,19 +9503,18 @@ function closeCategoriesModal() {
 }
 
 function triggerTopClientsEmail() {
-  // Show a quick "loading" bar if you want
   showLoadingBar();
 
   google.script.run
     .withSuccessHandler(function() {
       hideLoadingBar();
-      alert("Email summary sent successfully!");
+      alert("JB chip email sent for today.");
     })
     .withFailureHandler(function(err) {
       hideLoadingBar();
-      alert("Failed to send email summary. Error: " + err.message);
+      alert("Failed to send JB chip email. Error: " + err.message);
     })
-    .sendDailyTopClientsEmail();  // <-- Must match the function name in Code.gs
+    .sendJbChipTasksEmail();
 }
 
 // This function creates a big star overlay, shows it for ~5s, then removes it
