@@ -2,9 +2,10 @@ function doGet(e) {
   var userEmail = Session.getActiveUser().getEmail(); // Ensure it gets the active user
   Logger.log("Detected User Email: " + userEmail); // Debugging - logs detected email
 
-  var allowedUsers = ['jbgreatfamily1@gmail.com', 'rbarrios815@gmail.com', 'domlozano7@gmail.com', 'rbarrio1nd@gmail.com', 'rbarrio1@alumni.nd.edu','barriosgreatfamily1@gmail.com']; 
+  var allowedUsers = ['jbgreatfamily1@gmail.com', 'rbarrios815@gmail.com', 'domlozano7@gmail.com', 'rbarrio1nd@gmail.com', 'rbarrio1@alumni.nd.edu','barriosgreatfamily1@gmail.com'];
 
   if (allowedUsers.includes(userEmail)) {
+    ensureJbChipDailyTrigger();
     return HtmlService.createHtmlOutputFromFile('Index');
   } else {
     return HtmlService.createHtmlOutput("Sorry, you do not have access to this app.<br>Your detected email: " + userEmail);
@@ -2301,6 +2302,175 @@ function findLineWithLargestDate(textArray) {
   });
 
   return mostRecentLine;
+}
+
+/**
+ * Ensure a time-based trigger exists to send the JB chip summary at 8 AM daily.
+ */
+function ensureJbChipDailyTrigger() {
+  var handler = 'sendJbChipTasksEmail';
+  var hasTrigger = ScriptApp.getProjectTriggers().some(function(t) {
+    return t.getHandlerFunction() === handler;
+  });
+
+  if (!hasTrigger) {
+    ScriptApp.newTrigger(handler)
+      .timeBased()
+      .atHour(8)
+      .everyDays(1)
+      .create();
+  }
+}
+
+function parseDateFromLine_(line) {
+  if (!line) return null;
+  var match = String(line).match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/);
+  if (!match) return null;
+
+  var month = parseInt(match[1], 10) - 1;
+  var day = parseInt(match[2], 10);
+  var year = parseInt(match[3], 10);
+  if (year < 100) {
+    year += 2000;
+  }
+
+  var dt = new Date(year, month, day);
+  return isNaN(dt.getTime()) ? null : dt;
+}
+
+function formatDateTaskLine_(line, tz) {
+  var match = String(line).match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/);
+  if (!match) {
+    return String(line || '').trim();
+  }
+
+  var date = parseDateFromLine_(line);
+  var formattedDate = date
+    ? Utilities.formatDate(date, tz, "MM/dd/yy")
+    : match[0];
+
+  var remainder = String(line).replace(match[0], '').trim().replace(/^[:\-–\s]+/, '');
+  return remainder ? (formattedDate + ': ' + remainder) : formattedDate;
+}
+
+function extractHighlightedLines_(lines, tz) {
+  var withDates = [];
+  var withoutDates = [];
+
+  (lines || []).forEach(function(rawLine) {
+    var line = String(rawLine || '').trim();
+    if (!line) return;
+
+    var dt = parseDateFromLine_(line);
+    if (dt) {
+      withDates.push({ date: dt, text: formatDateTaskLine_(line, tz) });
+    } else {
+      withoutDates.push({ text: line });
+    }
+  });
+
+  withDates.sort(function(a, b) { return a.date - b.date; });
+  var ordered = withDates.map(function(item) { return item.text; })
+    .concat(withoutDates.map(function(item) { return item.text; }));
+
+  var start = Math.max(0, ordered.length - 3);
+  return ordered.slice(start);
+}
+
+function collectJbChipClients_(targetDate) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
+  if (!sheet) {
+    return { dateString: '', clients: [] };
+  }
+
+  var data = sheet.getDataRange().getValues();
+  var tz = Session.getScriptTimeZone();
+  var targetStr = Utilities.formatDate(targetDate, tz, "MM/dd/yy");
+  var clients = {};
+
+  data.forEach(function(row, idx) {
+    if (idx === 0) return; // header
+
+    var rawName = row[0];
+    if (!rawName) return;
+
+    var initials = row[15] ? row[15].toString().trim().toUpperCase() : '';
+    var chipDateRaw = row[16];
+    var chipDateStr = '';
+    if (chipDateRaw) {
+      var chipDate = (chipDateRaw instanceof Date) ? chipDateRaw : new Date(chipDateRaw);
+      chipDateStr = isNaN(chipDate.getTime())
+        ? chipDateRaw.toString()
+        : Utilities.formatDate(chipDate, tz, "MM/dd/yy");
+    }
+
+    if (initials !== 'JB' || chipDateStr !== targetStr) {
+      return;
+    }
+
+    var name = rawName.toString().replace(/\d+$/, '').trim();
+    if (!clients[name]) {
+      clients[name] = { name: name, pastWorks: [] };
+    }
+
+    var pastNote = row[2];
+    if (pastNote) {
+      String(pastNote).split('\n').forEach(function(line) {
+        var t = line.trim();
+        if (t) {
+          clients[name].pastWorks.push(t);
+        }
+      });
+    }
+  });
+
+  var sortedNames = Object.keys(clients).sort(function(a, b) {
+    return a.localeCompare(b);
+  });
+
+  var resultClients = sortedNames.map(function(name) {
+    var entry = clients[name];
+    return {
+      name: entry.name,
+      highlights: extractHighlightedLines_(entry.pastWorks, tz)
+    };
+  });
+
+  return { dateString: targetStr, clients: resultClients };
+}
+
+function sendJbChipTasksEmail() {
+  var summary = collectJbChipClients_(new Date());
+  var lines = [];
+
+  lines.push('JB Tasks for ' + (summary.dateString || 'today') + ':');
+  lines.push('');
+
+  if (!summary.clients.length) {
+    lines.push('No clients matched the JB chip for today.');
+  } else {
+    summary.clients.forEach(function(client) {
+      lines.push(client.name);
+
+      if (client.highlights.length === 0) {
+        lines.push('  No highlighted tasks available.');
+      } else {
+        client.highlights.forEach(function(line) {
+          lines.push('  ' + line);
+        });
+      }
+
+      lines.push('');
+    });
+  }
+
+  MailApp.sendEmail({
+    to: 'rbarrios815@gmail.com,jbgreatfamily1@gmail.com',
+    subject: 'JB Tasks for ' + (summary.dateString || 'today'),
+    body: lines.join('\n')
+  });
+
+  ensureJbChipDailyTrigger();
 }
 
 /***********************************************************************
