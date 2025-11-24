@@ -2029,11 +2029,10 @@ input#clientAutocomplete, select#clientSelect {
 #toggleNotesButton {
   background-color: #ff9500; /* Solid orange square */
   margin: 0;
-  font-size: 24px;
-  width: 60px;
-  height: 60px;
-  padding: 4px;
-  display: inline-flex;
+  font-size: 48px;
+  width: 120px;
+  height: 120px;
+  padding: 8px;;
   align-items: center;
   justify-content: center;
   line-height: 1;
@@ -6341,8 +6340,8 @@ function toggleNotesVisibility() {
 
   var toggleButton = document.getElementById('toggleNotesButton');
   if (toggleButton) {
-    // If expanded now, the button should read -; if collapsed, +
-    toggleButton.innerText = notesExpanded ? '-' : '+';
+    // Remove text labels from the toggle button regardless of state
+    toggleButton.innerText = '';
   }
 
   // If the user just clicked the - button (i.e., was expanded → now collapsed),
@@ -6508,7 +6507,7 @@ function displayNotes(notes) {
   toggleBtn.style.padding = '0';
   toggleBtn.style.width = '24px';
   toggleBtn.style.height = '24px';
-  toggleBtn.innerText = '+';
+  toggleBtn.innerText = '';
 
   var toggleRow = document.createElement('div');
   toggleRow.style.display = 'flex';

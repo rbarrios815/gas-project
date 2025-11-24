@@ -11,84 +11,6 @@ function doGet(e) {
   }
 }
 
-function logUsageEvent(entry) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName('TIME SHEET');
-  if (!sheet) {
-    sheet = ss.insertSheet('TIME SHEET');
-  }
-
-  if (sheet.getLastRow() === 0) {
-    sheet.getRange(1, 1, 1, 4).setValues([
-      ['BUTTON PRESSED / FUNCTION USED', 'TIME BUTTON PRESSED', 'USER WAS RBARRIOS815@GMAIL.COM Y/N?', 'USER EMAIL']
-    ]);
-  }
-
-  var userEmail = (Session.getActiveUser().getEmail() || '').toLowerCase();
-  var isTargetUser = userEmail === 'rbarrios815@gmail.com' ? 'Y' : 'N';
-  var ts = (entry && entry.timestamp) ? new Date(entry.timestamp) : new Date();
-  var action = (entry && entry.action) ? entry.action : 'Unknown';
-
-  sheet.appendRow([action, ts, isTargetUser, userEmail]);
-}
-
-// Generates a PDF snapshot of the first sheet and emails it with the date and "JB" in the subject/body.
-function sendDailyDashboardScreenshot() {
-  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  var firstSheet = spreadsheet.getSheets()[0];
-
-  var formattedDate = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'EEE, MMM d');
-  var subject = formattedDate + ' JB - Daily Dashboard Snapshot';
-  var body = 'Attached is the dashboard snapshot for ' + formattedDate + ' (JB).';
-
-  var exportUrl = spreadsheet.getUrl().replace(/edit$/, '') +
-    'export?format=pdf' +
-    '&size=letter' +
-    '&portrait=false' +
-    '&fitw=true' +
-    '&top_margin=0.5' +
-    '&bottom_margin=0.5' +
-    '&left_margin=0.5' +
-    '&right_margin=0.5' +
-    '&sheetnames=false' +
-    '&printtitle=false' +
-    '&pagenumbers=false' +
-    '&gridlines=false' +
-    '&fzr=false' +
-    '&gid=' + firstSheet.getSheetId();
-
-  var response = UrlFetchApp.fetch(exportUrl, {
-    headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
-    muteHttpExceptions: true
-  });
-
-  var pdfName = 'Dashboard_' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd') + '.pdf';
-  var attachment = response.getBlob().setName(pdfName);
-
-  MailApp.sendEmail({
-    to: 'rbarrio1@alumni.nd.edu',
-    subject: subject,
-    body: body,
-    attachments: [attachment]
-  });
-}
-
-// Creates a daily 8 AM trigger (script time zone) for sending the dashboard snapshot if one does not already exist.
-function ensureDailyScreenshotTrigger() {
-  var handler = 'sendDailyDashboardScreenshot';
-  var existing = ScriptApp.getProjectTriggers().some(function(trigger) {
-    return trigger.getHandlerFunction() === handler;
-  });
-
-  if (!existing) {
-    ScriptApp.newTrigger(handler)
-      .timeBased()
-      .everyDays(1)
-      .atHour(8)
-      .create();
-  }
-}
-
 
 
 
@@ -1624,36 +1546,16 @@ function getAllClientsData() {
 
   for (var i = 1; i < data.length; i++) { // Start from 1 to skip header row if there's a header
     var row = data[i];
-       var rawName = row[0];
-    if (!rawName) {
-      continue;
-    }
-     var category = row[5] != null ? row[5].toString().trim() : '';
-    var rowText = row
-      .map(function (cell) {
-        if (cell === null || cell === undefined) {
-          return '';
-        }
-        return cell instanceof Date
-          ? Utilities.formatDate(cell, Session.getScriptTimeZone(), 'MM/dd/yy')
-          : cell.toString();
-      })
-      .join(' ')
-      .toLowerCase();
-
-    clients.push({
-      clientName: normalizedName,
-      originalName: rawName.toString().trim(),
-      category: category,
-      rowText: rowText
-    });
-
-    var normalizedName = rawName.toString().replace(/\d+$/, '').trim();
-    if (!normalizedName) {
-      continue;
+    var clientName = row[0];
+    if (clientName) {
+      var clientData = {
+        clientName: clientName,
+        category: row[5], // Assuming column F is index 5
+        rowText: row.join(' ').toLowerCase() // Concatenate all cell values in the row
+      };
+      clients.push(clientData);
     }
   }
-  
   return clients;
 }
 
@@ -1683,17 +1585,13 @@ function updateClientCategory(clientName, newCategory) {
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sh = ss.getSheetByName('DASHBOARD 8.0');
-  const startRow = 2; // first data row (row 1 is header)
-  const totalRows = sh.getLastRow() - startRow + 1;
-  if (totalRows < 1) throw new Error('No clients available.');
-
-  const data = sh.getRange(startRow, 1, totalRows, 6).getValues(); // A..F
+  const data = sh.getRange(2, 1, sh.getLastRow() - 1, 6).getValues(); // A..F
 
   let foundRow = -1;
   for (let i = 0; i < data.length; i++) {
     const name = String(data[i][0] || '').trim();
     if (name.toLowerCase() === String(clientName).trim().toLowerCase()) {
-      foundRow = startRow + i; // sheet row (offset from header)
+      foundRow = i + 2; // sheet row (offset from header)
       break;
     }
   }
@@ -2766,7 +2664,7 @@ function ensureNotesInbox_() {
   return sh;
 }
 
-function inboxAddNote(rawNote, assignedClient) {
+function inboxAddNote(rawNote) {
   // === CONFIG: who receives the "ADD" email ===
   var EMAIL_TO = 'rbarrio1@alumni.nd.edu';  // change if needed
 
@@ -2781,12 +2679,6 @@ function inboxAddNote(rawNote, assignedClient) {
   var cleanNote = String(rawNote).trim();
   sh.getRange(row, 1).setValue(cleanNote);   // Col A: NOTE
   sh.getRange(row, 3).setValue(new Date());  // Col C: TIMESTAMP
-
-  // Optionally assign to a client immediately (Column B)
-  if (assignedClient && String(assignedClient).trim()) {
-    var resolved = getCanonicalClientName_(assignedClient) || String(assignedClient).trim();
-    sh.getRange(row, 2).setValue(resolved);
-  }
 
   // Build a helpful subject and body for the email
   var tz = Session.getScriptTimeZone();
@@ -2918,3 +2810,54 @@ function getChipStateForClients(clientNames) {
   }
   return map;
 }
+
+
+
+
+
+
+/** === Siri → Google Sheets Bridge: Column A note, Column C timestamp ===
+ * Appends note in Col A, leaves Col B blank, puts timestamp in Col C.
+ */
+const SHEET_ID = "1rzejdmR0hatqESPp9MroCwT229QGM0oB2G9mELaL4Ps";
+const TARGET_SHEET = "NOTES INBOX";
+const COL_NOTE = 1; // A
+const COL_BLANK = 2; // B
+const COL_TIME = 3; // C
+
+function doPost(e) {
+  try {
+    if (!e || !e.postData || !e.postData.contents) {
+      return _json({ ok: false, error: "No postData received" });
+    }
+    const body = JSON.parse(e.postData.contents);
+    const note = (body && body.note != null) ? String(body.note).trim() : "";
+    if (!note) return _json({ ok: false, error: "Missing 'note' value" });
+
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const sh = ss.getSheetByName(TARGET_SHEET);
+    if (!sh) return _json({ ok: false, error: `Sheet not found: ${TARGET_SHEET}` });
+
+    const nextRow = sh.getLastRow() + 1;
+    const now = new Date();
+    sh.getRange(nextRow, COL_NOTE, 1, 3).setValues([[note, "", now]]);
+
+    return _json({
+      ok: true,
+      addedTo: `${TARGET_SHEET}!A${nextRow}:C${nextRow}`,
+      note,
+      timestampISO: now.toISOString()
+    });
+  } catch (err) {
+    return _json({ ok: false, error: String(err) });
+  }
+}
+
+function _json(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+
+
+
