@@ -3592,6 +3592,22 @@ input#clientAutocomplete, select#clientSelect {
   justify-content: center;
   padding: 0;
 }
+  /* === AUTOCOMPLETE: FULLY HIDE WHEN COLLAPSED === */
+  /* Replace .AUTOCOMPLETE_BAR with your real selector (id or class) */
+  .AUTOCOMPLETE_BAR.autocomplete-collapsed {
+    background: transparent !important;
+    height: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    border: none !important;
+    overflow: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none;
+    display: block; /* keep layout stable; height=0 hides it */
+  }
+
 
 
 </style>
