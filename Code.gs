@@ -2385,7 +2385,9 @@ function collectJbChipClients_(targetDate) {
 
   var data = sheet.getDataRange().getValues();
   var tz = Session.getScriptTimeZone();
-  var targetStr = Utilities.formatDate(targetDate, tz, "MM/dd/yy");
+  var targetDay = new Date(targetDate);
+  targetDay.setHours(0, 0, 0, 0);
+  var targetStr = Utilities.formatDate(targetDay, tz, "MM/dd/yy");
   var clients = {};
 
   data.forEach(function(row, idx) {
@@ -2397,14 +2399,19 @@ function collectJbChipClients_(targetDate) {
     var initials = row[15] ? row[15].toString().trim().toUpperCase() : '';
     var chipDateRaw = row[16];
     var chipDateStr = '';
+    var chipDate = null;
     if (chipDateRaw) {
-      var chipDate = (chipDateRaw instanceof Date) ? chipDateRaw : new Date(chipDateRaw);
-      chipDateStr = isNaN(chipDate.getTime())
-        ? chipDateRaw.toString()
-        : Utilities.formatDate(chipDate, tz, "MM/dd/yy");
+      chipDate = (chipDateRaw instanceof Date) ? new Date(chipDateRaw) : new Date(chipDateRaw);
+      if (!isNaN(chipDate.getTime())) {
+        chipDate.setHours(0, 0, 0, 0);
+        chipDateStr = Utilities.formatDate(chipDate, tz, "MM/dd/yy");
+      } else {
+        chipDate = null;
+        chipDateStr = chipDateRaw.toString();
+      }
     }
 
-    if (initials !== 'JB' || chipDateStr !== targetStr) {
+    if (initials !== 'JB' || !chipDate || chipDate.getTime() > targetDay.getTime()) {
       return;
     }
 
@@ -2438,12 +2445,16 @@ function collectJbChipClients_(targetDate) {
 
   return { dateString: targetStr, clients: resultClients };
 }
+
 function sendJbChipTasksEmail() {
   var summary = collectJbChipClients_(new Date());
   var lines = [];
 
+  lines.push('JB Tasks through ' + (summary.dateString || 'today') + ':');
+  lines.push('');
+
   if (!summary.clients.length) {
-    lines.push('No clients matched the JB chip for today.');
+    lines.push('No clients matched the JB chip for today or earlier.');
   } else {
     summary.clients.forEach(function(client) {
       lines.push(client.name);
@@ -2462,13 +2473,12 @@ function sendJbChipTasksEmail() {
 
   MailApp.sendEmail({
     to: 'rbarrios815@gmail.com,jbgreatfamily1@gmail.com',
-    subject: 'JB Tasks for ' + (summary.dateString || 'today'),
+    subject: 'JB Tasks through ' + (summary.dateString || 'today'),
     body: lines.join('\n')
   });
 
   ensureJbChipDailyTrigger();
 }
-
 
 /***********************************************************************
  SNIPPET #4: SERVER-SIDE TASKS INTEGRATION
