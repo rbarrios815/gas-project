@@ -1187,6 +1187,32 @@ function addNote(textOverride){
 
 addBtn?.addEventListener('click', () => addNote());
 
+function saveEditedNote(row, text, noteEl){
+  if(!row){
+    showToast('Missing row for this note');
+    return;
+  }
+
+  startLoading();
+  google.script.run
+    .withSuccessHandler(()=>{
+      stopLoading();
+      if(noteEl){
+        noteEl.dataset.originalText = text;
+      }
+      showToast('Note updated');
+    })
+    .withFailureHandler(err=>{
+      console.error(err);
+      stopLoading();
+      showToast(err && err.message ? err.message : 'Error updating note');
+      if(noteEl){
+        noteEl.innerText = noteEl.dataset.originalText || '';
+      }
+    })
+    .inboxUpdateNote(row, text);
+}
+
     /* Recent (5) with assign */
   const recentList = document.getElementById('recentList');
 
@@ -1196,16 +1222,27 @@ addBtn?.addEventListener('click', () => addNote());
     if(!items.length){ return; }
 
     items.forEach(it=>{
-      const row=document.createElement('div'); 
+      const row=document.createElement('div');
       row.className='item';
 
       // LEFT: note text
-      const note=document.createElement('div'); 
-      note.className='note'; 
+      const note=document.createElement('div');
+      note.className='note';
       note.textContent=it.note;
+      note.contentEditable='true';
+      note.setAttribute('role','textbox');
+      note.setAttribute('aria-label','Edit note text');
+      note.dataset.originalText = it.note;
+
+      note.addEventListener('blur', ()=>{
+        const updated = (note.innerText || '').trim();
+        const original = (note.dataset.originalText || '').trim();
+        if(updated === original){ return; }
+        saveEditedNote(it.row, updated, note);
+      });
 
       // RIGHT: timestamp + assign input (auto-assigns on selection)
-      const side=document.createElement('div'); 
+      const side=document.createElement('div');
       side.style.minWidth='280px';
 
       // Timestamp only (NO green assigned label)
@@ -1279,7 +1316,7 @@ function loadRecent(done){
       stopLoading();
       if (typeof done === 'function') done(e);
     })
-    .inboxGetRecent(50);
+    .inboxGetRecent(100);
 }
 
 
@@ -1559,6 +1596,30 @@ input, button, select {
   #autocompleteSuggestions div {
     padding: 10px;
     cursor: pointer;
+  }
+
+  #autocompleteSuggestions .autocomplete-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #autocompleteSuggestions .autocomplete-name,
+  #autocompleteSuggestions .autocomplete-category-label,
+  #autocompleteSuggestions .autocomplete-category-select {
+    font: inherit;
+  }
+
+  #autocompleteSuggestions .autocomplete-category-select {
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    background: #fff;
+    min-width: 140px;
+  }
+
+  #autocompleteSuggestions .autocomplete-category-label {
+    white-space: nowrap;
   }
 
   #autocompleteSuggestions div:hover {
@@ -2005,11 +2066,10 @@ input#clientAutocomplete, select#clientSelect {
 #toggleNotesButton {
   background-color: #ff9500; /* Solid orange square */
   margin: 0;
-  font-size: 24px;
-  width: 60px;
-  height: 60px;
-  padding: 4px;
-  display: inline-flex;
+  font-size: 48px;
+  width: 120px;
+  height: 120px;
+  padding: 8px;;
   align-items: center;
   justify-content: center;
   line-height: 1;
@@ -3424,16 +3484,7 @@ input#clientAutocomplete, select#clientSelect {
       </div>
     </div>
     <div id="labelsAdditionSection">
-        <div id="categoryChangeSection" class="category-overlay" aria-hidden="true" style="display:none;">
-          <select id="categorySelect" class="category-select">
-            <option value="">▼</option>
-          </select>
-        </div>
-
       <div id="labelsButtonsRow" class="labels-buttons-row"></div>
-
-
-
     </div>
   </div>
 
@@ -3456,6 +3507,13 @@ input#clientAutocomplete, select#clientSelect {
   <textarea id="loadedInProgressArea"
             style="flex:1 1 auto; width:100%; min-height:60px; background-color:white; box-sizing:border-box;"
             onblur="onInProgressLoadedBlur(this.value)"></textarea>
+</div>
+
+<!-- Category dropdown under the green lightbulb bar -->
+<div id="categoryChangeSection" class="category-overlay" aria-hidden="true" style="display:none;">
+  <select id="categorySelect" class="category-select">
+    <option value="">▼</option>
+  </select>
 </div>
 
 <br>
@@ -6319,8 +6377,8 @@ function toggleNotesVisibility() {
 
   var toggleButton = document.getElementById('toggleNotesButton');
   if (toggleButton) {
-    // If expanded now, the button should read -; if collapsed, +
-    toggleButton.innerText = notesExpanded ? '-' : '+';
+    // Remove text labels from the toggle button regardless of state
+    toggleButton.innerText = '';
   }
 
   // If the user just clicked the - button (i.e., was expanded → now collapsed),
@@ -6486,7 +6544,7 @@ function displayNotes(notes) {
   toggleBtn.style.padding = '0';
   toggleBtn.style.width = '24px';
   toggleBtn.style.height = '24px';
-  toggleBtn.innerText = '+';
+  toggleBtn.innerText = '';
 
   var toggleRow = document.createElement('div');
   toggleRow.style.display = 'flex';
@@ -6881,7 +6939,8 @@ function submitPastWork() {
 showStarAnimation(); // SNIPPET #3
 
 
-            alert('Past work updated successfully.');
+            // Show a non-blocking confirmation so the dashboard remains usable
+            showToast('Past work updated successfully.');
 
             logPastWorkSubmissionToInbox(pastWorkContent, clientName);
 
@@ -7622,10 +7681,60 @@ function autocompleteClient() {
 
   matchedClients.forEach(function(client) {
     var suggestion = document.createElement('div');
-    suggestion.innerHTML = client.clientName + (client.category ? ' (' + client.category + ')' : '');
+    suggestion.classList.add('autocomplete-row');
+
+    var nameSpan = document.createElement('span');
+    nameSpan.className = 'autocomplete-name';
+    nameSpan.textContent = client.clientName;
+
+    var categorySelect = document.createElement('select');
+    categorySelect.className = 'autocomplete-category-select';
+    var categoryOptions = Array.from(document.querySelectorAll('#categoryList option'))
+      .map(function(opt) { return opt.value; })
+      .filter(function(val) { return val; });
+    if (client.category && !categoryOptions.includes(client.category)) {
+      categoryOptions.unshift(client.category);
+    }
+    categoryOptions.forEach(function(cat) {
+      var opt = document.createElement('option');
+      opt.value = cat;
+      opt.textContent = cat;
+      categorySelect.appendChild(opt);
+    });
+    if (client.category) {
+      categorySelect.value = client.category;
+    }
+
+    var categoryLabel = document.createElement('span');
+    categoryLabel.className = 'autocomplete-category-label';
+    categoryLabel.textContent = categorySelect.value ? '(' + categorySelect.value + ')' : '';
+
+    categorySelect.addEventListener('click', function(evt) {
+      evt.stopPropagation();
+    });
+
+    categorySelect.addEventListener('change', function(evt) {
+      var chosenCategory = evt.target.value || client.category || '';
+      inputElement.value = chosenCategory ? (client.clientName + ' (' + chosenCategory + ')') : client.clientName;
+      var catInput = document.getElementById('categoryCombo');
+      if (catInput) {
+        catInput.value = chosenCategory;
+      }
+      categoryLabel.textContent = chosenCategory ? '(' + chosenCategory + ')' : '';
+      if (clientSelect) clientSelect.value = client.clientName;
+      showClientNotes();
+      scrollToTop();
+      suggestions.innerHTML = '';
+      suggestions.style.display = 'none';
+    });
 
     suggestion.onclick = function() {
-      inputElement.value = this.innerHTML;
+      var chosenCategory = categorySelect.value || client.category || '';
+      inputElement.value = chosenCategory ? (client.clientName + ' (' + chosenCategory + ')') : client.clientName;
+      var catInput = document.getElementById('categoryCombo');
+      if (catInput) {
+        catInput.value = chosenCategory;
+      }
       if (clientSelect) clientSelect.value = client.clientName;
       showClientNotes();
       scrollToTop(); // Add this line to scroll to the top
@@ -7633,6 +7742,10 @@ function autocompleteClient() {
       suggestions.innerHTML = ''; // Hide suggestions after selection
       suggestions.style.display = 'none';
     };
+
+    suggestion.appendChild(nameSpan);
+    suggestion.appendChild(categorySelect);
+    suggestion.appendChild(categoryLabel);
 
     suggestions.appendChild(suggestion);
   });
