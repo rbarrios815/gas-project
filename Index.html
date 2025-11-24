@@ -3581,20 +3581,60 @@ input#clientAutocomplete, select#clientSelect {
   gap: 10px;
 }
 
-.appointment-icon-btn {
-  background-color: transparent;
-  color: #1f2937;
-  width: 44px;
-  height: 44px;
-  font-size: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-}
+  .appointment-icon-btn {
+    background-color: transparent;
+    color: #1f2937;
+    width: 44px;
+    height: 44px;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+
+  /* Autocomplete row + category dropdown inline */
+  .client-autocomplete-row {
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+    width: 100%;
+    position: relative;
+  }
+
+  .client-autocomplete-row #clientAutocomplete {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .cat-cal-wrap {
+    display: none;
+    flex: 0 0 32%;
+    min-width: 200px;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .client-autocomplete-row.has-client .cat-cal-wrap {
+    display: flex;
+  }
+
+  .client-autocomplete-row #autocompleteSuggestions {
+    left: 0;
+    right: 0;
+    width: auto;
+    top: calc(100% + 6px);
+  }
+
+  @media (max-width: 640px) {
+    .cat-cal-wrap {
+      flex-basis: 42%;
+      min-width: 140px;
+    }
+  }
 
 
-</style>
+  </style>
 
 
 </head>
@@ -3621,35 +3661,34 @@ input#clientAutocomplete, select#clientSelect {
   </button>
 </div>
 
+    <div class="client-autocomplete-row" id="clientAutocompleteRow">
+      <input type="text" id="clientAutocomplete"
+             placeholder="Type Client Name"
+             oninput="autocompleteClient()">
 
-</div>
+             <!-- Category combo + Calendar icon (hidden until a client is selected) -->
+      <div id="catCalWrap" class="cat-cal-wrap">
+        <!-- Category pill (combobox) -->
+        <div class="cat-pill" title="" >
+          <input id="categoryCombo"
+                 type="text"
+                 placeholder="Select category"
+                 list="categoryList"
+                 aria-label="Category"
+                 aria-expanded="false"
+                 aria-autocomplete="list"
+                 class="cat-input" />
+          <span class="cat-caret" aria-hidden="true">▼</span>
+          <datalist id="categoryList"></datalist>
+        </div>
 
-    <input type="text" id="clientAutocomplete"
-           placeholder="Type Client Name"
-           oninput="autocompleteClient()">
-
-           <!-- Category combo + Calendar icon (hidden until a client is selected) -->
-<div id="catCalWrap" style="display:none; gap:8px; align-items:center; margin-left:auto;">
-  <!-- Category pill (combobox) -->
-  <div class="cat-pill" title="" >
-    <input id="categoryCombo"
-           type="text"
-           placeholder="Select category"
-           list="categoryList"
-           aria-label="Category"
-           aria-expanded="false"
-           aria-autocomplete="list"
-           class="cat-input" />
-    <span class="cat-caret" aria-hidden="true">▼</span>
-    <datalist id="categoryList"></datalist>
-  </div>
-
-  <!-- Calendar button -->
-  <button id="calendarBtn" class="calendar-btn" title="Open calendar">
-    <!-- simple calendar glyph (text style, no color fill) -->
-    <span class="calendar-emoji" aria-hidden="true">&#x1F5D3;&#xFE0E;</span>
-  </button>
-</div>
+        <!-- Calendar button -->
+        <button id="calendarBtn" class="calendar-btn" title="Open calendar">
+          <!-- simple calendar glyph (text style, no color fill) -->
+          <span class="calendar-emoji" aria-hidden="true">&#x1F5D3;&#xFE0E;</span>
+        </button>
+      </div>
+    </div>
 
 
   </div>
@@ -5896,18 +5935,23 @@ function updateDaySettings(value) {
 }
 
 
-function showClientNotes() {
-    var clientName = document.getElementById('clientSelect').value;
-    // NOTE: recent chips no longer update here (only on hide).
-    var clientSelect = document.getElementById('clientSelect');
-    var clientAutocomplete = document.getElementById('clientAutocomplete');
-    // SNIPPET: CLEAR LOADED IN-PROGRESS AREA
+  function showClientNotes() {
+      var clientName = document.getElementById('clientSelect').value;
+      // NOTE: recent chips no longer update here (only on hide).
+      var clientSelect = document.getElementById('clientSelect');
+      var clientAutocomplete = document.getElementById('clientAutocomplete');
+      // SNIPPET: CLEAR LOADED IN-PROGRESS AREA
 
-    // So we don't see old text while the new client data is loading
-    document.getElementById('loadedInProgressArea').value = '';
+      // So we don't see old text while the new client data is loading
+      document.getElementById('loadedInProgressArea').value = '';
 
-    // Set the autocomplete value based on the dropdown selection
-    clientAutocomplete.value = clientName ? clientSelect.options[clientSelect.selectedIndex].text : '';
+      var autoRow = document.getElementById('clientAutocompleteRow');
+      var catWrap = document.getElementById('catCalWrap');
+      if (autoRow) autoRow.classList.toggle('has-client', !!clientName);
+      if (catWrap) catWrap.style.display = clientName ? 'flex' : 'none';
+
+      // Set the autocomplete value based on the dropdown selection
+      clientAutocomplete.value = clientName || '';
 
     if (clientName) {
         clientAutocomplete.style.color = 'black'; // Set text color to black when client is loaded
@@ -6925,15 +6969,15 @@ function restoreUIState() {
   try { st = JSON.parse(raw) || {}; } catch (_){ st = {}; }
 
   if (st.client) {
-    const sel = document.getElementById('clientSelect');
-    if (sel) {
-      sel.value = st.client;
-      const clientAutocomplete = document.getElementById('clientAutocomplete');
-      if (clientAutocomplete && sel.selectedIndex >= 0) {
-        clientAutocomplete.value = sel.options[sel.selectedIndex].text;
+      const sel = document.getElementById('clientSelect');
+      if (sel) {
+        sel.value = st.client;
+        const clientAutocomplete = document.getElementById('clientAutocomplete');
+        if (clientAutocomplete && sel.selectedIndex >= 0) {
+          clientAutocomplete.value = sel.value;
+        }
+        if (typeof showClientNotes === 'function') showClientNotes();
       }
-      if (typeof showClientNotes === 'function') showClientNotes();
-    }
   }
 }
 
@@ -7214,22 +7258,21 @@ function refreshUIWithNewCategory(clientName, newCategory) {
 
 
 // Select the updated client in the dropdown and reload notes
-function selectUpdatedClient(clientName, newCategory) {
-    var clientSelect = document.getElementById('clientSelect');
-    var clientAutocomplete = document.getElementById('clientAutocomplete');
-   var updatedClientText = newCategory ? clientName + ' (' + newCategory + ')' : clientName;
-    if (clientSelect) {
-        clientSelect.value = clientName;
-    }
+  function selectUpdatedClient(clientName, newCategory) {
+      var clientSelect = document.getElementById('clientSelect');
+      var clientAutocomplete = document.getElementById('clientAutocomplete');
+      if (clientSelect) {
+          clientSelect.value = clientName;
+      }
 
-   if (clientAutocomplete) {
-        clientAutocomplete.value = updatedClientText;
-        clientAutocomplete.style.color = 'black';
-    }
+     if (clientAutocomplete) {
+          clientAutocomplete.value = clientName;
+          clientAutocomplete.style.color = 'black';
+      }
 
-    if (typeof currentClientName !== 'undefined') {
-        currentClientName = updatedClientText;
-    }
+      if (typeof currentClientName !== 'undefined') {
+          currentClientName = clientName;
+      }
 
     if (typeof showClientNotes === 'function' && clientSelect) {
         showClientNotes();
@@ -7351,13 +7394,13 @@ function extractBaseName(clientName) {
           var clientSelect = document.getElementById('clientSelect');
           var clientAutocomplete = document.getElementById('clientAutocomplete');
 
-          for (var i = 0; i < clientSelect.options.length; i++) {
-            if (clientSelect.options[i].value === clientName) {
-              clientSelect.selectedIndex = i;
-              clientAutocomplete.value = clientSelect.options[i].text;
-              break;
+            for (var i = 0; i < clientSelect.options.length; i++) {
+              if (clientSelect.options[i].value === clientName) {
+                clientSelect.selectedIndex = i;
+                clientAutocomplete.value = clientSelect.options[i].value;
+                break;
+              }
             }
-          }
           // Now call showClientNotes()
           showClientNotes();
 
@@ -7911,12 +7954,12 @@ function autocompleteClient() {
       evt.stopPropagation();
     });
 
-    categorySelect.addEventListener('change', function(evt) {
-      var chosenCategory = evt.target.value || client.category || '';
-      inputElement.value = chosenCategory ? (client.clientName + ' (' + chosenCategory + ')') : client.clientName;
-      var catInput = document.getElementById('categoryCombo');
-      if (catInput) {
-        catInput.value = chosenCategory;
+      categorySelect.addEventListener('change', function(evt) {
+        var chosenCategory = evt.target.value || client.category || '';
+        inputElement.value = client.clientName;
+        var catInput = document.getElementById('categoryCombo');
+        if (catInput) {
+          catInput.value = chosenCategory;
       }
       categoryLabel.textContent = chosenCategory ? '(' + chosenCategory + ')' : '';
       if (clientSelect) clientSelect.value = client.clientName;
@@ -7926,12 +7969,12 @@ function autocompleteClient() {
       suggestions.style.display = 'none';
     });
 
-    suggestion.onclick = function() {
-      var chosenCategory = categorySelect.value || client.category || '';
-      inputElement.value = chosenCategory ? (client.clientName + ' (' + chosenCategory + ')') : client.clientName;
-      var catInput = document.getElementById('categoryCombo');
-      if (catInput) {
-        catInput.value = chosenCategory;
+      suggestion.onclick = function() {
+        var chosenCategory = categorySelect.value || client.category || '';
+        inputElement.value = client.clientName;
+        var catInput = document.getElementById('categoryCombo');
+        if (catInput) {
+          catInput.value = chosenCategory;
       }
       if (clientSelect) clientSelect.value = client.clientName;
       showClientNotes();
@@ -9203,13 +9246,13 @@ function submitNewClientModal(clientName, category) {
                 var clientSelect = document.getElementById('clientSelect');
                 var clientAutocomplete = document.getElementById('clientAutocomplete');
 
-                for (var i = 0; i < clientSelect.options.length; i++) {
-                    if (clientSelect.options[i].value === clientName) {
-                        clientSelect.selectedIndex = i;
-                        clientAutocomplete.value = clientSelect.options[i].text;
-                        break;
-                    }
-                }
+                  for (var i = 0; i < clientSelect.options.length; i++) {
+                      if (clientSelect.options[i].value === clientName) {
+                          clientSelect.selectedIndex = i;
+                          clientAutocomplete.value = clientSelect.options[i].value;
+                          break;
+                      }
+                  }
                 // Now call showClientNotes()
                 showClientNotes();
             }).getAllClientsData();
@@ -10694,6 +10737,7 @@ function suggestionsContainEmoji(client, emoji) {
 
   // === ELEMENTS ===
   const catCalWrap   = () => document.getElementById('catCalWrap');
+  const autoRow      = () => document.getElementById('clientAutocompleteRow');
   const catInput     = () => document.getElementById('categoryCombo');
   const catList      = () => document.getElementById('categoryList');
   const calendarBtn  = () => document.getElementById('calendarBtn');
@@ -10734,7 +10778,10 @@ function suggestionsContainEmoji(client, emoji) {
     setTooltip(catInput(), currentCategory || 'Select category');
   }
   function showCatUI(show) {
-    catCalWrap().style.display = show ? 'inline-flex' : 'none';
+    const row = autoRow();
+    if (row) row.classList.toggle('has-client', !!show);
+    const wrap = catCalWrap();
+    if (wrap) wrap.style.display = show ? 'flex' : 'none';
   }
 
   // Debounce helper ~200ms
