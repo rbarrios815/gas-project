@@ -2443,7 +2443,7 @@ function sendJbChipTasksEmail() {
   var summary = collectJbChipClients_(new Date());
   var lines = [];
 
-  lines.push('Clients with JB chip for ' + (summary.dateString || 'today') + ':');
+  lines.push('JB Tasks for ' + (summary.dateString || 'today') + ':');
   lines.push('');
 
   if (!summary.clients.length) {
@@ -2465,8 +2465,8 @@ function sendJbChipTasksEmail() {
   }
 
   MailApp.sendEmail({
-    to: 'rbarrios815@gmail.com',
-    subject: 'JB Chip Tasks for ' + (summary.dateString || 'today'),
+    to: 'rbarrios815@gmail.com,jbgreatfamily1@gmail.com',
+    subject: 'JB Tasks for ' + (summary.dateString || 'today'),
     body: lines.join('\n')
   });
 
