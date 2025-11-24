@@ -2717,13 +2717,37 @@ function inboxGetRecent(limit) {
   }));
 
   const tz = Session.getScriptTimeZone();
-  const sorted = [...all].sort((a,b)=>b.ts-a.ts).slice(0, limit||5).map(x=>({
+  const sorted = [...all]
+    .filter(x => x.ts) // only rows with a timestamp in Column C
+    .sort((a,b)=>b.ts-a.ts)
+    .slice(0, limit||5)
+    .map(x=>({
     row: x.row,
     note: x.note,
     assigned: x.assigned,
     timestamp: x.ts ? Utilities.formatDate(new Date(x.ts), tz, 'MM/dd/yy h:mma') : ''
   }));
   return { recent: sorted, raw: all };
+}
+
+function inboxUpdateNote(row, newNote){
+  if (!row || row < 2) {
+    throw new Error('A valid row number is required.');
+  }
+
+  const note = String(newNote || '').trim();
+  if (!note) {
+    throw new Error('Note cannot be empty.');
+  }
+
+  const sh = ensureNotesInbox_();
+  const hasTimestamp = sh.getRange(row, 3).getValue();
+  if (!hasTimestamp) {
+    throw new Error('Cannot edit this note because Column C is missing a date.');
+  }
+
+  sh.getRange(row, 1).setValue(note);
+  return { ok: true, row: row, note: note };
 }
 
 function getCanonicalClientName_(typed) {
