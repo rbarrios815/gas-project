@@ -2455,8 +2455,8 @@ function sendJbChipTasksEmail() {
       if (client.highlights.length === 0) {
         lines.push('  No highlighted tasks available.');
       } else {
-        client.highlights.forEach(function(line, idx) {
-          lines.push('  ' + (idx + 1) + ') ' + line);
+        client.highlights.forEach(function(line) {
+          lines.push('  ' + line);
         });
       }
 
