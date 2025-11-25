@@ -2919,17 +2919,31 @@ input#clientAutocomplete, select#clientSelect {
 }
 
 #categoryChangeSection select {
-  width: 34px;
-  height: 34px;
-  padding: 0 8px;
+  width: 44px;
+  height: 36px;
+  padding: 0 12px;
   background: linear-gradient(135deg, var(--green1), var(--green2));
   border: 1px solid #0ca678;
   border-radius: 10px;
-  font-size: 12px;
-  color: transparent;
-  text-indent: -9999px; /* hide placeholder text so only the arrow shows */
-  -webkit-appearance: menulist; /* keep native arrow while text is hidden */
-  -moz-appearance: menulist;
+  font-size: 14px;
+  font-weight: 800;
+  color: transparent; /* keep label hidden; emphasize the arrow */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #fff 50%),
+    linear-gradient(135deg, #fff 50%, transparent 50%),
+    linear-gradient(90deg, rgba(255,255,255,0.16), rgba(255,255,255,0.16));
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 8px) 50%,
+    center;
+  background-size:
+    8px 8px,
+    8px 8px,
+    cover;
+  background-repeat: no-repeat;
   cursor: pointer;
 }
 
@@ -3354,23 +3368,23 @@ input#clientAutocomplete, select#clientSelect {
   position: relative;
   display: inline-flex;
   align-items: center;
-  max-width: min(42vw, 380px);
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
   border: 1px solid #cfcfcf;
   border-radius: 999px;
-  padding: 4px 28px 4px 10px;
+  padding: 4px 20px 4px 10px;
   background: #fff;
-  height: 32px;
+  height: 36px;
 }
 .cat-input {
   border: 0; outline: 0; width: 100%;
-  font: inherit; line-height: 1;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font: inherit; line-height: 1.2; font-weight: inherit;
+  white-space: nowrap; overflow: hidden; text-overflow: clip;
+  min-width: 0;
 }
 .cat-input::placeholder { color: #777; }
-.cat-caret {
-  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-  font-size: 10px; pointer-events: none;
-}
+.cat-caret { display: none; }
 
 /* Hide the calendar/clipboard-style emoji to reduce clutter around the category input */
 .calendar-btn {
@@ -3502,10 +3516,11 @@ input#clientAutocomplete, select#clientSelect {
   /* Autocomplete row + category dropdown inline */
   .client-autocomplete-row {
     display: flex;
-    align-items: stretch;
+    align-items: center;
     gap: 10px;
     width: 100%;
     position: relative;
+    flex-wrap: nowrap;
   }
 
   .client-autocomplete-row #clientAutocomplete {
@@ -3515,8 +3530,9 @@ input#clientAutocomplete, select#clientSelect {
 
   .cat-cal-wrap {
     display: none;
-    flex: 0 0 32%;
-    min-width: 200px;
+    flex: 0 1 40%;
+    min-width: 0;
+    max-width: 48%;
     align-items: center;
     gap: 8px;
   }
@@ -3584,15 +3600,8 @@ input#clientAutocomplete, select#clientSelect {
                  aria-expanded="false"
                  aria-autocomplete="list"
                  class="cat-input" />
-          <span class="cat-caret" aria-hidden="true">▼</span>
           <datalist id="categoryList"></datalist>
         </div>
-
-        <!-- Calendar button -->
-        <button id="calendarBtn" class="calendar-btn" title="Open calendar">
-          <!-- simple calendar glyph (text style, no color fill) -->
-          <span class="calendar-emoji" aria-hidden="true">&#x1F5D3;&#xFE0E;</span>
-        </button>
       </div>
 
       <!-- Compact category changer tucked into the autocomplete bar -->
@@ -3994,6 +4003,18 @@ function fitClientInputNow(){
   fitElementTextToOneLine(input, { minPx: 6 });
 }
 
+/* Fit the category inline combo to the available width without ellipses */
+function fitCategoryComboNow(){
+  const input = document.getElementById('categoryCombo');
+  if (!input || input.offsetParent === null) return; // skip if hidden
+  fitElementTextToOneLine(input, { minPx: 6 });
+}
+
+function fitClientAndCategoryRow(){
+  fitClientInputNow();
+  fitCategoryComboNow();
+}
+
 /* === HELPER: shrink a suggestion row only if it overflows === */
 function shrinkSuggestionRow(row, minPx = 10) {
   if (!row) return;
@@ -4048,7 +4069,7 @@ function fitAllSuggestionRows() {
 
 /* Re-fit on window resize (zoom/viewport changes often alter available width) */
 window.addEventListener('resize', function(){
-  fitClientInputNow();
+  fitClientAndCategoryRow();
   fitAllSuggestionRows();
 });
 
@@ -5454,11 +5475,11 @@ var inputElement = document.getElementById('clientAutocomplete');
 
   // User typing
   input.addEventListener('input', function(){
-    requestAnimationFrame(fitClientInputNow);
+    requestAnimationFrame(fitClientAndCategoryRow);
   });
 
   window.addEventListener('resize', function(){
-    requestAnimationFrame(fitClientInputNow);
+    requestAnimationFrame(fitClientAndCategoryRow);
   });
 
   // Programmatic changes (e.g., when a client is loaded into the input)
@@ -5469,7 +5490,7 @@ var inputElement = document.getElementById('clientAutocomplete');
     window.showClientNotes = function wrappedShowClientNotes(){
       const out = orig.apply(this, arguments);
       // After the UI updates, fit the input text
-      requestAnimationFrame(fitClientInputNow);
+      requestAnimationFrame(fitClientAndCategoryRow);
       return out;
     };
     window.showClientNotes.__wrappedForFit = true;
@@ -5490,7 +5511,7 @@ var inputElement = document.getElementById('clientAutocomplete');
       },
       set: function(v){
         desc.set.call(this, v);
-        requestAnimationFrame(fitClientInputNow);
+        requestAnimationFrame(fitClientAndCategoryRow);
       }
     });
 
@@ -5504,13 +5525,22 @@ var inputElement = document.getElementById('clientAutocomplete');
 
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', function(){
-      requestAnimationFrame(fitClientInputNow);
+      requestAnimationFrame(fitClientAndCategoryRow);
     });
   }
 
 
   // Also fit immediately on first load (in case a value is prefilled)
-  requestAnimationFrame(fitClientInputNow);
+  requestAnimationFrame(fitClientAndCategoryRow);
+})();
+
+/* Keep the inline category combo shrunk-to-fit while typing */
+(function wireCategoryComboRefitter(){
+  const combo = document.getElementById('categoryCombo');
+  if (!combo) return;
+  combo.addEventListener('input', function(){
+    requestAnimationFrame(fitCategoryComboNow);
+  });
 })();
 
 /* 3) When suggestions first appear due to typing, make sure they fit too */
@@ -5852,6 +5882,8 @@ function updateDaySettings(value) {
       var catWrap = document.getElementById('catCalWrap');
       if (autoRow) autoRow.classList.toggle('has-client', !!clientName);
       if (catWrap) catWrap.style.display = clientName ? 'flex' : 'none';
+
+      requestAnimationFrame(fitClientAndCategoryRow);
 
       // Set the autocomplete value based on the dropdown selection
       clientAutocomplete.value = clientName || '';
@@ -8677,6 +8709,7 @@ function setCategoryPlaceholderText(text) {
         categoryCombo.value = effectiveText;
         categoryCombo.placeholder = effectiveText || 'Select category';
         categoryCombo.title = effectiveText || 'Select category';
+        fitCategoryComboNow();
     }
 }
 
@@ -10646,7 +10679,8 @@ function suggestionsContainEmoji(client, emoji) {
   }
   function setDisabled(disabled) {
     catInput().disabled = disabled;
-    calendarBtn().disabled = disabled;
+    const calBtn = calendarBtn();
+    if (calBtn) calBtn.disabled = disabled;
   }
   function toast(msg) {
     if (window.showToast) { showToast(msg); } else { alert(msg); }
@@ -10788,7 +10822,8 @@ function suggestionsContainEmoji(client, emoji) {
     apptModal().style.display = 'none';
   }
 
-  calendarBtn().addEventListener('click', openApptModal);
+  const calBtn = calendarBtn();
+  if (calBtn) calBtn.addEventListener('click', openApptModal);
   apptClose().addEventListener('click', closeApptModal);
   apptCancel().addEventListener('click', closeApptModal);
 
