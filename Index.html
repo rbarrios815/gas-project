@@ -8020,18 +8020,42 @@ function selectClientFromButton(clientText) {
 
 
     var clientSelect = document.getElementById('clientSelect');
+    var normalizedClient = (clientText || '').trim();
+    if (!normalizedClient) return;
 
-    for (var i = 0; i < clientSelect.options.length; i++) {
-        // Extract the client name and category from the dropdown option
-        var optionClientName = (clientSelect.options[i].value || '').trim();
+    var matchedIndex = -1;
 
-        // Check if the client names match (without considering the category)
-        if (clientText.trim().toLowerCase().startsWith(optionClientName.toLowerCase())) {
-            clientSelect.selectedIndex = i;
-            showClientNotes(); // Refresh client notes if needed
-            scrollToTop(); // Scroll to the top of the page
-            break;
-        }
+    if (clientSelect) {
+      for (var i = 0; i < clientSelect.options.length; i++) {
+          // Extract the client name and category from the dropdown option
+          var optionClientName = (clientSelect.options[i].value || '').trim();
+          if (!optionClientName) continue;
+
+          var optLower = optionClientName.toLowerCase();
+          var clientLower = normalizedClient.toLowerCase();
+
+          // Prefer exact matches, but allow buttons that include " (Category)" suffixes
+          if (clientLower === optLower || clientLower.startsWith(optLower)) {
+              matchedIndex = i;
+              break;
+          }
+      }
+
+      if (matchedIndex >= 0) {
+        clientSelect.selectedIndex = matchedIndex;
+      } else {
+        // Fallback: allow setting the value directly in case the option text differs slightly
+        clientSelect.value = normalizedClient;
+      }
+    }
+
+    // Mirror the chosen name into autocomplete for visual consistency
+    var clientAutocomplete = document.getElementById('clientAutocomplete');
+    if (clientAutocomplete) clientAutocomplete.value = normalizedClient;
+
+    if (clientSelect) {
+      showClientNotes(); // Refresh client notes if needed
+      scrollToTop(); // Scroll to the top of the page
     }
 }
 
@@ -9303,17 +9327,24 @@ function displayClient(client, container) {
   var topRow = document.createElement('div');
   topRow.style.cssText = "display:flex; align-items:center; justify-content:center; width:100%;";
 
+  var baseClientName = client.clientName || client.name || '';
+  var clientCategory = client.category || '';
+
   var clientButton = document.createElement('button');
   clientButton.className = 'inline-button client-button';
-  clientButton.innerText = client.name + (client.category ? ' (' + client.category + ')' : '');
+  clientButton.dataset.client = baseClientName;
+  clientButton.dataset.category = clientCategory;
+  clientButton.innerText = baseClientName + (clientCategory ? ' (' + clientCategory + ')' : '');
   clientButton.style.cssText = "display:inline-flex; align-items:center;";
   clientButton.addEventListener('click', function () {
+    var btnClient = this.getAttribute('data-client') || baseClientName || this.innerText || '';
+
     // prime chip cache so details view shows same chip
     window.__chipForCurrentClient = {
       initials: (client.chipInitials || '').toUpperCase(),
       date: normalizeChipDate(client.chipDate || '')
     };
-    selectClientFromButton(client.name);
+    selectClientFromButton(btnClient);
   });
   topRow.appendChild(clientButton);
 
