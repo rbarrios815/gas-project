@@ -2446,39 +2446,48 @@ function collectJbChipClients_(targetDate) {
   return { dateString: targetStr, clients: resultClients };
 }
 
+
 function sendJbChipTasksEmail() {
   var summary = collectJbChipClients_(new Date());
   var lines = [];
 
-  lines.push('JB Tasks through ' + (summary.dateString || 'today') + ':');
+  // Blank line at the very top of the body (creates visual gap after subject)
   lines.push('');
 
   if (!summary.clients.length) {
-    lines.push('No clients matched the JB chip for today or earlier.');
+    lines.push('No clients matched the JB chip for ' + (summary.dateString || 'today') + '.');
   } else {
     summary.clients.forEach(function(client) {
+      // Client name
       lines.push(client.name);
 
+      // Blank line between client name and tasks
+      lines.push('');
+
+      // Indented tasks (5 spaces)
       if (client.highlights.length === 0) {
-        lines.push('  No highlighted tasks available.');
+        lines.push('     No highlighted tasks available');
       } else {
         client.highlights.forEach(function(line) {
-          lines.push('  ' + line);
+          lines.push('     ' + line);
         });
       }
 
+      // Blank line between clients
       lines.push('');
     });
   }
 
   MailApp.sendEmail({
     to: '8326215185@vtext.com',
-    subject: 'DASHBOARD UPDATE',
+    subject: 'JB DASHBOARD TASKS THROUGH ' + (summary.dateString || 'today') + ':',
     body: lines.join('\n')
   });
 
   ensureJbChipDailyTrigger();
 }
+
+
 
 /***********************************************************************
  SNIPPET #4: SERVER-SIDE TASKS INTEGRATION
