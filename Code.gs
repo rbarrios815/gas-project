@@ -2472,8 +2472,8 @@ function sendJbChipTasksEmail() {
   }
 
   MailApp.sendEmail({
-    to: '8326215185@vzwpix.com,jbgreatfamily1@gmail.com',
-    subject: 'JB Tasks through ' + (summary.dateString || 'today'),
+    to: '8326215185@vtext.com',
+    subject: 'DASHBOARD UPDATE',
     body: lines.join('\n')
   });
 
