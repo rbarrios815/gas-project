@@ -1662,6 +1662,11 @@ input, button, select {
     list-style-type: decimal;
   }
 
+  #autocompleteSuggestions {
+    font-size: 0.35rem; /* roughly 1/4 the previous size */
+    line-height: 1.35;
+  }
+
   #autocompleteSuggestions div {
     padding: 10px;
     cursor: pointer;
@@ -3377,14 +3382,67 @@ input#clientAutocomplete, select#clientSelect {
   background: #fff;
   height: 36px;
 }
-.cat-input {
+.cat-input { 
   border: 0; outline: 0; width: 100%;
   font: inherit; line-height: 1.2; font-weight: inherit;
   white-space: nowrap; overflow: hidden; text-overflow: clip;
   min-width: 0;
 }
 .cat-input::placeholder { color: #777; }
-.cat-caret { display: none; }
+
+/* Cleaner, unified styling for the client + category line */
+.client-autocomplete-row {
+  gap: 12px;
+}
+
+.client-autocomplete-row #clientAutocomplete,
+.cat-pill {
+  height: 44px;
+  font: 600 15px/1.35 "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  color: #1f2937;
+  background: #f8fafc;
+  border: 1px solid #cfd8e3;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.client-autocomplete-row #clientAutocomplete {
+  border-radius: 12px;
+  padding: 10px 14px;
+  background: #f8fafc !important;
+  border-color: #cfd8e3 !important;
+}
+
+.cat-pill {
+  padding: 8px 44px 8px 14px;
+  border-radius: 12px;
+}
+
+.cat-input {
+  font: inherit;
+  color: inherit;
+}
+
+.cat-caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  right: 14px;
+  color: #334155;
+  font-size: 17px;
+  pointer-events: none;
+}
+
+.client-autocomplete-row #clientAutocomplete::placeholder,
+.cat-input::placeholder {
+  color: #9ca3af;
+}
+
+.client-autocomplete-row #clientAutocomplete:focus,
+.cat-pill:focus-within {
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+}
 
 /* Hide the calendar/clipboard-style emoji to reduce clutter around the category input */
 .calendar-btn {
@@ -3600,6 +3658,7 @@ input#clientAutocomplete, select#clientSelect {
                  aria-expanded="false"
                  aria-autocomplete="list"
                  class="cat-input" />
+          <span class="cat-caret" aria-hidden="true">▾</span>
           <datalist id="categoryList"></datalist>
         </div>
       </div>
@@ -3950,8 +4009,9 @@ function measureInputTextPx(inputEl, fontPx){
 function fitElementTextToOneLine(el, opts){
   if (!el) return;
   const cs = getComputedStyle(el);
-  const maxPx = Math.max(10, parseFloat(cs.fontSize) || 16); // current as ceiling
-  const minPx = Math.max(10, (opts && opts.minPx) || 10);    // don’t go below 10px unless you choose
+  const basePx = parseFloat(cs.fontSize) || 16;
+  const maxPx = Math.max(basePx, (opts && opts.maxPx) || basePx); // allow growing up to provided cap
+  const minPx = Math.max(6, (opts && opts.minPx) || 6);            // allow smaller text when needed
 
   // Determine available width (account for padding)
   const rect = el.getBoundingClientRect();
@@ -3988,11 +4048,8 @@ function fitElementTextToOneLine(el, opts){
 
   // Apply only if we actually need to shrink
   const currentPx = parseFloat(cs.fontSize) || maxPx;
-  if (best < currentPx) {
+  if (best !== currentPx) {
     el.style.fontSize = best + 'px';
-  } else {
-    // Reset in case a previous shrink is no longer necessary
-    el.style.fontSize = '';
   }
 }
 
@@ -4000,7 +4057,8 @@ function fitElementTextToOneLine(el, opts){
 function fitClientInputNow(){
   const input = document.getElementById('clientAutocomplete');
   if (!input) return;
-  fitElementTextToOneLine(input, { minPx: 6 });
+  const basePx = parseFloat(getComputedStyle(input).fontSize) || 15;
+  fitElementTextToOneLine(input, { minPx: 6, maxPx: basePx * 4 });
 }
 
 /* Fit the category inline combo to the available width without ellipses */
@@ -5868,7 +5926,14 @@ function updateDaySettings(value) {
 }
 
 
-  function showClientNotes() {
+function setClientDropdownVisibility(hasClient) {
+  var autoRow = document.getElementById('clientAutocompleteRow');
+  var catWrap = document.getElementById('catCalWrap');
+  if (autoRow) autoRow.classList.toggle('has-client', !!hasClient);
+  if (catWrap) catWrap.style.display = hasClient ? 'flex' : 'none';
+}
+
+function showClientNotes() {
       var clientName = document.getElementById('clientSelect').value;
       // NOTE: recent chips no longer update here (only on hide).
       var clientSelect = document.getElementById('clientSelect');
@@ -5878,10 +5943,7 @@ function updateDaySettings(value) {
       // So we don't see old text while the new client data is loading
       document.getElementById('loadedInProgressArea').value = '';
 
-      var autoRow = document.getElementById('clientAutocompleteRow');
-      var catWrap = document.getElementById('catCalWrap');
-      if (autoRow) autoRow.classList.toggle('has-client', !!clientName);
-      if (catWrap) catWrap.style.display = clientName ? 'flex' : 'none';
+      setClientDropdownVisibility(!!clientName);
 
       requestAnimationFrame(fitClientAndCategoryRow);
 
@@ -7827,6 +7889,11 @@ function autocompleteClient() {
 
   var inputValue = (inputElement.value || '').trim().toLowerCase();
 
+  // Hide category dropdown until a client is actually chosen
+  if (!inputValue) {
+    setClientDropdownVisibility(false);
+  }
+
   // Clear current suggestions
   suggestions.innerHTML = '';
 
@@ -7875,6 +7942,7 @@ function autocompleteClient() {
         catInput.value = chosenCategory;
       }
       if (clientSelect) clientSelect.value = client.clientName;
+      setClientDropdownVisibility(true);
       showClientNotes();
       scrollToTop(); // Add this line to scroll to the top
 
