@@ -3038,22 +3038,33 @@ input#clientAutocomplete, select#clientSelect {
 }
 
 .category-overlay {
-  position: static;
+  position: absolute;
+  top: 10px;
+  right: 12px;
   display: none;
-  width: 100%;
+  width: auto;
   pointer-events: auto;
+  z-index: 15;
 }
 
 #categoryChangeSection select {
-  width: 100%;
-  height: auto;
-  background: #fff;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 1em;
-  padding: 10px;
-  box-sizing: border-box;
-  pointer-events: auto;
+  width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  background: linear-gradient(135deg, var(--green1), var(--green2));
+  border: 1px solid #0ca678;
+  border-radius: 10px;
+  font-size: 12px;
+  color: transparent;
+  cursor: pointer;
+}
+
+#categoryChangeSection select option {
+  color: #111;
+}
+
+#categoryChangeSection select:focus {
+  outline: 2px solid #0ca678;
 }
 
 /* Chips bar when placed inside the autocomplete wrapper */
@@ -3704,6 +3715,13 @@ input#clientAutocomplete, select#clientSelect {
           <span class="calendar-emoji" aria-hidden="true">&#x1F5D3;&#xFE0E;</span>
         </button>
       </div>
+
+      <!-- Compact category changer tucked into the autocomplete bar -->
+      <div id="categoryChangeSection" class="category-overlay" aria-hidden="true" style="display:none;">
+        <select id="categorySelect" class="category-select">
+          <option value=""></option>
+        </select>
+      </div>
     </div>
 
 
@@ -3761,16 +3779,6 @@ input#clientAutocomplete, select#clientSelect {
             style="flex:1 1 auto; width:100%; min-height:60px; background-color:white; box-sizing:border-box;"
             onblur="onInProgressLoadedBlur(this.value)"></textarea>
 </div>
-
-<!-- Category dropdown under the green lightbulb bar -->
-<div id="categoryChangeSection" class="category-overlay" aria-hidden="true" style="display:none;">
-  <select id="categorySelect" class="category-select">
-    <option value="">▼</option>
-  </select>
-</div>
-
-<br>
-
 
     </div>
 <!-- Future Work submission (deprecated/removed) -->
@@ -8778,7 +8786,7 @@ function setCategoryPlaceholderText(text) {
         categorySelect.appendChild(placeholderOption);
     }
 
-    var effectiveText = (text || '').trim() || __currentCategory || fallbackFromClient || '▼';
+    var effectiveText = (text || '').trim() || __currentCategory || fallbackFromClient || '';
     if (effectiveText) {
         __currentCategory = effectiveText;
     }
