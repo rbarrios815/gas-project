@@ -2927,6 +2927,9 @@ input#clientAutocomplete, select#clientSelect {
   border-radius: 10px;
   font-size: 12px;
   color: transparent;
+  text-indent: -9999px; /* hide placeholder text so only the arrow shows */
+  -webkit-appearance: menulist; /* keep native arrow while text is hidden */
+  -moz-appearance: menulist;
   cursor: pointer;
 }
 
@@ -3367,6 +3370,11 @@ input#clientAutocomplete, select#clientSelect {
 .cat-caret {
   position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
   font-size: 10px; pointer-events: none;
+}
+
+/* Hide the calendar/clipboard-style emoji to reduce clutter around the category input */
+.calendar-btn {
+  display: none;
 }
 
 /* Calendar icon button */
@@ -8641,6 +8649,7 @@ function updateCategoryLabel() {
 
 function setCategoryPlaceholderText(text) {
     var categorySelect = document.getElementById('categorySelect');
+    var categoryCombo = document.getElementById('categoryCombo');
     if (!categorySelect) return;
 
     var fallbackFromClient = (function() {
@@ -8662,7 +8671,30 @@ function setCategoryPlaceholderText(text) {
         __currentCategory = effectiveText;
     }
     categorySelect.options[0].text = effectiveText;
+
+    // Keep the inline category combobox in sync so the category name is always visible
+    if (categoryCombo) {
+        categoryCombo.value = effectiveText;
+        categoryCombo.placeholder = effectiveText || 'Select category';
+        categoryCombo.title = effectiveText || 'Select category';
+    }
 }
+
+// Make the inline caret behave like a dropdown trigger for the category combo box
+document.addEventListener('DOMContentLoaded', function () {
+    var caret = document.querySelector('.cat-caret');
+    if (!caret) return;
+    caret.style.pointerEvents = 'auto';
+    caret.style.cursor = 'pointer';
+    caret.addEventListener('click', function () {
+        var combo = document.getElementById('categoryCombo');
+        if (!combo) return;
+        combo.focus();
+        if (typeof combo.showPicker === 'function') {
+            try { combo.showPicker(); } catch (e) { /* ignore */ }
+        }
+    });
+});
 
 function hideCategoryOverlay() {
     var overlay = document.getElementById('categoryChangeSection');
