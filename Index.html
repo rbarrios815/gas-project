@@ -7944,53 +7944,16 @@ function autocompleteClient() {
     nameSpan.className = 'autocomplete-name';
     nameSpan.textContent = client.clientName;
 
-    var categorySelect = document.createElement('select');
-    categorySelect.className = 'autocomplete-category-select';
-    var categoryOptions = Array.from(document.querySelectorAll('#categoryList option'))
-      .map(function(opt) { return opt.value; })
-      .filter(function(val) { return val; });
-    if (client.category && !categoryOptions.includes(client.category)) {
-      categoryOptions.unshift(client.category);
-    }
-    categoryOptions.forEach(function(cat) {
-      var opt = document.createElement('option');
-      opt.value = cat;
-      opt.textContent = cat;
-      categorySelect.appendChild(opt);
-    });
-    if (client.category) {
-      categorySelect.value = client.category;
-    }
-
     var categoryLabel = document.createElement('span');
     categoryLabel.className = 'autocomplete-category-label';
-    categoryLabel.textContent = categorySelect.value ? '(' + categorySelect.value + ')' : '';
+    categoryLabel.textContent = client.category ? '(' + client.category + ')' : '';
 
-    categorySelect.addEventListener('click', function(evt) {
-      evt.stopPropagation();
-    });
-
-      categorySelect.addEventListener('change', function(evt) {
-        var chosenCategory = evt.target.value || client.category || '';
-        inputElement.value = client.clientName;
-        var catInput = document.getElementById('categoryCombo');
-        if (catInput) {
-          catInput.value = chosenCategory;
-      }
-      categoryLabel.textContent = chosenCategory ? '(' + chosenCategory + ')' : '';
-      if (clientSelect) clientSelect.value = client.clientName;
-      showClientNotes();
-      scrollToTop();
-      suggestions.innerHTML = '';
-      suggestions.style.display = 'none';
-    });
-
-      suggestion.onclick = function() {
-        var chosenCategory = categorySelect.value || client.category || '';
-        inputElement.value = client.clientName;
-        var catInput = document.getElementById('categoryCombo');
-        if (catInput) {
-          catInput.value = chosenCategory;
+    suggestion.onclick = function() {
+      var chosenCategory = client.category || '';
+      inputElement.value = client.clientName;
+      var catInput = document.getElementById('categoryCombo');
+      if (catInput) {
+        catInput.value = chosenCategory;
       }
       if (clientSelect) clientSelect.value = client.clientName;
       showClientNotes();
@@ -8001,7 +7964,6 @@ function autocompleteClient() {
     };
 
     suggestion.appendChild(nameSpan);
-    suggestion.appendChild(categorySelect);
     suggestion.appendChild(categoryLabel);
 
     suggestions.appendChild(suggestion);
