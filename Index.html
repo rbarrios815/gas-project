@@ -3397,39 +3397,46 @@ input#clientAutocomplete, select#clientSelect {
 
 .client-autocomplete-row #clientAutocomplete,
 .cat-pill {
-  height: 44px;
+  min-height: 44px;
   font: 600 15px/1.35 "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
   color: #1f2937;
-  background: #f8fafc;
-  border: 1px solid #cfd8e3;
+  background: #e7f6ed;
+  border: 1px solid #9ed6b8;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
 }
 
 .client-autocomplete-row #clientAutocomplete {
   border-radius: 12px;
-  padding: 10px 14px;
-  background: #f8fafc !important;
-  border-color: #cfd8e3 !important;
+  padding: 12px 16px;
+  background: #e7f6ed !important;
+  border-color: #9ed6b8 !important;
 }
 
 .cat-pill {
-  padding: 8px 44px 8px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
   border-radius: 12px;
+  background: #e7f6ed;
+  border-color: #9ed6b8;
 }
 
 .cat-input {
   font: inherit;
   color: inherit;
+  width: auto;
+  min-width: 0;
+  flex: 1 1 auto;
+  padding: 4px 0;
 }
 
 .cat-caret {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  position: absolute;
-  right: 14px;
   color: #334155;
-  font-size: 17px;
+  font-size: 18px;
   pointer-events: none;
 }
 
@@ -3588,15 +3595,14 @@ input#clientAutocomplete, select#clientSelect {
 
   .cat-cal-wrap {
     display: none;
-    flex: 0 1 40%;
+    flex: 0 0 auto;
     min-width: 0;
-    max-width: 48%;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
   }
 
   .client-autocomplete-row.has-client .cat-cal-wrap {
-    display: flex;
+    display: inline-flex;
   }
 
   .client-autocomplete-row #autocompleteSuggestions {
@@ -3608,8 +3614,8 @@ input#clientAutocomplete, select#clientSelect {
 
   @media (max-width: 640px) {
     .cat-cal-wrap {
-      flex-basis: 42%;
-      min-width: 140px;
+      flex-wrap: wrap;
+      gap: 6px;
     }
   }
 
@@ -4056,21 +4062,36 @@ function fitElementTextToOneLine(el, opts){
 /* Fit the autocomplete input’s current "Name (Category)" to one line */
 function fitClientInputNow(){
   const input = document.getElementById('clientAutocomplete');
-  if (!input) return;
+  if (!input) return null;
   const basePx = parseFloat(getComputedStyle(input).fontSize) || 15;
   fitElementTextToOneLine(input, { minPx: 6, maxPx: basePx * 4 });
+  return parseFloat(getComputedStyle(input).fontSize) || basePx;
 }
 
 /* Fit the category inline combo to the available width without ellipses */
-function fitCategoryComboNow(){
+function fitCategoryComboNow(maxPx){
   const input = document.getElementById('categoryCombo');
-  if (!input || input.offsetParent === null) return; // skip if hidden
-  fitElementTextToOneLine(input, { minPx: 6 });
+  if (!input || input.offsetParent === null) return null; // skip if hidden
+  const opts = { minPx: 6 };
+  if (maxPx) opts.maxPx = maxPx;
+  fitElementTextToOneLine(input, opts);
+  return parseFloat(getComputedStyle(input).fontSize) || maxPx || 15;
+}
+
+function syncClientAndCategorySizes(){
+  const clientSize = fitClientInputNow();
+  const categorySize = fitCategoryComboNow(clientSize);
+
+  if (!clientSize || !categorySize) return;
+  const shared = Math.min(clientSize, categorySize);
+  const client = document.getElementById('clientAutocomplete');
+  const category = document.getElementById('categoryCombo');
+  if (client) client.style.fontSize = shared + 'px';
+  if (category) category.style.fontSize = shared + 'px';
 }
 
 function fitClientAndCategoryRow(){
-  fitClientInputNow();
-  fitCategoryComboNow();
+  syncClientAndCategorySizes();
 }
 
 /* === HELPER: shrink a suggestion row only if it overflows === */
