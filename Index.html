@@ -3377,14 +3377,67 @@ input#clientAutocomplete, select#clientSelect {
   background: #fff;
   height: 36px;
 }
-.cat-input {
+.cat-input { 
   border: 0; outline: 0; width: 100%;
   font: inherit; line-height: 1.2; font-weight: inherit;
   white-space: nowrap; overflow: hidden; text-overflow: clip;
   min-width: 0;
 }
 .cat-input::placeholder { color: #777; }
-.cat-caret { display: none; }
+
+/* Cleaner, unified styling for the client + category line */
+.client-autocomplete-row {
+  gap: 12px;
+}
+
+.client-autocomplete-row #clientAutocomplete,
+.cat-pill {
+  height: 44px;
+  font: 600 15px/1.35 "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  color: #1f2937;
+  background: #f8fafc;
+  border: 1px solid #cfd8e3;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.client-autocomplete-row #clientAutocomplete {
+  border-radius: 12px;
+  padding: 10px 14px;
+  background: #f8fafc !important;
+  border-color: #cfd8e3 !important;
+}
+
+.cat-pill {
+  padding: 8px 44px 8px 14px;
+  border-radius: 12px;
+}
+
+.cat-input {
+  font: inherit;
+  color: inherit;
+}
+
+.cat-caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  right: 14px;
+  color: #334155;
+  font-size: 17px;
+  pointer-events: none;
+}
+
+.client-autocomplete-row #clientAutocomplete::placeholder,
+.cat-input::placeholder {
+  color: #9ca3af;
+}
+
+.client-autocomplete-row #clientAutocomplete:focus,
+.cat-pill:focus-within {
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+}
 
 /* Hide the calendar/clipboard-style emoji to reduce clutter around the category input */
 .calendar-btn {
@@ -3600,6 +3653,7 @@ input#clientAutocomplete, select#clientSelect {
                  aria-expanded="false"
                  aria-autocomplete="list"
                  class="cat-input" />
+          <span class="cat-caret" aria-hidden="true">▾</span>
           <datalist id="categoryList"></datalist>
         </div>
       </div>
