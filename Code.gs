@@ -2472,7 +2472,7 @@ function sendJbChipTasksEmail() {
   }
 
   MailApp.sendEmail({
-    to: 'rbarrios815@gmail.com,jbgreatfamily1@gmail.com',
+    to: '8326215185@vzwpix.com,jbgreatfamily1@gmail.com',
     subject: 'JB Tasks through ' + (summary.dateString || 'today'),
     body: lines.join('\n')
   });
