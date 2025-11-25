@@ -6659,8 +6659,8 @@ function toggleNotesVisibility() {
 
   var toggleButton = document.getElementById('toggleNotesButton');
   if (toggleButton) {
-    // Remove text labels from the toggle button regardless of state
-    toggleButton.innerText = '';
+    // Show an orange + when collapsed and an orange - when expanded
+    toggleButton.innerText = notesExpanded ? '-' : '+';
   }
 
   // If the user just clicked the - button (i.e., was expanded → now collapsed),
@@ -6826,7 +6826,9 @@ function displayNotes(notes) {
   toggleBtn.style.padding = '0';
   toggleBtn.style.width = '24px';
   toggleBtn.style.height = '24px';
-  toggleBtn.innerText = '';
+  toggleBtn.style.color = '#fff';
+  toggleBtn.style.fontWeight = '800';
+  toggleBtn.innerText = '+';
 
   var toggleRow = document.createElement('div');
   toggleRow.style.display = 'flex';
@@ -7935,6 +7937,25 @@ function autocompleteClient() {
   // Hide category dropdown until a client is actually chosen
   if (!inputValue) {
     setClientDropdownVisibility(false);
+    if (clientSelect) clientSelect.value = '';
+
+    var catInput = document.getElementById('categoryCombo');
+    if (catInput) {
+      catInput.value = '';
+      catInput.placeholder = 'Select category';
+      catInput.title = 'Select category';
+    }
+
+    var catSel = document.getElementById('categorySelect');
+    if (catSel) catSel.value = '';
+
+    if (typeof hideCategoryOverlay === 'function') {
+      hideCategoryOverlay();
+    }
+
+    if (typeof __currentCategory !== 'undefined') {
+      __currentCategory = '';
+    }
   }
 
   // Clear current suggestions
