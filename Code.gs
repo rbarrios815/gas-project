@@ -2385,7 +2385,8 @@ function collectJbChipClients_(targetDate) {
 
   var data = sheet.getDataRange().getValues();
   var tz = Session.getScriptTimeZone();
-  var targetStr = Utilities.formatDate(targetDate, tz, "MM/dd/yy");
+  var targetDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+  var targetStr = Utilities.formatDate(targetDay, tz, "MM/dd/yy");
   var clients = {};
 
   data.forEach(function(row, idx) {
@@ -2396,15 +2397,19 @@ function collectJbChipClients_(targetDate) {
 
     var initials = row[15] ? row[15].toString().trim().toUpperCase() : '';
     var chipDateRaw = row[16];
+    var chipDate = null;
     var chipDateStr = '';
     if (chipDateRaw) {
-      var chipDate = (chipDateRaw instanceof Date) ? chipDateRaw : new Date(chipDateRaw);
-      chipDateStr = isNaN(chipDate.getTime())
-        ? chipDateRaw.toString()
-        : Utilities.formatDate(chipDate, tz, "MM/dd/yy");
+      var parsedDate = (chipDateRaw instanceof Date) ? chipDateRaw : new Date(chipDateRaw);
+      if (!isNaN(parsedDate.getTime())) {
+        chipDate = new Date(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate());
+        chipDateStr = Utilities.formatDate(parsedDate, tz, "MM/dd/yy");
+      } else {
+        chipDateStr = chipDateRaw.toString();
+      }
     }
 
-    if (initials !== 'JB' || chipDateStr !== targetStr) {
+    if (initials !== 'JB' || !chipDate || chipDate.getTime() > targetDay.getTime()) {
       return;
     }
 
@@ -2461,8 +2466,8 @@ function sendJbChipTasksEmail() {
   }
 
   MailApp.sendEmail({
-    to: 'rbarrios815@gmail.com,jbgreatfamily1@gmail.com',
-    subject: 'JB Tasks for ' + (summary.dateString || 'today'),
+    to: '8326215185@vtext.com',
+    subject: 'JB Tasks through ' + (summary.dateString || 'today'),
     body: lines.join('\n')
   });
 
