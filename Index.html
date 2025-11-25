@@ -1331,6 +1331,10 @@ function saveEditedNote(row, text, noteEl){
     }
   }
 
+  function isTouchOrMobile(){
+    return window.matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window;
+  }
+
   function showAssignSuggestionPopover(anchorEl, noteText, onSelect) {
     hideAssignSuggestionPopover();
     const suggestions = getClientSuggestionsFromNote(noteText);
@@ -1437,6 +1441,11 @@ function saveEditedNote(row, text, noteEl){
         });
       }
 
+      // Automatically surface suggestions on touch devices to avoid relying on hover
+      if (isTouchOrMobile()) {
+        setTimeout(showHoverSuggestions, 0);
+      }
+
       // Auto-assign handler
       function commitAssign(){
         const name = (inp.value||'').trim();
@@ -1463,6 +1472,17 @@ function saveEditedNote(row, text, noteEl){
           e.preventDefault();
           commitAssign();
         }
+      });
+
+      // Dismiss the auto-suggestion popover once the user begins typing their own search
+      inp.addEventListener('input', () => {
+        if (inp.value && assignSuggestionPopover) {
+          hideAssignSuggestionPopover();
+        }
+      });
+
+      inp.addEventListener('focus', () => {
+        showHoverSuggestions();
       });
 
       inp.addEventListener('mouseenter', () => {
