@@ -3397,8 +3397,8 @@ input#clientAutocomplete, select#clientSelect {
 
 .client-autocomplete-row #clientAutocomplete,
 .cat-pill {
-  min-height: 44px;
-  font: 600 15px/1.35 "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  min-height: 48px;
+  font: 700 clamp(18px, 2.4vw, 26px)/1.32 "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
   color: #1f2937;
   background: #e7f6ed;
   border: 1px solid #9ed6b8;
@@ -3416,7 +3416,7 @@ input#clientAutocomplete, select#clientSelect {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 9px 12px;
   border-radius: 12px;
   background: #e7f6ed;
   border-color: #9ed6b8;
@@ -3435,7 +3435,7 @@ input#clientAutocomplete, select#clientSelect {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #334155;
+  color: #000;
   font-size: 18px;
   pointer-events: none;
 }
@@ -4011,6 +4011,12 @@ function measureInputTextPx(inputEl, fontPx){
   return measurer.getBoundingClientRect().width;
 }
 
+function getRecentRowFontPx() {
+  const ref = document.querySelector('#recentRow .recent-pill, #recentRow #addNewClientBtn');
+  const size = ref ? parseFloat(getComputedStyle(ref).fontSize) : NaN;
+  return Number.isFinite(size) && size > 0 ? size : 16;
+}
+
 /* Shrink an element’s font-size until its scrollWidth fits within clientWidth (one line) */
 function fitElementTextToOneLine(el, opts){
   if (!el) return;
@@ -4018,6 +4024,7 @@ function fitElementTextToOneLine(el, opts){
   const basePx = parseFloat(cs.fontSize) || 16;
   const maxPx = Math.max(basePx, (opts && opts.maxPx) || basePx); // allow growing up to provided cap
   const minPx = Math.max(6, (opts && opts.minPx) || 6);            // allow smaller text when needed
+  const preferredMinPx = Math.max(minPx, (opts && opts.preferredMinPx) || minPx);
 
   // Determine available width (account for padding)
   const rect = el.getBoundingClientRect();
@@ -4028,35 +4035,49 @@ function fitElementTextToOneLine(el, opts){
   // Choose measuring method
   const isInput = (el.tagName === 'INPUT' && el.type === 'text');
 
-  // Binary search for the largest font-size that fits
-  let lo = minPx, hi = maxPx, best = minPx;
-  while (lo <= hi) {
-    const mid = Math.floor((lo + hi) / 2);
+  const fitsAt = (px) => {
     let contentWidth;
-
     if (isInput) {
-      contentWidth = measureInputTextPx(el, mid);
+      contentWidth = measureInputTextPx(el, px);
     } else {
       const prev = el.style.fontSize;
-      el.style.fontSize = mid + 'px';
-      // Force single-line overflow metrics
+      el.style.fontSize = px + 'px';
       contentWidth = el.scrollWidth;
       el.style.fontSize = prev;
     }
+    return contentWidth <= available;
+  };
 
-    if (contentWidth <= available) {
-      best = mid;          // fits → try to go larger
-      lo = mid + 1;
-    } else {
-      hi = mid - 1;        // doesn’t fit → go smaller
+  const search = (lo, hi) => {
+    let best = lo, found = false;
+    while (lo <= hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      if (fitsAt(mid)) {
+        best = mid;
+        found = true;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    return { size: best, fits: found && fitsAt(best) };
+  };
+
+  const preferred = search(preferredMinPx, maxPx);
+  let chosen = preferred;
+
+  if (!preferred.fits) {
+    const relaxed = search(minPx, preferredMinPx);
+    if (relaxed.fits) {
+      chosen = relaxed;
     }
   }
 
-  // Apply only if we actually need to shrink
   const currentPx = parseFloat(cs.fontSize) || maxPx;
-  if (best !== currentPx) {
-    el.style.fontSize = best + 'px';
+  if (chosen.size !== currentPx) {
+    el.style.fontSize = chosen.size + 'px';
   }
+  return chosen.size;
 }
 
 /* Fit the autocomplete input’s current "Name (Category)" to one line */
@@ -4064,7 +4085,7 @@ function fitClientInputNow(){
   const input = document.getElementById('clientAutocomplete');
   if (!input) return null;
   const basePx = parseFloat(getComputedStyle(input).fontSize) || 15;
-  fitElementTextToOneLine(input, { minPx: 6, maxPx: basePx * 4 });
+  fitElementTextToOneLine(input, { minPx: 6, maxPx: basePx * 4, preferredMinPx: getRecentRowFontPx() });
   return parseFloat(getComputedStyle(input).fontSize) || basePx;
 }
 
@@ -4072,7 +4093,7 @@ function fitClientInputNow(){
 function fitCategoryComboNow(maxPx){
   const input = document.getElementById('categoryCombo');
   if (!input || input.offsetParent === null) return null; // skip if hidden
-  const opts = { minPx: 6 };
+  const opts = { minPx: 6, preferredMinPx: getRecentRowFontPx() };
   if (maxPx) opts.maxPx = maxPx;
   fitElementTextToOneLine(input, opts);
   return parseFloat(getComputedStyle(input).fontSize) || maxPx || 15;
