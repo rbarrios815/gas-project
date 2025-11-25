@@ -1,6 +1,3 @@
-// DASHBOARD VERSION: main @ 2025-11-25 09:34, commit DEF123
-
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -720,9 +717,9 @@ a:focus {
   <span id="floatingUsageCount" class="usage-pill" aria-live="polite">0</span>
   <span id="floatingUsageMinutes" class="usage-pill" aria-live="polite">0m</span>
 </button>
-<!-- Floating text trigger next to calculator -->
-<button id="floatingEmailBtn" class="floatingUtilityBtn" aria-label="Send JB chip summary text" title="Send JB chip summary text">
-  <span aria-hidden="true">💬</span>
+<!-- Floating email trigger next to calculator -->
+<button id="floatingEmailBtn" class="floatingUtilityBtn" aria-label="Send JB chip summary email" title="Send JB chip summary email">
+  <span aria-hidden="true">✉️</span>
 </button>
 
   <!-- Toast -->
@@ -1331,10 +1328,6 @@ function saveEditedNote(row, text, noteEl){
     }
   }
 
-  function isTouchOrMobile(){
-    return window.matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window;
-  }
-
   function showAssignSuggestionPopover(anchorEl, noteText, onSelect) {
     hideAssignSuggestionPopover();
     const suggestions = getClientSuggestionsFromNote(noteText);
@@ -1441,11 +1434,6 @@ function saveEditedNote(row, text, noteEl){
         });
       }
 
-      // Automatically surface suggestions on touch devices to avoid relying on hover
-      if (isTouchOrMobile()) {
-        setTimeout(showHoverSuggestions, 0);
-      }
-
       // Auto-assign handler
       function commitAssign(){
         const name = (inp.value||'').trim();
@@ -1472,17 +1460,6 @@ function saveEditedNote(row, text, noteEl){
           e.preventDefault();
           commitAssign();
         }
-      });
-
-      // Dismiss the auto-suggestion popover once the user begins typing their own search
-      inp.addEventListener('input', () => {
-        if (inp.value && assignSuggestionPopover) {
-          hideAssignSuggestionPopover();
-        }
-      });
-
-      inp.addEventListener('focus', () => {
-        showHoverSuggestions();
       });
 
       inp.addEventListener('mouseenter', () => {
@@ -2015,60 +1992,24 @@ button:active {
 
 
 
-.category-dropdown-container {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  z-index: 3;
-}
-
-.category-dropdown-toggle {
-  width: 38px;
-  height: 38px;
-  border: 1px solid var(--green2);
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--green1), var(--green2));
-  color: #fff;
-  font-weight: 800;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.16);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-}
-
-.category-dropdown-toggle:active {
-  transform: translateY(1px);
-}
-
 #categoryChangeSection {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  background: #fff;
-  padding: 10px;
-  margin: 0;
-  border: 1px solid #d0d7de;
-  box-shadow: 0 10px 26px rgba(0,0,0,0.16);
-  border-radius: 10px;
+  background: transparent;
+  padding: 0;
+  margin: 0 0 8px 0;
+  border: 0;
+  box-shadow: none;
   text-align: left;
-  width: 220px;
+}
+
+.category-label {
+  display: block; /* Make label a block element */
+  margin-bottom: 10px; /* Space between label and select */
 }
 
 .category-select {
   display: block;
   margin: 0;
   width: 100%;
-  background: #fff;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  font-size: 1em;
-  padding: 10px;
-  box-sizing: border-box;
 }
 
 #loadingBarContainer {
@@ -3096,6 +3037,25 @@ input#clientAutocomplete, select#clientSelect {
   box-shadow: 0 2px 5px rgba(0,0,0,0.06);
 }
 
+.category-overlay {
+  position: static;
+  display: none;
+  width: 100%;
+  pointer-events: auto;
+}
+
+#categoryChangeSection select {
+  width: 100%;
+  height: auto;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1em;
+  padding: 10px;
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
 /* Chips bar when placed inside the autocomplete wrapper */
 .recent-bar.inside-autocomplete {
   display: flex;
@@ -3649,8 +3609,48 @@ input#clientAutocomplete, select#clientSelect {
   }
 
 
+  /* Autocomplete row + category dropdown inline */
+  .client-autocomplete-row {
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+    width: 100%;
+    position: relative;
+  }
 
-</style>
+  .client-autocomplete-row #clientAutocomplete {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .cat-cal-wrap {
+    display: none;
+    flex: 0 0 32%;
+    min-width: 200px;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .client-autocomplete-row.has-client .cat-cal-wrap {
+    display: flex;
+  }
+
+  .client-autocomplete-row #autocompleteSuggestions {
+    left: 0;
+    right: 0;
+    width: auto;
+    top: calc(100% + 6px);
+  }
+
+  @media (max-width: 640px) {
+    .cat-cal-wrap {
+      flex-basis: 42%;
+      min-width: 140px;
+    }
+  }
+
+
+  </style>
 
 
 </head>
@@ -3677,45 +3677,34 @@ input#clientAutocomplete, select#clientSelect {
   </button>
 </div>
 
+    <div class="client-autocomplete-row" id="clientAutocompleteRow">
+      <input type="text" id="clientAutocomplete"
+             placeholder="Type Client Name"
+             oninput="autocompleteClient()">
 
-</div>
+             <!-- Category combo + Calendar icon (hidden until a client is selected) -->
+      <div id="catCalWrap" class="cat-cal-wrap">
+        <!-- Category pill (combobox) -->
+        <div class="cat-pill" title="" >
+          <input id="categoryCombo"
+                 type="text"
+                 placeholder="Select category"
+                 list="categoryList"
+                 aria-label="Category"
+                 aria-expanded="false"
+                 aria-autocomplete="list"
+                 class="cat-input" />
+          <span class="cat-caret" aria-hidden="true">▼</span>
+          <datalist id="categoryList"></datalist>
+        </div>
 
-    <input type="text" id="clientAutocomplete"
-           placeholder="Type Client Name"
-           oninput="autocompleteClient()">
-
-    <!-- Compact category dropdown toggle in the top-right of the autocomplete bar -->
-    <div id="categoryDropdownContainer" class="category-dropdown-container" style="display:none;">
-      <button id="categoryDropdownToggle" class="category-dropdown-toggle" aria-haspopup="listbox" aria-expanded="false" title="Change category">▼</button>
-      <div id="categoryChangeSection" class="category-overlay" aria-hidden="true" style="display:none;">
-        <select id="categorySelect" class="category-select" aria-label="Change category">
-          <option value="">▼</option>
-        </select>
+        <!-- Calendar button -->
+        <button id="calendarBtn" class="calendar-btn" title="Open calendar">
+          <!-- simple calendar glyph (text style, no color fill) -->
+          <span class="calendar-emoji" aria-hidden="true">&#x1F5D3;&#xFE0E;</span>
+        </button>
       </div>
     </div>
-
-           <!-- Category combo + Calendar icon (hidden until a client is selected) -->
-<div id="catCalWrap" style="display:none; gap:8px; align-items:center; margin-left:auto;">
-  <!-- Category pill (combobox) -->
-  <div class="cat-pill" title="" >
-    <input id="categoryCombo"
-           type="text"
-           placeholder="Select category"
-           list="categoryList"
-           aria-label="Category"
-           aria-expanded="false"
-           aria-autocomplete="list"
-           class="cat-input" />
-    <span class="cat-caret" aria-hidden="true">▼</span>
-    <datalist id="categoryList"></datalist>
-  </div>
-
-  <!-- Calendar button -->
-  <button id="calendarBtn" class="calendar-btn" title="Open calendar">
-    <!-- simple calendar glyph (text style, no color fill) -->
-    <span class="calendar-emoji" aria-hidden="true">&#x1F5D3;&#xFE0E;</span>
-  </button>
-</div>
 
 
   </div>
@@ -3772,6 +3761,14 @@ input#clientAutocomplete, select#clientSelect {
             style="flex:1 1 auto; width:100%; min-height:60px; background-color:white; box-sizing:border-box;"
             onblur="onInProgressLoadedBlur(this.value)"></textarea>
 </div>
+
+<!-- Category dropdown under the green lightbulb bar -->
+<div id="categoryChangeSection" class="category-overlay" aria-hidden="true" style="display:none;">
+  <select id="categorySelect" class="category-select">
+    <option value="">▼</option>
+  </select>
+</div>
+
 <br>
 
 
@@ -5954,18 +5951,23 @@ function updateDaySettings(value) {
 }
 
 
-function showClientNotes() {
-    var clientName = document.getElementById('clientSelect').value;
-    // NOTE: recent chips no longer update here (only on hide).
-    var clientSelect = document.getElementById('clientSelect');
-    var clientAutocomplete = document.getElementById('clientAutocomplete');
-    // SNIPPET: CLEAR LOADED IN-PROGRESS AREA
+  function showClientNotes() {
+      var clientName = document.getElementById('clientSelect').value;
+      // NOTE: recent chips no longer update here (only on hide).
+      var clientSelect = document.getElementById('clientSelect');
+      var clientAutocomplete = document.getElementById('clientAutocomplete');
+      // SNIPPET: CLEAR LOADED IN-PROGRESS AREA
 
-    // So we don't see old text while the new client data is loading
-    document.getElementById('loadedInProgressArea').value = '';
+      // So we don't see old text while the new client data is loading
+      document.getElementById('loadedInProgressArea').value = '';
 
-    // Set the autocomplete value based on the dropdown selection
-    clientAutocomplete.value = clientName ? clientSelect.options[clientSelect.selectedIndex].text : '';
+      var autoRow = document.getElementById('clientAutocompleteRow');
+      var catWrap = document.getElementById('catCalWrap');
+      if (autoRow) autoRow.classList.toggle('has-client', !!clientName);
+      if (catWrap) catWrap.style.display = clientName ? 'flex' : 'none';
+
+      // Set the autocomplete value based on the dropdown selection
+      clientAutocomplete.value = clientName || '';
 
     if (clientName) {
         clientAutocomplete.style.color = 'black'; // Set text color to black when client is loaded
@@ -5986,6 +5988,7 @@ setCategoryPlaceholderText('');
 hideCategoryOverlay();
 
 var displayStyle = clientName ? 'block' : 'none';
+
 // Only show the labels row and label list when a client is loaded
 var labelsTopRow = document.querySelector('.labels-top-row');
 if (labelsTopRow) {
@@ -6005,14 +6008,7 @@ var fw = document.getElementById('futureWorkSection');
 if (fw) fw.style.display = 'none';
 
 // Keep the rest of the UI behavior unchanged
-var categoryDropdownContainer = document.getElementById('categoryDropdownContainer');
-if (categoryDropdownContainer) {
-  categoryDropdownContainer.style.display = clientName ? 'flex' : 'none';
-}
-var catCalWrap = document.getElementById('catCalWrap');
-if (catCalWrap) {
-  catCalWrap.style.display = clientName ? 'inline-flex' : 'none';
-}
+document.getElementById('categoryChangeSection').style.display = displayStyle;
 var appointmentBtn = document.getElementById('addAppointmentBtn');
 if (appointmentBtn) {
   appointmentBtn.style.display = displayStyle;
@@ -6989,15 +6985,15 @@ function restoreUIState() {
   try { st = JSON.parse(raw) || {}; } catch (_){ st = {}; }
 
   if (st.client) {
-    const sel = document.getElementById('clientSelect');
-    if (sel) {
-      sel.value = st.client;
-      const clientAutocomplete = document.getElementById('clientAutocomplete');
-      if (clientAutocomplete && sel.selectedIndex >= 0) {
-        clientAutocomplete.value = sel.options[sel.selectedIndex].text;
+      const sel = document.getElementById('clientSelect');
+      if (sel) {
+        sel.value = st.client;
+        const clientAutocomplete = document.getElementById('clientAutocomplete');
+        if (clientAutocomplete && sel.selectedIndex >= 0) {
+          clientAutocomplete.value = sel.value;
+        }
+        if (typeof showClientNotes === 'function') showClientNotes();
       }
-      if (typeof showClientNotes === 'function') showClientNotes();
-    }
   }
 }
 
@@ -7278,22 +7274,21 @@ function refreshUIWithNewCategory(clientName, newCategory) {
 
 
 // Select the updated client in the dropdown and reload notes
-function selectUpdatedClient(clientName, newCategory) {
-    var clientSelect = document.getElementById('clientSelect');
-    var clientAutocomplete = document.getElementById('clientAutocomplete');
-   var updatedClientText = newCategory ? clientName + ' (' + newCategory + ')' : clientName;
-    if (clientSelect) {
-        clientSelect.value = clientName;
-    }
+  function selectUpdatedClient(clientName, newCategory) {
+      var clientSelect = document.getElementById('clientSelect');
+      var clientAutocomplete = document.getElementById('clientAutocomplete');
+      if (clientSelect) {
+          clientSelect.value = clientName;
+      }
 
-   if (clientAutocomplete) {
-        clientAutocomplete.value = updatedClientText;
-        clientAutocomplete.style.color = 'black';
-    }
+     if (clientAutocomplete) {
+          clientAutocomplete.value = clientName;
+          clientAutocomplete.style.color = 'black';
+      }
 
-    if (typeof currentClientName !== 'undefined') {
-        currentClientName = updatedClientText;
-    }
+      if (typeof currentClientName !== 'undefined') {
+          currentClientName = clientName;
+      }
 
     if (typeof showClientNotes === 'function' && clientSelect) {
         showClientNotes();
@@ -7415,13 +7410,13 @@ function extractBaseName(clientName) {
           var clientSelect = document.getElementById('clientSelect');
           var clientAutocomplete = document.getElementById('clientAutocomplete');
 
-          for (var i = 0; i < clientSelect.options.length; i++) {
-            if (clientSelect.options[i].value === clientName) {
-              clientSelect.selectedIndex = i;
-              clientAutocomplete.value = clientSelect.options[i].text;
-              break;
+            for (var i = 0; i < clientSelect.options.length; i++) {
+              if (clientSelect.options[i].value === clientName) {
+                clientSelect.selectedIndex = i;
+                clientAutocomplete.value = clientSelect.options[i].value;
+                break;
+              }
             }
-          }
           // Now call showClientNotes()
           showClientNotes();
 
@@ -7949,50 +7944,13 @@ function autocompleteClient() {
     nameSpan.className = 'autocomplete-name';
     nameSpan.textContent = client.clientName;
 
-    var categorySelect = document.createElement('select');
-    categorySelect.className = 'autocomplete-category-select';
-    var categoryOptions = Array.from(document.querySelectorAll('#categoryList option'))
-      .map(function(opt) { return opt.value; })
-      .filter(function(val) { return val; });
-    if (client.category && !categoryOptions.includes(client.category)) {
-      categoryOptions.unshift(client.category);
-    }
-    categoryOptions.forEach(function(cat) {
-      var opt = document.createElement('option');
-      opt.value = cat;
-      opt.textContent = cat;
-      categorySelect.appendChild(opt);
-    });
-    if (client.category) {
-      categorySelect.value = client.category;
-    }
-
     var categoryLabel = document.createElement('span');
     categoryLabel.className = 'autocomplete-category-label';
-    categoryLabel.textContent = categorySelect.value ? '(' + categorySelect.value + ')' : '';
-
-    categorySelect.addEventListener('click', function(evt) {
-      evt.stopPropagation();
-    });
-
-    categorySelect.addEventListener('change', function(evt) {
-      var chosenCategory = evt.target.value || client.category || '';
-      inputElement.value = chosenCategory ? (client.clientName + ' (' + chosenCategory + ')') : client.clientName;
-      var catInput = document.getElementById('categoryCombo');
-      if (catInput) {
-        catInput.value = chosenCategory;
-      }
-      categoryLabel.textContent = chosenCategory ? '(' + chosenCategory + ')' : '';
-      if (clientSelect) clientSelect.value = client.clientName;
-      showClientNotes();
-      scrollToTop();
-      suggestions.innerHTML = '';
-      suggestions.style.display = 'none';
-    });
+    categoryLabel.textContent = client.category ? '(' + client.category + ')' : '';
 
     suggestion.onclick = function() {
-      var chosenCategory = categorySelect.value || client.category || '';
-      inputElement.value = chosenCategory ? (client.clientName + ' (' + chosenCategory + ')') : client.clientName;
+      var chosenCategory = client.category || '';
+      inputElement.value = client.clientName;
       var catInput = document.getElementById('categoryCombo');
       if (catInput) {
         catInput.value = chosenCategory;
@@ -8006,7 +7964,6 @@ function autocompleteClient() {
     };
 
     suggestion.appendChild(nameSpan);
-    suggestion.appendChild(categorySelect);
     suggestion.appendChild(categoryLabel);
 
     suggestions.appendChild(suggestion);
@@ -8830,28 +8787,9 @@ function setCategoryPlaceholderText(text) {
 
 function hideCategoryOverlay() {
     var overlay = document.getElementById('categoryChangeSection');
-    var toggle = document.getElementById('categoryDropdownToggle');
     if (overlay) {
         overlay.style.display = 'none';
         overlay.setAttribute('aria-hidden', 'true');
-        overlay.dataset.open = 'false';
-    }
-    if (toggle) {
-        toggle.setAttribute('aria-expanded', 'false');
-    }
-}
-
-function showCategoryOverlay() {
-    var overlay = document.getElementById('categoryChangeSection');
-    var toggle = document.getElementById('categoryDropdownToggle');
-    if (!overlay) return;
-
-    overlay.style.display = 'block';
-    overlay.setAttribute('aria-hidden', 'false');
-    overlay.dataset.open = 'true';
-
-    if (toggle) {
-        toggle.setAttribute('aria-expanded', 'true');
     }
 }
 
@@ -8859,41 +8797,16 @@ function positionCategoryDropdownOverAutocomplete() {
     var overlay = document.getElementById('categoryChangeSection');
     var categorySelect = document.getElementById('categorySelect');
     var clientSelect = document.getElementById('clientSelect');
-    var container = document.getElementById('categoryDropdownContainer');
-    if (!overlay || !categorySelect || !clientSelect || !container) return;
+    if (!overlay || !categorySelect || !clientSelect) return;
 
     if (!clientSelect.value) {
         hideCategoryOverlay();
-        container.style.display = 'none';
         return;
     }
 
-    container.style.display = 'flex';
+    overlay.style.display = 'block';
+    overlay.setAttribute('aria-hidden', 'false');
 }
-
-(function wireCategoryDropdownToggle(){
-  var toggle = document.getElementById('categoryDropdownToggle');
-  if (!toggle) return;
-
-  toggle.addEventListener('click', function(evt){
-    evt.stopPropagation();
-    var overlay = document.getElementById('categoryChangeSection');
-    var isOpen = overlay && overlay.dataset.open === 'true';
-    if (isOpen) {
-      hideCategoryOverlay();
-    } else {
-      showCategoryOverlay();
-    }
-  });
-
-  document.addEventListener('click', function(evt){
-    var container = document.getElementById('categoryDropdownContainer');
-    if (!container) return;
-    if (!container.contains(evt.target)) {
-      hideCategoryOverlay();
-    }
-  });
-})();
 
 
 
@@ -9311,13 +9224,13 @@ function submitNewClientModal(clientName, category) {
                 var clientSelect = document.getElementById('clientSelect');
                 var clientAutocomplete = document.getElementById('clientAutocomplete');
 
-                for (var i = 0; i < clientSelect.options.length; i++) {
-                    if (clientSelect.options[i].value === clientName) {
-                        clientSelect.selectedIndex = i;
-                        clientAutocomplete.value = clientSelect.options[i].text;
-                        break;
-                    }
-                }
+                  for (var i = 0; i < clientSelect.options.length; i++) {
+                      if (clientSelect.options[i].value === clientName) {
+                          clientSelect.selectedIndex = i;
+                          clientAutocomplete.value = clientSelect.options[i].value;
+                          break;
+                      }
+                  }
                 // Now call showClientNotes()
                 showClientNotes();
             }).getAllClientsData();
@@ -9616,11 +9529,11 @@ function triggerTopClientsEmail() {
   google.script.run
     .withSuccessHandler(function() {
       hideLoadingBar();
-      alert("JB chip text sent for today.");
+      alert("JB chip email sent for today.");
     })
     .withFailureHandler(function(err) {
       hideLoadingBar();
-      alert("Failed to send JB chip text. Error: " + err.message);
+      alert("Failed to send JB chip email. Error: " + err.message);
     })
     .sendJbChipTasksEmail();
 }
@@ -10802,6 +10715,7 @@ function suggestionsContainEmoji(client, emoji) {
 
   // === ELEMENTS ===
   const catCalWrap   = () => document.getElementById('catCalWrap');
+  const autoRow      = () => document.getElementById('clientAutocompleteRow');
   const catInput     = () => document.getElementById('categoryCombo');
   const catList      = () => document.getElementById('categoryList');
   const calendarBtn  = () => document.getElementById('calendarBtn');
@@ -10842,7 +10756,10 @@ function suggestionsContainEmoji(client, emoji) {
     setTooltip(catInput(), currentCategory || 'Select category');
   }
   function showCatUI(show) {
-    catCalWrap().style.display = show ? 'inline-flex' : 'none';
+    const row = autoRow();
+    if (row) row.classList.toggle('has-client', !!show);
+    const wrap = catCalWrap();
+    if (wrap) wrap.style.display = show ? 'flex' : 'none';
   }
 
   // Debounce helper ~200ms
