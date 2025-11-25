@@ -1662,6 +1662,11 @@ input, button, select {
     list-style-type: decimal;
   }
 
+  #autocompleteSuggestions {
+    font-size: 0.35rem; /* roughly 1/4 the previous size */
+    line-height: 1.35;
+  }
+
   #autocompleteSuggestions div {
     padding: 10px;
     cursor: pointer;
@@ -3377,14 +3382,74 @@ input#clientAutocomplete, select#clientSelect {
   background: #fff;
   height: 36px;
 }
-.cat-input {
+.cat-input { 
   border: 0; outline: 0; width: 100%;
   font: inherit; line-height: 1.2; font-weight: inherit;
   white-space: nowrap; overflow: hidden; text-overflow: clip;
   min-width: 0;
 }
 .cat-input::placeholder { color: #777; }
-.cat-caret { display: none; }
+
+/* Cleaner, unified styling for the client + category line */
+.client-autocomplete-row {
+  gap: 12px;
+}
+
+.client-autocomplete-row #clientAutocomplete,
+.cat-pill {
+  min-height: 48px;
+  font: 700 clamp(18px, 2.4vw, 26px)/1.32 "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  color: #1f2937;
+  background: #e7f6ed;
+  border: 1px solid #9ed6b8;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.client-autocomplete-row #clientAutocomplete {
+  border-radius: 12px;
+  padding: 12px 16px;
+  background: #e7f6ed !important;
+  border-color: #9ed6b8 !important;
+}
+
+.cat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: #e7f6ed;
+  border-color: #9ed6b8;
+}
+
+.cat-input {
+  font: inherit;
+  color: inherit;
+  width: auto;
+  min-width: 0;
+  flex: 1 1 auto;
+  padding: 4px 0;
+}
+
+.cat-caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #000;
+  font-size: 18px;
+  pointer-events: none;
+}
+
+.client-autocomplete-row #clientAutocomplete::placeholder,
+.cat-input::placeholder {
+  color: #9ca3af;
+}
+
+.client-autocomplete-row #clientAutocomplete:focus,
+.cat-pill:focus-within {
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+}
 
 /* Hide the calendar/clipboard-style emoji to reduce clutter around the category input */
 .calendar-btn {
@@ -3530,15 +3595,14 @@ input#clientAutocomplete, select#clientSelect {
 
   .cat-cal-wrap {
     display: none;
-    flex: 0 1 40%;
+    flex: 0 0 auto;
     min-width: 0;
-    max-width: 48%;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
   }
 
   .client-autocomplete-row.has-client .cat-cal-wrap {
-    display: flex;
+    display: inline-flex;
   }
 
   .client-autocomplete-row #autocompleteSuggestions {
@@ -3550,8 +3614,8 @@ input#clientAutocomplete, select#clientSelect {
 
   @media (max-width: 640px) {
     .cat-cal-wrap {
-      flex-basis: 42%;
-      min-width: 140px;
+      flex-wrap: wrap;
+      gap: 6px;
     }
   }
 
@@ -3600,6 +3664,7 @@ input#clientAutocomplete, select#clientSelect {
                  aria-expanded="false"
                  aria-autocomplete="list"
                  class="cat-input" />
+          <span class="cat-caret" aria-hidden="true">▾</span>
           <datalist id="categoryList"></datalist>
         </div>
       </div>
@@ -3946,12 +4011,20 @@ function measureInputTextPx(inputEl, fontPx){
   return measurer.getBoundingClientRect().width;
 }
 
+function getRecentRowFontPx() {
+  const ref = document.querySelector('#recentRow .recent-pill, #recentRow #addNewClientBtn');
+  const size = ref ? parseFloat(getComputedStyle(ref).fontSize) : NaN;
+  return Number.isFinite(size) && size > 0 ? size : 16;
+}
+
 /* Shrink an element’s font-size until its scrollWidth fits within clientWidth (one line) */
 function fitElementTextToOneLine(el, opts){
   if (!el) return;
   const cs = getComputedStyle(el);
-  const maxPx = Math.max(10, parseFloat(cs.fontSize) || 16); // current as ceiling
-  const minPx = Math.max(10, (opts && opts.minPx) || 10);    // don’t go below 10px unless you choose
+  const basePx = parseFloat(cs.fontSize) || 16;
+  const maxPx = Math.max(basePx, (opts && opts.maxPx) || basePx); // allow growing up to provided cap
+  const minPx = Math.max(6, (opts && opts.minPx) || 6);            // allow smaller text when needed
+  const preferredMinPx = Math.max(minPx, (opts && opts.preferredMinPx) || minPx);
 
   // Determine available width (account for padding)
   const rect = el.getBoundingClientRect();
@@ -3962,57 +4035,84 @@ function fitElementTextToOneLine(el, opts){
   // Choose measuring method
   const isInput = (el.tagName === 'INPUT' && el.type === 'text');
 
-  // Binary search for the largest font-size that fits
-  let lo = minPx, hi = maxPx, best = minPx;
-  while (lo <= hi) {
-    const mid = Math.floor((lo + hi) / 2);
+  const fitsAt = (px) => {
     let contentWidth;
-
     if (isInput) {
-      contentWidth = measureInputTextPx(el, mid);
+      contentWidth = measureInputTextPx(el, px);
     } else {
       const prev = el.style.fontSize;
-      el.style.fontSize = mid + 'px';
-      // Force single-line overflow metrics
+      el.style.fontSize = px + 'px';
       contentWidth = el.scrollWidth;
       el.style.fontSize = prev;
     }
+    return contentWidth <= available;
+  };
 
-    if (contentWidth <= available) {
-      best = mid;          // fits → try to go larger
-      lo = mid + 1;
-    } else {
-      hi = mid - 1;        // doesn’t fit → go smaller
+  const search = (lo, hi) => {
+    let best = lo, found = false;
+    while (lo <= hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      if (fitsAt(mid)) {
+        best = mid;
+        found = true;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    return { size: best, fits: found && fitsAt(best) };
+  };
+
+  const preferred = search(preferredMinPx, maxPx);
+  let chosen = preferred;
+
+  if (!preferred.fits) {
+    const relaxed = search(minPx, preferredMinPx);
+    if (relaxed.fits) {
+      chosen = relaxed;
     }
   }
 
-  // Apply only if we actually need to shrink
   const currentPx = parseFloat(cs.fontSize) || maxPx;
-  if (best < currentPx) {
-    el.style.fontSize = best + 'px';
-  } else {
-    // Reset in case a previous shrink is no longer necessary
-    el.style.fontSize = '';
+  if (chosen.size !== currentPx) {
+    el.style.fontSize = chosen.size + 'px';
   }
+  return chosen.size;
 }
 
 /* Fit the autocomplete input’s current "Name (Category)" to one line */
 function fitClientInputNow(){
   const input = document.getElementById('clientAutocomplete');
-  if (!input) return;
-  fitElementTextToOneLine(input, { minPx: 6 });
+  if (!input) return null;
+  const basePx = parseFloat(getComputedStyle(input).fontSize) || 15;
+  fitElementTextToOneLine(input, { minPx: 6, maxPx: basePx * 4, preferredMinPx: getRecentRowFontPx() });
+  return parseFloat(getComputedStyle(input).fontSize) || basePx;
 }
 
 /* Fit the category inline combo to the available width without ellipses */
-function fitCategoryComboNow(){
+function fitCategoryComboNow(maxPx){
   const input = document.getElementById('categoryCombo');
-  if (!input || input.offsetParent === null) return; // skip if hidden
-  fitElementTextToOneLine(input, { minPx: 6 });
+  if (!input || input.offsetParent === null) return null; // skip if hidden
+  const opts = { minPx: 6, preferredMinPx: getRecentRowFontPx() };
+  if (maxPx) opts.maxPx = maxPx;
+  fitElementTextToOneLine(input, opts);
+  return parseFloat(getComputedStyle(input).fontSize) || maxPx || 15;
+}
+
+function syncClientAndCategorySizes(){
+  const clientSize = fitClientInputNow();
+  const categorySize = fitCategoryComboNow(clientSize);
+
+  if (!clientSize || !categorySize) return;
+  const shared = Math.min(clientSize, categorySize);
+  const client = document.getElementById('clientAutocomplete');
+  const category = document.getElementById('categoryCombo');
+  if (client) client.style.fontSize = shared + 'px';
+  if (category) category.style.fontSize = shared + 'px';
 }
 
 function fitClientAndCategoryRow(){
-  fitClientInputNow();
-  fitCategoryComboNow();
+  syncClientAndCategorySizes();
 }
 
 /* === HELPER: shrink a suggestion row only if it overflows === */
@@ -5812,6 +5912,7 @@ function populateClientDropdown(clients) {
         var option = document.createElement('option');
         option.value = client.clientName;
         option.textContent = client.clientName + (client.category ? ' (' + client.category + ')' : '');
+        option.dataset.category = client.category || '';
         clientSelect.appendChild(option);
     });
     hideLoadingBar(); // Hide the loading bar after populating the dropdown
@@ -5868,7 +5969,14 @@ function updateDaySettings(value) {
 }
 
 
-  function showClientNotes() {
+function setClientDropdownVisibility(hasClient) {
+  var autoRow = document.getElementById('clientAutocompleteRow');
+  var catWrap = document.getElementById('catCalWrap');
+  if (autoRow) autoRow.classList.toggle('has-client', !!hasClient);
+  if (catWrap) catWrap.style.display = hasClient ? 'flex' : 'none';
+}
+
+function showClientNotes() {
       var clientName = document.getElementById('clientSelect').value;
       // NOTE: recent chips no longer update here (only on hide).
       var clientSelect = document.getElementById('clientSelect');
@@ -5878,10 +5986,7 @@ function updateDaySettings(value) {
       // So we don't see old text while the new client data is loading
       document.getElementById('loadedInProgressArea').value = '';
 
-      var autoRow = document.getElementById('clientAutocompleteRow');
-      var catWrap = document.getElementById('catCalWrap');
-      if (autoRow) autoRow.classList.toggle('has-client', !!clientName);
-      if (catWrap) catWrap.style.display = clientName ? 'flex' : 'none';
+      setClientDropdownVisibility(!!clientName);
 
       requestAnimationFrame(fitClientAndCategoryRow);
 
@@ -7827,6 +7932,11 @@ function autocompleteClient() {
 
   var inputValue = (inputElement.value || '').trim().toLowerCase();
 
+  // Hide category dropdown until a client is actually chosen
+  if (!inputValue) {
+    setClientDropdownVisibility(false);
+  }
+
   // Clear current suggestions
   suggestions.innerHTML = '';
 
@@ -7875,6 +7985,7 @@ function autocompleteClient() {
         catInput.value = chosenCategory;
       }
       if (clientSelect) clientSelect.value = client.clientName;
+      setClientDropdownVisibility(true);
       showClientNotes();
       scrollToTop(); // Add this line to scroll to the top
 
@@ -7930,19 +8041,42 @@ function selectClientFromButton(clientText) {
 
 
     var clientSelect = document.getElementById('clientSelect');
+    var normalizedClient = (clientText || '').trim();
+    if (!normalizedClient) return;
 
-    for (var i = 0; i < clientSelect.options.length; i++) {
-        // Extract the client name and category from the dropdown option
-        var optionText = clientSelect.options[i].text;
-        var optionClientName = optionText.split(' (')[0]; // Get the client name before the '('
+    var matchedIndex = -1;
 
-        // Check if the client names match (without considering the category)
-        if (clientText.startsWith(optionClientName)) {
-            clientSelect.selectedIndex = i;
-            showClientNotes(); // Refresh client notes if needed
-            scrollToTop(); // Scroll to the top of the page
-            break;
-        }
+    if (clientSelect) {
+      for (var i = 0; i < clientSelect.options.length; i++) {
+          // Extract the client name and category from the dropdown option
+          var optionClientName = (clientSelect.options[i].value || '').trim();
+          if (!optionClientName) continue;
+
+          var optLower = optionClientName.toLowerCase();
+          var clientLower = normalizedClient.toLowerCase();
+
+          // Prefer exact matches, but allow buttons that include " (Category)" suffixes
+          if (clientLower === optLower || clientLower.startsWith(optLower)) {
+              matchedIndex = i;
+              break;
+          }
+      }
+
+      if (matchedIndex >= 0) {
+        clientSelect.selectedIndex = matchedIndex;
+      } else {
+        // Fallback: allow setting the value directly in case the option text differs slightly
+        clientSelect.value = normalizedClient;
+      }
+    }
+
+    // Mirror the chosen name into autocomplete for visual consistency
+    var clientAutocomplete = document.getElementById('clientAutocomplete');
+    if (clientAutocomplete) clientAutocomplete.value = normalizedClient;
+
+    if (clientSelect) {
+      showClientNotes(); // Refresh client notes if needed
+      scrollToTop(); // Scroll to the top of the page
     }
 }
 
@@ -8664,9 +8798,7 @@ function updateCategoryLabel() {
     if (clientSelect.value) {
         // Extract client name and category from the selected option
         var clientName = selectedOption.value;
-        var rawText = selectedOption && selectedOption.textContent ? selectedOption.textContent : '';
-        var split = rawText.split(' (');
-        var clientCategory = split.length > 1 ? split[1].slice(0, -1) : '';
+        var clientCategory = (selectedOption && selectedOption.dataset && selectedOption.dataset.category) ? selectedOption.dataset.category : '';
         var effectiveCategory = clientCategory || __currentCategory || '';
 
         // Overlay the dropdown with the current category so it sits on top of the "(Category)" text
@@ -8687,9 +8819,8 @@ function setCategoryPlaceholderText(text) {
     var fallbackFromClient = (function() {
         var clientSel = document.getElementById('clientSelect');
         if (!clientSel || !clientSel.value || !clientSel.selectedOptions.length) return '';
-        var raw = clientSel.selectedOptions[0].textContent || '';
-        var parts = raw.split(' (');
-        return parts.length > 1 ? parts[1].replace(/\)$/, '') : '';
+        var opt = clientSel.selectedOptions[0];
+        return (opt && opt.dataset && opt.dataset.category) ? opt.dataset.category : '';
     })();
 
     if (categorySelect.options.length === 0) {
@@ -9217,17 +9348,24 @@ function displayClient(client, container) {
   var topRow = document.createElement('div');
   topRow.style.cssText = "display:flex; align-items:center; justify-content:center; width:100%;";
 
+  var baseClientName = client.clientName || client.name || '';
+  var clientCategory = client.category || '';
+
   var clientButton = document.createElement('button');
   clientButton.className = 'inline-button client-button';
-  clientButton.innerText = client.name + (client.category ? ' (' + client.category + ')' : '');
+  clientButton.dataset.client = baseClientName;
+  clientButton.dataset.category = clientCategory;
+  clientButton.innerText = baseClientName + (clientCategory ? ' (' + clientCategory + ')' : '');
   clientButton.style.cssText = "display:inline-flex; align-items:center;";
   clientButton.addEventListener('click', function () {
+    var btnClient = this.getAttribute('data-client') || baseClientName || this.innerText || '';
+
     // prime chip cache so details view shows same chip
     window.__chipForCurrentClient = {
       initials: (client.chipInitials || '').toUpperCase(),
       date: normalizeChipDate(client.chipDate || '')
     };
-    selectClientFromButton(client.name);
+    selectClientFromButton(btnClient);
   });
   topRow.appendChild(clientButton);
 
