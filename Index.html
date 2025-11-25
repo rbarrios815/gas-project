@@ -2015,24 +2015,60 @@ button:active {
 
 
 
-#categoryChangeSection {
-  background: transparent;
-  padding: 0;
-  margin: 0 0 8px 0;
-  border: 0;
-  box-shadow: none;
-  text-align: left;
+.category-dropdown-container {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
 }
 
-.category-label {
-  display: block; /* Make label a block element */
-  margin-bottom: 10px; /* Space between label and select */
+.category-dropdown-toggle {
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--green2);
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--green1), var(--green2));
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.16);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.category-dropdown-toggle:active {
+  transform: translateY(1px);
+}
+
+#categoryChangeSection {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: #fff;
+  padding: 10px;
+  margin: 0;
+  border: 1px solid #d0d7de;
+  box-shadow: 0 10px 26px rgba(0,0,0,0.16);
+  border-radius: 10px;
+  text-align: left;
+  width: 220px;
 }
 
 .category-select {
   display: block;
   margin: 0;
   width: 100%;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 1em;
+  padding: 10px;
+  box-sizing: border-box;
 }
 
 #loadingBarContainer {
@@ -3060,27 +3096,6 @@ input#clientAutocomplete, select#clientSelect {
   box-shadow: 0 2px 5px rgba(0,0,0,0.06);
 }
 
-.category-overlay {
-  position: static;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: 100%;
-  pointer-events: auto;
-}
-
-#categoryChangeSection select {
-  width: 100%;
-  height: auto;
-  background: #fff;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 1em;
-  padding: 10px;
-  box-sizing: border-box;
-  pointer-events: auto;
-}
-
 /* Chips bar when placed inside the autocomplete wrapper */
 .recent-bar.inside-autocomplete {
   display: flex;
@@ -3669,6 +3684,16 @@ input#clientAutocomplete, select#clientSelect {
            placeholder="Type Client Name"
            oninput="autocompleteClient()">
 
+    <!-- Compact category dropdown toggle in the top-right of the autocomplete bar -->
+    <div id="categoryDropdownContainer" class="category-dropdown-container" style="display:none;">
+      <button id="categoryDropdownToggle" class="category-dropdown-toggle" aria-haspopup="listbox" aria-expanded="false" title="Change category">▼</button>
+      <div id="categoryChangeSection" class="category-overlay" aria-hidden="true" style="display:none;">
+        <select id="categorySelect" class="category-select" aria-label="Change category">
+          <option value="">▼</option>
+        </select>
+      </div>
+    </div>
+
            <!-- Category combo + Calendar icon (hidden until a client is selected) -->
 <div id="catCalWrap" style="display:none; gap:8px; align-items:center; margin-left:auto;">
   <!-- Category pill (combobox) -->
@@ -3747,15 +3772,6 @@ input#clientAutocomplete, select#clientSelect {
             style="flex:1 1 auto; width:100%; min-height:60px; background-color:white; box-sizing:border-box;"
             onblur="onInProgressLoadedBlur(this.value)"></textarea>
 </div>
-
-<!-- Category dropdown under the green lightbulb bar -->
-<div id="categoryChangeSection" class="category-overlay" aria-hidden="true" style="display:none;">
-  <label for="categorySelect" class="category-label">Change Category</label>
-  <select id="categorySelect" class="category-select">
-    <option value="">▼</option>
-  </select>
-</div>
-
 <br>
 
 
@@ -5970,8 +5986,6 @@ setCategoryPlaceholderText('');
 hideCategoryOverlay();
 
 var displayStyle = clientName ? 'block' : 'none';
-var categoryDisplayStyle = clientName ? 'flex' : 'none';
-
 // Only show the labels row and label list when a client is loaded
 var labelsTopRow = document.querySelector('.labels-top-row');
 if (labelsTopRow) {
@@ -5991,7 +6005,14 @@ var fw = document.getElementById('futureWorkSection');
 if (fw) fw.style.display = 'none';
 
 // Keep the rest of the UI behavior unchanged
-document.getElementById('categoryChangeSection').style.display = categoryDisplayStyle;
+var categoryDropdownContainer = document.getElementById('categoryDropdownContainer');
+if (categoryDropdownContainer) {
+  categoryDropdownContainer.style.display = clientName ? 'flex' : 'none';
+}
+var catCalWrap = document.getElementById('catCalWrap');
+if (catCalWrap) {
+  catCalWrap.style.display = clientName ? 'inline-flex' : 'none';
+}
 var appointmentBtn = document.getElementById('addAppointmentBtn');
 if (appointmentBtn) {
   appointmentBtn.style.display = displayStyle;
@@ -8809,9 +8830,28 @@ function setCategoryPlaceholderText(text) {
 
 function hideCategoryOverlay() {
     var overlay = document.getElementById('categoryChangeSection');
+    var toggle = document.getElementById('categoryDropdownToggle');
     if (overlay) {
         overlay.style.display = 'none';
         overlay.setAttribute('aria-hidden', 'true');
+        overlay.dataset.open = 'false';
+    }
+    if (toggle) {
+        toggle.setAttribute('aria-expanded', 'false');
+    }
+}
+
+function showCategoryOverlay() {
+    var overlay = document.getElementById('categoryChangeSection');
+    var toggle = document.getElementById('categoryDropdownToggle');
+    if (!overlay) return;
+
+    overlay.style.display = 'block';
+    overlay.setAttribute('aria-hidden', 'false');
+    overlay.dataset.open = 'true';
+
+    if (toggle) {
+        toggle.setAttribute('aria-expanded', 'true');
     }
 }
 
@@ -8819,16 +8859,41 @@ function positionCategoryDropdownOverAutocomplete() {
     var overlay = document.getElementById('categoryChangeSection');
     var categorySelect = document.getElementById('categorySelect');
     var clientSelect = document.getElementById('clientSelect');
-    if (!overlay || !categorySelect || !clientSelect) return;
+    var container = document.getElementById('categoryDropdownContainer');
+    if (!overlay || !categorySelect || !clientSelect || !container) return;
 
     if (!clientSelect.value) {
         hideCategoryOverlay();
+        container.style.display = 'none';
         return;
     }
 
-    overlay.style.display = 'flex';
-    overlay.setAttribute('aria-hidden', 'false');
+    container.style.display = 'flex';
 }
+
+(function wireCategoryDropdownToggle(){
+  var toggle = document.getElementById('categoryDropdownToggle');
+  if (!toggle) return;
+
+  toggle.addEventListener('click', function(evt){
+    evt.stopPropagation();
+    var overlay = document.getElementById('categoryChangeSection');
+    var isOpen = overlay && overlay.dataset.open === 'true';
+    if (isOpen) {
+      hideCategoryOverlay();
+    } else {
+      showCategoryOverlay();
+    }
+  });
+
+  document.addEventListener('click', function(evt){
+    var container = document.getElementById('categoryDropdownContainer');
+    if (!container) return;
+    if (!container.contains(evt.target)) {
+      hideCategoryOverlay();
+    }
+  });
+})();
 
 
 
