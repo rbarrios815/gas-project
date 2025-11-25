@@ -153,13 +153,13 @@
   #dashSheet { width: 100vw; max-width: 100vw; }
   #dashHandle { width: 100%; }
 
-  /* Make the textarea consume half the screen height */
+  /* Make the textarea consume a quarter of the screen height */
   #dashBody #noteInput{
     width: 100%;
     /* Use small-viewport units to avoid iOS URL bar issues */
-    height: 50svh;
-    min-height: 50svh;
-    max-height: 50svh;
+    height: 25svh;
+    min-height: 25svh;
+    max-height: 25svh;
   }
 
   /* Keep action row from overflowing; stack buttons full-width */
@@ -184,72 +184,32 @@
   }
 }
 
-/* === ACTION ROW: keep side-by-side on all sizes ========================= */
+/* === ACTION ROW: align actions to the right ============================== */
 #actionRow {
   display: flex !important;
   align-items: center !important;
   gap: 8px !important;
-}
-
-/* Left stays left; right stays right via spacer */
-#actionRow .left-actions,
-#actionRow .right-actions {
-  display: flex !important;
-  align-items: center !important;
-  gap: 8px !important;
-  flex: 0 0 auto !important;
-}
-
-/* Spacer pushes the mic to the far right */
-#actionRow .spacer {
-  flex: 1 1 auto !important;
-  min-width: 8px;
+  flex-wrap: nowrap !important;
+  justify-content: flex-end;
 }
 
 /* Prevent the global mobile rule from making these buttons full-width */
 #actionRow .btn,
-#actionRow #addBtn,
-#actionRow #voiceToggleBtn {
+#actionRow #addBtn {
   width: auto !important;
   margin-left: 0 !important;
   margin-right: 0 !important;
 }
 
-/* Ensure the row never collapses or wraps weirdly */
-#actionRow { flex-wrap: nowrap !important; }
-#actionRow .left-actions,
-#actionRow .right-actions { flex-wrap: nowrap !important; }
-
-/* Mic visual style stays, but sizing is sane for tight rows */
-#voiceToggleBtn {
-  border: 1px solid #ced4da;
-  background: #F8FAF8;
-  border-radius: 10px;
-  font-size: 32px;
-  padding: 10px 14px;
-}
-
-/* On very narrow phones, still keep one line */
 @media (max-width: 640px) {
-  #actionRow { flex-direction: row !important; }
+  #actionRow {
+    flex-direction: row !important;
+    justify-content: flex-end;
+  }
   #actionRow .btn,
-  #actionRow #addBtn,
-#actionRow #voiceToggleBtn { width: auto !important; }
-}
-
-
-.usage-counter {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-#usageCounterBtn {
-  border: 1px solid #ced4da;
-  background: #f8f9fa;
-  border-radius: 10px;
-  font-size: 28px;
-  padding: 8px 12px;
+  #actionRow #addBtn {
+    width: auto !important;
+  }
 }
 
 .floatingUtilityBtn {
@@ -270,25 +230,14 @@
   color: #212529;
   box-shadow: 0 8px 24px rgba(0,0,0,.22);
   cursor: pointer;
-  z-index: 200101; /* one step above floating mic */
+  z-index: 200101; /* keep above other floating controls */
   transition: transform .08s ease, box-shadow .12s ease;
 }
 
 .floatingUtilityBtn:hover { transform: translateY(-1px); box-shadow: 0 10px 28px rgba(0,0,0,.25); }
 .floatingUtilityBtn:active { transform: translateY(1px); box-shadow: 0 6px 18px rgba(0,0,0,.18); }
 
-#floatingUsageBtn { right: 16px; }
-#floatingEmailBtn { right: 102px; }
-
-#floatingUsageBtn .usage-pill {
-  font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 999px;
-  background: #e9ecef;
-  color: #212529;
-  line-height: 1.2;
-  white-space: nowrap;
-}
+#floatingEmailBtn { right: 16px; }
 
 .usage-counter .usage-meta {
   display: flex;
@@ -302,9 +251,9 @@
 /* === Mobile textarea height (leave room for buttons) ===================== */
 @media (max-width: 640px) {
   #dashBody textarea#noteInput {
-    height: 50dvh !important;
-    min-height: 50dvh !important;
-    max-height: 50dvh !important;
+    height: 25dvh !important;
+    min-height: 25dvh !important;
+    max-height: 25dvh !important;
     width: 100% !important;
     box-sizing: border-box;
     resize: vertical;
@@ -323,7 +272,7 @@ html { font-size: 200%; }
 /* Double the textarea font + desktop min-height (150px -> 300px) */
 #dashBody #noteInput {
   font-size: 75px;     /* was 28px */
-  min-height: 550px;   /* was 150px */
+  min-height: 275px;   /* was 150px */
 }
 
 /* Double common px-based text */
@@ -331,16 +280,7 @@ html { font-size: 200%; }
 #dashBody #recentList .note   { font-size: 64px; }  /* was 16px */
 #dashBody #recentList .meta   { font-size: 44px; }  /* was 11px */
 #dashBody input[type="text"].small { font-size: 48px; }  /* was 12px */
-/* === VOICE ROW HELPERS (scoped) ======================================= */
-#actionRow .emoji-btn{
-  line-height: 1;
-  padding: 6px 10px;
-}
-#actionRow{ gap: 8px; }
-#actionRow .left-actions,
-#actionRow .right-actions{ flex: 0 0 auto; }
-
-/* Keep mic/ADD row visible at the bottom of its card */
+/* Keep action row visible at the bottom of its card */
 .card { position: relative; }
 #actionRow {
   position: sticky;
@@ -348,12 +288,6 @@ html { font-size: 200%; }
   background: #fff;
   padding-top: 8px;
   z-index: 2; /* above textarea content */
-}
-/* Make the mic button easy to see and tap */
-#voiceToggleBtn {
-  border: 1px solid #ced4da;
-  background: #f8f9fa;
-  border-radius: 10px;
 }
 
 
@@ -659,43 +593,6 @@ a:focus {
   object-fit: cover !important;
   flex: 0 0 auto !important;
 }
-/* === FLOATING MIC BUTTON (always visible) ================================ */
-#floatingMicBtn{
-  position: fixed;
-  left: 16px;
-  bottom: 18px;
-  width: 128px;
-  height: 128px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 60px;               /* 🎤 / ⏹️ size */
-  border: 0;
-  outline: none;
-  cursor: pointer;
-  z-index: 200100;               /* above toasts/sheets/loading bars */
-  background: linear-gradient(135deg, var(--green1), var(--green2));
-  color: #fff;
-  box-shadow: 0 8px 24px rgba(0,0,0,.25);
-  transition: transform .08s ease, box-shadow .12s ease, background .2s ease;
-}
-#floatingMicBtn:hover{ transform: translateY(-1px); box-shadow: 0 10px 28px rgba(0,0,0,.28); }
-#floatingMicBtn:active{ transform: translateY(1px); box-shadow: 0 6px 18px rgba(0,0,0,.22); }
-
-/* “inactive” look when not supported */
-#floatingMicBtn.is-disabled{
-  background: #ced4da;
-  color: #495057;
-  cursor: not-allowed;
-}
-
-/* Small boost to the inline mic in the action row so it stands out too */
-#voiceToggleBtn{
-  font-size: 32px;         /* ensure emoji is large enough to notice */
-  padding: 10px 14px;
-}
-
 </style>
 </head>
 
@@ -709,15 +606,7 @@ a:focus {
 <!-- Loading bar -->
 
   <div id="loadingBarWrap"><div id="loadingBar"></div></div>
-<!-- Floating always-visible mic button -->
-<button id="floatingMicBtn" aria-label="Start voice input (floating)">🎤</button>
-<!-- Floating usage counter (calculator) opposite the mic -->
-<button id="floatingUsageBtn" class="floatingUtilityBtn" aria-label="Usage counter" title="Usage counter">
-  <span aria-hidden="true">🧮</span>
-  <span id="floatingUsageCount" class="usage-pill" aria-live="polite">0</span>
-  <span id="floatingUsageMinutes" class="usage-pill" aria-live="polite">0m</span>
-</button>
-<!-- Floating email trigger next to calculator -->
+<!-- Floating email trigger -->
 <button id="floatingEmailBtn" class="floatingUtilityBtn" aria-label="Send JB chip summary email" title="Send JB chip summary email">
   <span aria-hidden="true">✉️</span>
 </button>
@@ -739,26 +628,8 @@ a:focus {
       <textarea id="noteInput"></textarea>
       
 <div class="row" id="actionRow" style="margin-top:8px; align-items:center;">
-  <!-- LEFT: Voice toggle (🎤 → ⏹️) -->
-  <div class="left-actions" style="display:flex; align-items:center; gap:8px;">
-    <button id="voiceToggleBtn" class="btn emoji-btn" aria-label="Start voice input" title="Start voice">🎤</button>
-  </div>
-
-  <!-- Spacer pushes the ADD button to the far right -->
-  <div class="spacer" style="flex:1 1 auto;"></div>
-
-  <!-- RIGHT: ADD button + status -->
-  <div class="right-actions" style="display:flex; align-items:center; gap:8px;">
-    <div id="usageCounterWrap" class="usage-counter" aria-live="polite">
-      <button id="usageCounterBtn" class="btn emoji-btn" aria-label="Usage counter" title="Usage counter">🧮</button>
-      <div class="usage-meta">
-        <div id="usageCountDisplay" class="usage-line">0 actions</div>
-        <div id="usageMinutesDisplay" class="usage-line">0 min</div>
-      </div>
-    </div>
-    <button id="addBtn" class="btn">ADD</button>
-    <span id="addStatus" class="meta" style="margin-left:4px"></span>
-  </div>
+  <button id="addBtn" class="btn">ADD</button>
+  <span id="addStatus" class="meta" style="margin-left:4px"></span>
 </div>
 
 
