@@ -5891,6 +5891,7 @@ function populateClientDropdown(clients) {
         var option = document.createElement('option');
         option.value = client.clientName;
         option.textContent = client.clientName + (client.category ? ' (' + client.category + ')' : '');
+        option.dataset.category = client.category || '';
         clientSelect.appendChild(option);
     });
     hideLoadingBar(); // Hide the loading bar after populating the dropdown
@@ -8022,11 +8023,10 @@ function selectClientFromButton(clientText) {
 
     for (var i = 0; i < clientSelect.options.length; i++) {
         // Extract the client name and category from the dropdown option
-        var optionText = clientSelect.options[i].text;
-        var optionClientName = optionText.split(' (')[0]; // Get the client name before the '('
+        var optionClientName = (clientSelect.options[i].value || '').trim();
 
         // Check if the client names match (without considering the category)
-        if (clientText.startsWith(optionClientName)) {
+        if (clientText.trim().toLowerCase().startsWith(optionClientName.toLowerCase())) {
             clientSelect.selectedIndex = i;
             showClientNotes(); // Refresh client notes if needed
             scrollToTop(); // Scroll to the top of the page
@@ -8753,9 +8753,7 @@ function updateCategoryLabel() {
     if (clientSelect.value) {
         // Extract client name and category from the selected option
         var clientName = selectedOption.value;
-        var rawText = selectedOption && selectedOption.textContent ? selectedOption.textContent : '';
-        var split = rawText.split(' (');
-        var clientCategory = split.length > 1 ? split[1].slice(0, -1) : '';
+        var clientCategory = (selectedOption && selectedOption.dataset && selectedOption.dataset.category) ? selectedOption.dataset.category : '';
         var effectiveCategory = clientCategory || __currentCategory || '';
 
         // Overlay the dropdown with the current category so it sits on top of the "(Category)" text
@@ -8776,9 +8774,8 @@ function setCategoryPlaceholderText(text) {
     var fallbackFromClient = (function() {
         var clientSel = document.getElementById('clientSelect');
         if (!clientSel || !clientSel.value || !clientSel.selectedOptions.length) return '';
-        var raw = clientSel.selectedOptions[0].textContent || '';
-        var parts = raw.split(' (');
-        return parts.length > 1 ? parts[1].replace(/\)$/, '') : '';
+        var opt = clientSel.selectedOptions[0];
+        return (opt && opt.dataset && opt.dataset.category) ? opt.dataset.category : '';
     })();
 
     if (categorySelect.options.length === 0) {
