@@ -3042,7 +3042,9 @@ input#clientAutocomplete, select#clientSelect {
 
 .category-overlay {
   position: static;
-  display: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   width: 100%;
   pointer-events: auto;
 }
@@ -3728,6 +3730,7 @@ input#clientAutocomplete, select#clientSelect {
 
 <!-- Category dropdown under the green lightbulb bar -->
 <div id="categoryChangeSection" class="category-overlay" aria-hidden="true" style="display:none;">
+  <label for="categorySelect" class="category-label">Change Category</label>
   <select id="categorySelect" class="category-select">
     <option value="">▼</option>
   </select>
@@ -5947,6 +5950,7 @@ setCategoryPlaceholderText('');
 hideCategoryOverlay();
 
 var displayStyle = clientName ? 'block' : 'none';
+var categoryDisplayStyle = clientName ? 'flex' : 'none';
 
 // Only show the labels row and label list when a client is loaded
 var labelsTopRow = document.querySelector('.labels-top-row');
@@ -5967,7 +5971,7 @@ var fw = document.getElementById('futureWorkSection');
 if (fw) fw.style.display = 'none';
 
 // Keep the rest of the UI behavior unchanged
-document.getElementById('categoryChangeSection').style.display = displayStyle;
+document.getElementById('categoryChangeSection').style.display = categoryDisplayStyle;
 var appointmentBtn = document.getElementById('addAppointmentBtn');
 if (appointmentBtn) {
   appointmentBtn.style.display = displayStyle;
@@ -8802,7 +8806,7 @@ function positionCategoryDropdownOverAutocomplete() {
         return;
     }
 
-    overlay.style.display = 'block';
+    overlay.style.display = 'flex';
     overlay.setAttribute('aria-hidden', 'false');
 }
 
