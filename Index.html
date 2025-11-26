@@ -2090,7 +2090,7 @@ input#clientAutocomplete, select#clientSelect {
 .labels-container {
   display: flex;
   width: 100%;
-  align-items: stretch;
+  align-items: flex-start;
 }
 
   .labels-notes-left {
@@ -2124,8 +2124,9 @@ input#clientAutocomplete, select#clientSelect {
     max-width: 15%;
     display: none;
     flex-direction: column;
-  gap: 8px;
-  font-size: 32px;
+    gap: 12px;
+    font-size: 32px;
+    align-items: stretch;
 }
 
   #labelsDropdown {
@@ -2165,6 +2166,11 @@ input#clientAutocomplete, select#clientSelect {
   flex-direction: column;
   align-items: stretch;
   gap: 6px;
+}
+
+.add-label-slot {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .labels-buttons-row > button {
@@ -3709,11 +3715,6 @@ input#clientAutocomplete, select#clientSelect {
   <div class="labels-container">
     <div class="labels-notes-left">
       <div class="labels-top-row">
-          <select id="labelsDropdown" onchange="addLabelToClient(this.value)">
-            <option value="" disabled selected>ADD</option>
-          <!-- Options will be dynamically populated here -->
-          <option value="NEW LABEL">NEW LABEL</option>
-        </select>
         <div id="labelsChipSlot" class="labels-chip-slot"></div>
       </div>
       <div id="labelsDisplay">
@@ -3724,6 +3725,13 @@ input#clientAutocomplete, select#clientSelect {
       </div>
     </div>
     <div id="labelsAdditionSection">
+      <div class="add-label-slot">
+        <select id="labelsDropdown" onchange="addLabelToClient(this.value)">
+          <option value="" disabled selected>ADD</option>
+          <!-- Options will be dynamically populated here -->
+          <option value="NEW LABEL">NEW LABEL</option>
+        </select>
+      </div>
       <div id="labelsButtonsRow" class="labels-buttons-row"></div>
     </div>
   </div>
@@ -6359,14 +6367,14 @@ function labelContainsEmoji(labelText) {
 
 function displayLabels(labelsArray) {
     var labelsDisplay = document.getElementById('labelsDisplay');
-    labelsDisplay.innerHTML = '';
 
-    // Reuse the dropdown as an inline label-like control at the end of the list
     var addLabelDropdown = document.getElementById('labelsDropdown');
     if (addLabelDropdown) {
         addLabelDropdown.classList.add('label-box', 'add-label-dropdown');
         addLabelDropdown.selectedIndex = 0; // Keep placeholder visible after refresh
     }
+
+    labelsDisplay.innerHTML = '';
     
     var emojiLabels = [];
     var nonEmojiLabels = [];
@@ -6403,10 +6411,6 @@ function displayLabels(labelsArray) {
 
         labelsDisplay.appendChild(labelDiv);
     });
-
-    if (addLabelDropdown) {
-        labelsDisplay.appendChild(addLabelDropdown);
-    }
 }
 
 
