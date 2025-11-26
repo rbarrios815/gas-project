@@ -603,9 +603,9 @@ a:focus {
 <!-- Keep these elements once in your HTML -->
 
 
-<!-- Floating email trigger -->
-<button id="floatingEmailBtn" class="floatingUtilityBtn" aria-label="Send JB chip summary email" title="Send JB chip summary email">
-  <span aria-hidden="true">✉️</span>
+<!-- Floating text-message trigger -->
+<button id="floatingEmailBtn" class="floatingUtilityBtn" aria-label="Send JB chip summary text" title="Send JB chip summary text">
+  <span aria-hidden="true">💬</span>
 </button>
 
   <!-- Toast -->
@@ -858,7 +858,7 @@ document.getElementById('floatingUsageBtn')?.addEventListener('click', function(
 });
 
 document.getElementById('floatingEmailBtn')?.addEventListener('click', function(){
-  triggerTopClientsEmail();
+  triggerTopClientsText();
 });
 
 // Initialize displays on load
@@ -9694,17 +9694,17 @@ function closeCategoriesModal() {
     document.getElementById('categoriesModal').style.display = 'none';
 }
 
-function triggerTopClientsEmail() {
+function triggerTopClientsText() {
   showLoadingBar();
 
   google.script.run
     .withSuccessHandler(function() {
       hideLoadingBar();
-      alert("JB chip email sent for today.");
+      alert("JB chip text sent for today.");
     })
     .withFailureHandler(function(err) {
       hideLoadingBar();
-      alert("Failed to send JB chip email. Error: " + err.message);
+      alert("Failed to send JB chip text. Error: " + err.message);
     })
     .sendJbChipTasksEmail();
 }
