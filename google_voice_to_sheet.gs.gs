@@ -48,6 +48,12 @@ const GV_IMPORT_LABEL_NAME = 'GV-To-Sheet';
 // Gmail label used to mark threads as already processed
 const GV_PROCESSED_LABEL_NAME = 'GV-Processed';
 
+// Only import messages from this phone number (via subject line)
+const GV_ALLOWED_SUBJECTS = [
+  'New voicemail from (281) 714-6370',
+  'New text message from (281) 714-6370'
+];
+
 /**
  * Main function: call this from a time-based trigger.
  */
@@ -86,6 +92,11 @@ function importGoogleVoiceToSheet() {
   threads.forEach(function (thread) {
     const messages = thread.getMessages();
     messages.forEach(function (message) {
+      const subject = message.getSubject() || '';
+      if (!isAllowedVoiceSubject(subject)) {
+        return; // Ignore messages from other numbers
+      }
+
       const body = message.getPlainBody();
       if (!body) return;
 
@@ -116,6 +127,17 @@ function importGoogleVoiceToSheet() {
     // Mark thread as processed: add processed label, remove import label
     thread.addLabel(processedLabel);
     thread.removeLabel(importLabel);
+  });
+}
+
+/**
+ * Checks whether a subject matches the allowed Google Voice number.
+ */
+function isAllowedVoiceSubject(subject) {
+  if (!subject) return false;
+  var normalized = subject.trim();
+  return GV_ALLOWED_SUBJECTS.some(function (allowed) {
+    return normalized === allowed;
   });
 }
 
