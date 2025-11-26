@@ -2353,7 +2353,7 @@ function formatDateTaskLine_(line, tz) {
   return remainder ? (formattedDate + ': ' + remainder) : formattedDate;
 }
 
-function extractHighlightedLines_(lines, tz) {
+function extractHighlightedLines_(lines, tz, cutoffDate) {
   var withDates = [];
   var withoutDates = [];
 
@@ -2372,6 +2372,7 @@ function extractHighlightedLines_(lines, tz) {
 
     var dt = parseDateFromLine_(text);
     if (dt) {
+      if (cutoffDate && dt.getTime() > cutoffDate.getTime()) return;
       withDates.push({ date: dt, text: formatDateTaskLine_(text, tz) });
     } else {
       withoutDates.push({ text: text });
@@ -2379,11 +2380,8 @@ function extractHighlightedLines_(lines, tz) {
   });
 
   withDates.sort(function(a, b) { return a.date - b.date; });
-  var ordered = withDates.map(function(item) { return item.text; })
+  return withDates.map(function(item) { return item.text; })
     .concat(withoutDates.map(function(item) { return item.text; }));
-
-  var start = Math.max(0, ordered.length - 3);
-  return ordered.slice(start);
 }
 
 function normalizeChipDate_(value) {
@@ -2456,7 +2454,7 @@ function collectJbChipClients_(targetDate) {
     var entry = clients[name];
     return {
       name: entry.name,
-      highlights: extractHighlightedLines_(entry.pastWorks, tz)
+      highlights: extractHighlightedLines_(entry.pastWorks, tz, targetDay)
     };
   });
 
