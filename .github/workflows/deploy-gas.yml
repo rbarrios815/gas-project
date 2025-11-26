@@ -3,9 +3,7 @@ name: Deploy to Google Apps Script (clasp)
 on:
   push:
     branches:
-      - main
-    paths-ignore:
-      - '.github/**'
+      - main        # whenever anything is merged/pushed to main, this runs
 
 jobs:
   deploy:
@@ -24,15 +22,11 @@ jobs:
         run: npm i -g @google/clasp
 
       - name: Restore ~/.clasprc.json from secret
-        shell: bash
         run: |
           mkdir -p "${HOME}"
           echo "${CLASPRC_JSON_B64}" | base64 --decode > "${HOME}/.clasprc.json"
         env:
           CLASPRC_JSON_B64: ${{ secrets.CLASPRC_JSON_B64 }}
 
-      - name: Push code to Apps Script
-        run: |
-          echo "Using .clasp.json:"
-          cat .clasp.json
-          clasp push --force
+      - name: Push repo to Apps Script
+        run: clasp push -f
