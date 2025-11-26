@@ -5254,6 +5254,29 @@ function persistRecentCache(list){
   try { localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(window.__recentClients)); } catch(_) {}
 }
 
+// Merge a fresh server-provided list with the existing cache so we don't
+// discard older recents when the active client is filtered out of the top 3.
+function mergeAndPersistRecents(fresh){
+  var merged = [];
+  var seen   = new Set();
+
+  function add(name){
+    var nm = (name || '').trim();
+    if (!nm) return;
+
+    var key = nm.toLowerCase();
+    if (seen.has(key)) return;
+
+    seen.add(key);
+    merged.push(nm);
+  }
+
+  (fresh || []).forEach(add);
+  (readRecentCache() || []).forEach(add);
+
+  persistRecentCache(merged);
+}
+
 function pushRecentClient(name){
   if (!name) return;
   var norm = String(name).trim();
@@ -8154,7 +8177,7 @@ function selectClientFromButton(clientText) {
 function paintRecentBar(list){
   __recentClientData = Array.isArray(list) ? list : [];
   var names = (__recentClientData || []).map(function(it){ return it && it.name ? it.name : ''; }).filter(Boolean);
-  if (names.length) persistRecentCache(names);
+  if (names.length) mergeAndPersistRecents(names);
   renderRecentClientsBar();
 }
 
