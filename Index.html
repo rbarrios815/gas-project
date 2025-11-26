@@ -2066,6 +2066,20 @@ button:active {
   transition: padding .2s ease, max-height .2s ease, border-width .2s ease;
 }
 
+.client-notes-section {
+  transition: transform .2s ease, opacity .2s ease, max-height .2s ease, margin .2s ease;
+  max-height: 9999px;
+}
+
+.client-notes-section.is-collapsed {
+  transform: translateY(-12px);
+  opacity: 0;
+  max-height: 0;
+  margin-top: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
 
 body {
     margin-top: 0; /* Adjust the value to match the height of the fixed header */
@@ -3422,10 +3436,10 @@ input#clientAutocomplete, select#clientSelect {
   padding: 10px 14px;
   background: #e7f6ed !important;
   border-color: #9ed6b8 !important;
-  flex: 0 0 auto;
-  width: fit-content;
-  min-width: 260px;
-  max-width: min(520px, 70vw);
+  flex: 1 1 0;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
 }
 
 .cat-pill {
@@ -3707,6 +3721,7 @@ input#clientAutocomplete, select#clientSelect {
 
 
 
+  <div id="clientNotesSection" class="client-notes-section">
   <div class="labels-container">
     <div class="labels-notes-left">
       <div class="labels-top-row">
@@ -3774,6 +3789,8 @@ input#clientAutocomplete, select#clientSelect {
 <br>
 <!-- Add the HIDE CLIENT NOTES button here -->
 <button id="hideClientNotesBtn" class="secondary-button" onclick="hideClientNotes()" style="display:none;">HIDE CLIENT NOTES</button>
+
+  </div>
 
 <!-- Appointment scheduling modal -->
 <div id="appointmentModal" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="appointmentModalTitle" aria-hidden="true">
@@ -5492,6 +5509,7 @@ window.addEventListener('load',   fitRecentRowOneLine);
 (function installRecentHideOnScroll(){
   var container = document.querySelector('.client-container');
   var row = document.getElementById('recentRow');
+  var notesSection = document.getElementById('clientNotesSection');
   if (!container || !row) return;
 
   var lastY = window.scrollY || document.documentElement.scrollTop || 0;
@@ -5523,6 +5541,10 @@ window.addEventListener('load',   fitRecentRowOneLine);
 
     if (changed && typeof ensureHeaderSpacing === 'function') {
       ensureHeaderSpacing();
+    }
+
+    if (notesSection) {
+      notesSection.classList.toggle('is-collapsed', !!shouldHide);
     }
   }
 
@@ -5560,6 +5582,37 @@ window.addEventListener('load',   fitRecentRowOneLine);
 var currentClientName = '';
 
 var inputElement = document.getElementById('clientAutocomplete');
+var suggestions = null;
+
+function clearClientSearchAndNotes() {
+  if (!inputElement) return;
+  inputElement.value = '';
+  inputElement.style.color = '';
+  if (suggestions) {
+    suggestions.innerHTML = '';
+  }
+  hideCategoryOverlay();
+  hideClientNotes();
+}
+
+if (inputElement) {
+  ['focus', 'click'].forEach(function(evt) {
+    inputElement.addEventListener(evt, clearClientSearchAndNotes);
+  });
+
+  inputElement.addEventListener('input', function() {
+    inputElement.style.color = '';
+    hideCategoryOverlay();
+  });
+
+  inputElement.addEventListener('blur', function() {
+    if (inputElement.value === '' && currentClientName) {
+      inputElement.value = currentClientName;
+      inputElement.style.color = 'black';
+    }
+  });
+}
+
 /* === SNIPPET (REPLACEMENT): balanced show/hide per autocomplete call === */
 (function installAutocompleteLoadingWrapper(){
   // We’ll make sure each call to autocompleteClient pairs exactly one show with one hide.
@@ -5716,42 +5769,8 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 
 
-inputElement.addEventListener('click', function() {
-    if (inputElement.value === currentClientName) {
-        inputElement.style.color = 'lightgray'; // Set text color to gray when clicked
-    }
-    if (suggestions) {
-        suggestions.innerHTML = ''; // Clear existing suggestions
-    }
-        hideClientNotes(); // Call the function when the input is clicked into
-
-});
-
-inputElement.addEventListener('input', function() {
-    if (inputElement.value !== currentClientName) {
-        inputElement.style.color = 'black'; // Set text color to black when typing new text
-    }
-});
-
-inputElement.addEventListener('blur', function() {
-    if (inputElement.value === '') {
-        inputElement.value = currentClientName;
-        inputElement.style.color = 'black'; // Restore text color to black
-    }
-});
-
-var suggestions = null;
-
-// Add the click event listener here
-inputElement.addEventListener('click', function() {
-    inputElement.value = ''; // Clear the input field
-    if (suggestions) {
-        suggestions.innerHTML = ''; // Clear existing suggestions
-    }
-});
-
-inputElement.addEventListener('keydown', function(e) {
-    if (!suggestions) return; // No suggestions to navigate
+  inputElement.addEventListener('keydown', function(e) {
+      if (!suggestions) return; // No suggestions to navigate
 
     var currentFocus = suggestions.querySelector('.autocomplete-active');
     if (e.key === "ArrowDown") {
@@ -6176,27 +6195,6 @@ saveUIState({
 });
 
 }
-
-
-var inputElement = document.getElementById('clientAutocomplete');
-var suggestions = null;
-
-// Clear the input and reset text color when clicked
-inputElement.addEventListener('click', function() {
-    inputElement.value = ''; // Clear the input field
-    inputElement.style.color = ''; // Reset color to default
-    if (suggestions) {
-        suggestions.innerHTML = ''; // Clear existing suggestions
-    }
-    hideCategoryOverlay();
-});
-
-// Reset text color when the user types
-inputElement.addEventListener('input', function() {
-    inputElement.style.color = ''; // Reset color to default
-    hideCategoryOverlay();
-});
-
 window.addEventListener('resize', positionCategoryDropdownOverAutocomplete);
 
 function setupColumnDropdowns(data) {
