@@ -6359,14 +6359,15 @@ function labelContainsEmoji(labelText) {
 
 function displayLabels(labelsArray) {
     var labelsDisplay = document.getElementById('labelsDisplay');
-    labelsDisplay.innerHTML = '';
 
-    // Reuse the dropdown as an inline label-like control at the end of the list
+    // Grab the dropdown BEFORE clearing the container so we don't lose it
     var addLabelDropdown = document.getElementById('labelsDropdown');
     if (addLabelDropdown) {
         addLabelDropdown.classList.add('label-box', 'add-label-dropdown');
         addLabelDropdown.selectedIndex = 0; // Keep placeholder visible after refresh
     }
+
+    labelsDisplay.innerHTML = '';
     
     var emojiLabels = [];
     var nonEmojiLabels = [];
