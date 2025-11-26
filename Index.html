@@ -3382,13 +3382,23 @@ input#clientAutocomplete, select#clientSelect {
   background: #fff;
   height: 36px;
 }
-.cat-input { 
+.cat-input {
   border: 0; outline: 0; width: 100%;
   font: inherit; line-height: 1.2; font-weight: inherit;
   white-space: nowrap; overflow: hidden; text-overflow: clip;
   min-width: 0;
+  pointer-events: none;
+  background: transparent;
 }
 .cat-input::placeholder { color: #777; }
+.cat-select-overlay {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  border: 0;
+  background: transparent;
+}
 
 /* Cleaner, unified styling for the client + category line */
 .client-autocomplete-row {
@@ -3669,22 +3679,18 @@ input#clientAutocomplete, select#clientSelect {
           <input id="categoryCombo"
                  type="text"
                  placeholder="Select category"
-                 list="categoryList"
                  aria-label="Category"
                  aria-expanded="false"
                  aria-autocomplete="list"
-                 class="cat-input" />
+                 class="cat-input"
+                 readonly
+                 aria-readonly="true" />
           <span class="cat-caret" aria-hidden="true">▾</span>
-          <datalist id="categoryList"></datalist>
+          <select id="categorySelect" class="cat-select-overlay" aria-label="Category"></select>
         </div>
       </div>
 
       <!-- Compact category changer tucked into the autocomplete bar -->
-      <div id="categoryChangeSection" class="category-overlay" aria-hidden="true" style="display:none;">
-        <select id="categorySelect" class="category-select">
-          <option value=""></option>
-        </select>
-      </div>
     </div>
 
 
@@ -6042,7 +6048,8 @@ var fw = document.getElementById('futureWorkSection');
 if (fw) fw.style.display = 'none';
 
 // Keep the rest of the UI behavior unchanged
-document.getElementById('categoryChangeSection').style.display = displayStyle;
+var categoryChangeSection = document.getElementById('categoryChangeSection');
+if (categoryChangeSection) categoryChangeSection.style.display = displayStyle;
 var appointmentBtn = document.getElementById('addAppointmentBtn');
 if (appointmentBtn) {
   appointmentBtn.style.display = displayStyle;
@@ -8878,16 +8885,14 @@ function setCategoryPlaceholderText(text) {
 // Make the inline caret behave like a dropdown trigger for the category combo box
 document.addEventListener('DOMContentLoaded', function () {
     var caret = document.querySelector('.cat-caret');
+    var selectEl = document.getElementById('categorySelect');
     if (!caret) return;
     caret.style.pointerEvents = 'auto';
     caret.style.cursor = 'pointer';
     caret.addEventListener('click', function () {
-        var combo = document.getElementById('categoryCombo');
-        if (!combo) return;
-        combo.focus();
-        if (typeof combo.showPicker === 'function') {
-            try { combo.showPicker(); } catch (e) { /* ignore */ }
-        }
+        if (!selectEl) return;
+        selectEl.focus();
+        selectEl.click();
     });
 });
 
@@ -9187,6 +9192,11 @@ function hideClientNotes() {
     clientAutocomplete.value = '';
     clientAutocomplete.style.color = '';
   }
+
+  // Hide inline category UI when leaving the loaded client state
+  setClientDropdownVisibility(false);
+  updateCategorySelectValue('');
+  setCategoryPlaceholderText('');
 
   // Clear loaded in-progress area
   var loadedArea = document.getElementById('loadedInProgressArea');
@@ -10829,8 +10839,9 @@ function suggestionsContainEmoji(client, emoji) {
   // === ELEMENTS ===
   const catCalWrap   = () => document.getElementById('catCalWrap');
   const autoRow      = () => document.getElementById('clientAutocompleteRow');
-  const catInput     = () => document.getElementById('categoryCombo');
-  const catList      = () => document.getElementById('categoryList');
+  const catInput     = () => document.getElementById('categorySelect');
+  const catList      = () => document.getElementById('categorySelect');
+  const catDisplay   = () => document.getElementById('categoryCombo');
   const calendarBtn  = () => document.getElementById('calendarBtn');
 
   const apptModal    = () => document.getElementById('apptModal');
@@ -10856,18 +10867,36 @@ function suggestionsContainEmoji(client, emoji) {
   }
   function populateDatalist(list) {
     categories = list || [];
-    catList().innerHTML = '';
+    const sel = catList();
+    if (!sel) return;
+
+    sel.innerHTML = '';
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = currentCategory || 'Select category';
+    placeholder.disabled = !currentCategory;
+    placeholder.selected = true;
+    sel.appendChild(placeholder);
+
     categories.forEach(c => {
       const opt = document.createElement('option');
       opt.value = c;
-      catList().appendChild(opt);
+      opt.textContent = c;
+      sel.appendChild(opt);
     });
   }
   function refreshCategoryUI(cat) {
     currentCategory = cat || '';
-    catInput().value = currentCategory || '';
-    catInput().placeholder = currentCategory ? currentCategory : 'Select category';
-    setTooltip(catInput(), currentCategory || 'Select category');
+    if (catInput()) {
+      catInput().value = currentCategory || '';
+    }
+    if (catDisplay()) {
+      catDisplay().value = currentCategory || '';
+      catDisplay().placeholder = currentCategory ? currentCategory : 'Select category';
+      catDisplay().title = currentCategory || 'Select category';
+    }
+    setTooltip(catDisplay() || catInput(), currentCategory || 'Select category');
   }
   function showCatUI(show) {
     const row = autoRow();
@@ -10967,18 +10996,7 @@ function suggestionsContainEmoji(client, emoji) {
       .updateClientCategory(currentClient, newCategory);
   }
 
-  // Input events: Enter = save (type-to-create supported), change = save
-  catInput().addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      saveCategory(catInput().value);
-    }
-  });
-  catInput().addEventListener('change', () => saveCategory(catInput().value));
-  // Optional debounced “preview” (not saving): keep tooltip updated
-  catInput().addEventListener('input', debounce(() => {
-    setTooltip(catInput(), catInput().value || currentCategory || 'Select category');
-  }, 200));
+  // Input events handled by existing category wiring
 
   // === CALENDAR MODAL ===
   function openApptModal() {
