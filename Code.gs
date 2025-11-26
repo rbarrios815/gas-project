@@ -2357,15 +2357,24 @@ function extractHighlightedLines_(lines, tz) {
   var withDates = [];
   var withoutDates = [];
 
-  (lines || []).forEach(function(rawLine) {
-    var line = String(rawLine || '').trim();
-    if (!line) return;
+  (lines || []).forEach(function(item) {
+    var isHighlighted = true;
+    var text = '';
 
-    var dt = parseDateFromLine_(line);
-    if (dt) {
-      withDates.push({ date: dt, text: formatDateTaskLine_(line, tz) });
+    if (typeof item === 'object' && item !== null) {
+      isHighlighted = !!item.highlighted;
+      text = String(item.text || '').trim();
     } else {
-      withoutDates.push({ text: line });
+      text = String(item || '').trim();
+    }
+
+    if (!isHighlighted || !text) return;
+
+    var dt = parseDateFromLine_(text);
+    if (dt) {
+      withDates.push({ date: dt, text: formatDateTaskLine_(text, tz) });
+    } else {
+      withoutDates.push({ text: text });
     }
   });
 
@@ -2377,13 +2386,32 @@ function extractHighlightedLines_(lines, tz) {
   return ordered.slice(start);
 }
 
+function normalizeChipDate_(value) {
+  if (!value) return null;
+
+  var parsed = parseDateFromLine_(String(value));
+  var date = parsed || (value instanceof Date && !isNaN(value.getTime()) ? new Date(value) : null);
+  if (!date) return null;
+
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function isHighlightedCell_(bg) {
+  if (!bg) return false;
+  var c = String(bg).toLowerCase();
+  return c !== '#ffffff' && c !== '#fff' && c !== 'white';
+}
+
 function collectJbChipClients_(targetDate) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
   if (!sheet) {
     return { dateString: '', clients: [] };
   }
 
-  var data = sheet.getDataRange().getValues();
+  var dataRange = sheet.getDataRange();
+  var data = dataRange.getValues();
+  var backgrounds = dataRange.getBackgrounds();
   var tz = Session.getScriptTimeZone();
   var targetDay = new Date(targetDate);
   targetDay.setHours(0, 0, 0, 0);
@@ -2397,19 +2425,7 @@ function collectJbChipClients_(targetDate) {
     if (!rawName) return;
 
     var initials = row[15] ? row[15].toString().trim().toUpperCase() : '';
-    var chipDateRaw = row[16];
-    var chipDateStr = '';
-    var chipDate = null;
-    if (chipDateRaw) {
-      chipDate = (chipDateRaw instanceof Date) ? new Date(chipDateRaw) : new Date(chipDateRaw);
-      if (!isNaN(chipDate.getTime())) {
-        chipDate.setHours(0, 0, 0, 0);
-        chipDateStr = Utilities.formatDate(chipDate, tz, "MM/dd/yy");
-      } else {
-        chipDate = null;
-        chipDateStr = chipDateRaw.toString();
-      }
-    }
+    var chipDate = normalizeChipDate_(row[16]);
 
     if (initials !== 'JB' || !chipDate || chipDate.getTime() > targetDay.getTime()) {
       return;
@@ -2420,12 +2436,13 @@ function collectJbChipClients_(targetDate) {
       clients[name] = { name: name, pastWorks: [] };
     }
 
+    var noteBg = backgrounds[idx][2];
     var pastNote = row[2];
     if (pastNote) {
       String(pastNote).split('\n').forEach(function(line) {
         var t = line.trim();
         if (t) {
-          clients[name].pastWorks.push(t);
+          clients[name].pastWorks.push({ text: t, highlighted: isHighlightedCell_(noteBg) });
         }
       });
     }
