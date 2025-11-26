@@ -603,9 +603,6 @@ a:focus {
 <!-- Keep these elements once in your HTML -->
 
 
-<!-- Loading bar -->
-
-  <div id="loadingBarWrap"><div id="loadingBar"></div></div>
 <!-- Floating email trigger -->
 <button id="floatingEmailBtn" class="floatingUtilityBtn" aria-label="Send JB chip summary email" title="Send JB chip summary email">
   <span aria-hidden="true">✉️</span>
@@ -951,19 +948,11 @@ function stopVoiceAndAutoAdd(){
 
 /* Quality-of-life loading bar helpers you already have styles for */
 function startLoading(){
-  const lb = document.getElementById('loadingBar');
-  if(!lb) return;
-  lb.style.animation = 'indeterminate 1.25s infinite';
+  if (typeof showLoadingBar === 'function') showLoadingBar();
 }
 function stopLoading(){
-  const lb = document.getElementById('loadingBar');
-  if(!lb) return;
-  lb.style.animation = 'none';
+  if (typeof hideLoadingBar === 'function') hideLoadingBar();
 }
-  /* Loading bar */
-  const bar = document.getElementById('loadingBar');
-  function startLoading(){ bar.style.animation='indeterminate var(--anim) ease-in-out infinite'; }
-  function stopLoading(){ bar.style.animation='none'; bar.style.left='-40%'; }
   // Toast helper: shows a message for ~2 seconds
 function showToast(msg){
   const t = document.getElementById('toast');
@@ -1901,19 +1890,27 @@ button:active {
 #loadingBar {
     height: 5px;
     width: 0; /* Start empty */
-    background: linear-gradient(90deg, #0f9d58, #34a853, #0f9d58);
-    background-size: 200% 100%;
-    transition: width 0.3s ease; /* <- shorter/smoother */
+    opacity: 0;
+    background: linear-gradient(90deg, #16a34a, #22c55e, #22d3ee, #2563eb);
+    background-size: 250% 100%;
+    transition: width 0.35s ease, opacity 0.25s ease, background-position 0.35s ease;
 }
 
 /* Animated shimmer while “indeterminate” */
 #loadingBar.indeterminate {
-    animation: lgShimmer 1.2s linear infinite;
+    opacity: 1;
+    animation: loadingSweep 1.05s ease-in-out infinite, loadingGradientShift 1.2s linear infinite;
 }
 
-@keyframes lgShimmer {
-    0%   { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+@keyframes loadingGradientShift {
+    0%   { background-position:   0% 0; }
+    100% { background-position: 200% 0; }
+}
+
+@keyframes loadingSweep {
+    0%   { transform: translateX(-35%); }
+    50%  { transform: translateX(10%); }
+    100% { transform: translateX(100%); }
 }
 
 
@@ -3178,17 +3175,15 @@ input#clientAutocomplete, select#clientSelect {
   display: none !important;
 }
 
-/* Mobile: show only the first two recent clients to keep the row compact */
-@media (max-width: 640px) {
-  #recentClientsBar .recent-pill:nth-child(n+3) {
-    display: none !important;
-  }
-}
-
 /* keep the pill compact now that only the name shows */
 #recentClientsBar .recent-pill {
   gap: 0.25rem;
   padding: .35rem .6rem;
+}
+
+#recentClientsBar .recent-pill--empty {
+  opacity: 0.45;
+  cursor: default;
 }
 
 #recentClientsBar .rc-name {
@@ -5236,10 +5231,70 @@ function ensureHeaderSpacing() {
     setTimeout(adjustBodyMarginTop, 0);
   } catch (e) {}
 }
-/* === RECENT CHIPS: update only when client notes are HIDDEN (cache 4, show up to 3) === */
-// Keep an extra slot in memory so we can drop the active client and still show up to 3 recents
-var RECENT_CACHE_LIMIT = 4;
-window.__recentClients = Array.isArray(window.__recentClients) ? window.__recentClients : []; // most-recent-first, max 4
+/* === RECENT CHIPS: always show 3 (skip the active client) and persist between loads === */
+var RECENT_DISPLAY_COUNT = 3;
+var RECENT_CACHE_LIMIT   = 6; // keep extras so we still have 3 after removing the active client
+var RECENT_STORAGE_KEY   = '__ui_recents__';
+var __recentClientData   = [];
+window.__recentClients = Array.isArray(window.__recentClients) ? window.__recentClients : [];
+
+function readRecentCache(){
+  try {
+    var raw = localStorage.getItem(RECENT_STORAGE_KEY);
+    var parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch(_) {
+    return [];
+  }
+}
+
+function persistRecentCache(list){
+  window.__recentClients = (list || []).slice(0, RECENT_CACHE_LIMIT);
+  try { localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(window.__recentClients)); } catch(_) {}
+}
+
+function pushRecentClient(name){
+  if (!name) return;
+  var norm = String(name).trim();
+  if (!norm) return;
+
+  var existing = (readRecentCache() || []).filter(function(n){
+    return String(n || '').toLowerCase() !== norm.toLowerCase();
+  });
+
+  existing.unshift(norm);
+  persistRecentCache(existing);
+}
+
+function buildRecentListWithFallbacks(sourceItems){
+  var active = (typeof getActiveClientName === 'function') ? getActiveClientName() : '';
+  var activeNorm = active ? active.toLowerCase() : '';
+  var merged = [];
+  var seen = new Set();
+
+  function addItem(entry){
+    var rawName = (entry && entry.name) ? entry.name : entry;
+    var nm = (rawName || '').trim();
+    if (!nm) return;
+
+    var key = nm.toLowerCase();
+    if (key === activeNorm || seen.has(key)) return;
+
+    seen.add(key);
+    merged.push(entry.name ? entry : { name: nm });
+  }
+
+  (sourceItems || []).forEach(addItem);
+  (readRecentCache() || []).forEach(addItem);
+
+  while (merged.length < RECENT_DISPLAY_COUNT) {
+    merged.push({ name: '', placeholder: true });
+  }
+
+  persistRecentCache(merged.map(function(it){ return it.name; }).filter(Boolean));
+
+  return merged.slice(0, RECENT_DISPLAY_COUNT);
+}
 
 function getActiveClientName() {
   // Prefer the tracked autocomplete text, then fall back to the select/dropdown
@@ -5276,19 +5331,40 @@ function renderRecentClientsBar(){
   var bar = document.getElementById('recentClientsBar');
   if (!bar) return;
 
-  // Desktop can show up to 3 recents; on narrow/mobile viewports, cap at 2
-  var maxRecents = (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 640px)').matches) ? 2 : 3;
+  var list = buildRecentListWithFallbacks(__recentClientData);
 
-  // Enforce the viewport-specific cap at render time as well, excluding the active client
-  var active = getActiveClientName();
-  var activeNorm = active ? active.toLowerCase() : '';
-  var list = (window.__recentClients || []).filter(function(name){
-    return !activeNorm || String(name).toLowerCase() !== activeNorm;
-  }).slice(0, maxRecents);
+  bar.innerHTML = list.map(function(item){
+    if (!item.name) {
+      return '<button class="recent-pill recent-pill--empty" type="button" disabled><span class="rc-name">Recent client</span></button>';
+    }
 
-  bar.innerHTML = list.map(function(name){
-    return '<span class="recent-pill"><span class="rc-name">'+ escapeHTML(formatRecentClientName(name || '')) +'</span></span>';
+    var displayName = formatRecentClientName(item.name || '');
+    var muted = item.columnL ? '' : ' rc-muted';
+    var cat   = item.category ? '<span class="rc-cat">'+ escapeHTML(item.category) +'</span>' : '';
+    var chip  = (item.chipInitials || item.chipDate)
+      ? '<span class="rc-chip">'+ escapeHTML((item.chipInitials||'').toUpperCase() +(item.chipDate? ' · '+item.chipDate : '')) +'</span>'
+      : '';
+    var dot   = item.columnL ? '<span class="rc-dot" title="Has In-Progress"></span>' : '';
+
+    return '<button class="recent-pill'+ muted +'" type="button" data-name="'+ escapeHTML(item.name) +'" title="'+ escapeHTML(item.name) +'">'
+      + dot
+      + '<span class="rc-name">'+ escapeHTML(displayName) +'</span>'
+      + cat
+      + chip
+      + '</button>';
   }).join('');
+
+  bar.querySelectorAll('.recent-pill[data-name]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var name = btn.getAttribute('data-name');
+      pushRecentClient(name);
+      if (typeof selectClientFromButton === 'function') {
+        selectClientFromButton(name);
+      } else if (typeof selectClientFromRecent === 'function') {
+        selectClientFromRecent(name);
+      }
+    });
+  });
 
   // keep the fixed header spacing correct if anything changes height
   if (typeof ensureHeaderSpacing === 'function') ensureHeaderSpacing();
@@ -5304,35 +5380,7 @@ if (typeof window !== 'undefined' && window.addEventListener) {
 
 function updateRecentsOnHide(clientName){
   if (!clientName) return;
-  var norm = String(clientName).toLowerCase();
-
-  // remove existing occurrence (de-dupe)
-  var arr = (window.__recentClients || []).filter(function(n){
-    return String(n).toLowerCase() !== norm;
-  });
-
-  // add to the front
-  arr.unshift(clientName);
-
-  // cap at cache limit so we can drop the active client and still show 3 recents
-  window.__recentClients = arr.slice(0, RECENT_CACHE_LIMIT);
-
-  // persist (merge with current UI state if available)
-  try {
-    if (typeof saveUIState === 'function') {
-      var dd = document.getElementById('topClientsFilterDropdown');
-      var clientSel = document.getElementById('clientSelect');
-      var state = {
-        filter: (dd && dd.value) ? dd.value : '',
-        client: (clientSel && clientSel.value) ? clientSel.value : '',
-        recents: window.__recentClients
-      };
-      saveUIState(state);
-    } else if (window.localStorage) {
-      localStorage.setItem('__ui_recents__', JSON.stringify(window.__recentClients));
-    }
-  } catch(_) {}
-
+  pushRecentClient(clientName);
   renderRecentClientsBar();
 }
 
@@ -5342,21 +5390,14 @@ function updateRecentsOnHide(clientName){
     if (typeof restoreUIState === 'function') {
       var st = restoreUIState();
       if (st && Array.isArray(st.recents)) {
-        window.__recentClients = st.recents.slice(0, RECENT_CACHE_LIMIT);
+        persistRecentCache(st.recents);
         renderRecentClientsBar();
         return;
       }
     }
-    if (window.localStorage) {
-      var raw = localStorage.getItem('__ui_recents__');
-      if (raw) {
-        var arr = JSON.parse(raw);
-        if (Array.isArray(arr)) {
-          window.__recentClients = arr.slice(0, RECENT_CACHE_LIMIT);
-          renderRecentClientsBar();
-        }
-      }
-    }
+    var cached = readRecentCache();
+    persistRecentCache(cached);
+    renderRecentClientsBar();
   } catch(_) {}
 })();
 
@@ -6077,15 +6118,29 @@ document.getElementById('notesDisplay').style.display = 'block';
 
     // **Create a counter for pending async operations**
     var pendingOps = 2;
-
-    // Start asynchronous operation to populate labels dropdown
-    google.script.run.withSuccessHandler(function(labels) {
-        populateLabelsDropdown(labels);
-        pendingOps--;
+    var markOpComplete = function(){
+        pendingOps = Math.max(0, pendingOps - 1);
         if (pendingOps === 0) {
             hideLoadingBar();
         }
-    }).getAllLabels();
+    };
+
+    var markOpFailed = function(label, err){
+        console.error(label || 'Loading error', err);
+        markOpComplete();
+    };
+
+    // Safety: ensure the bar never stays visible if callbacks never fire
+    setTimeout(function(){ if (pendingOps > 0) hideLoadingBar(); }, 7000);
+
+    // Start asynchronous operation to populate labels dropdown
+    google.script.run
+      .withSuccessHandler(function(labels) {
+        populateLabelsDropdown(labels);
+        markOpComplete();
+      })
+      .withFailureHandler(function(err){ markOpFailed('Failed to load labels', err); })
+      .getAllLabels();
 
     // Fetch client details and handle them with a success handler
     google.script.run.withSuccessHandler(function(data) {
@@ -6103,14 +6158,16 @@ displayClientDetails(data);
 
 // Update the category select value based on fetched client data
 updateCategorySelectValue(data.category);
-setCategoryPlaceholderText(data.category || __currentCategory || '');
-positionCategoryDropdownOverAutocomplete();
+        setCategoryPlaceholderText(data.category || __currentCategory || '');
+        positionCategoryDropdownOverAutocomplete();
 
-        pendingOps--;
-        if (pendingOps === 0) {
-            hideLoadingBar();
-        }
-    }).getClientDetails(clientName);
+        markOpComplete();
+    })
+    .withFailureHandler(function(err){
+        markOpFailed('Failed to load client details', err);
+        showToast('Unable to load client');
+    })
+    .getClientDetails(clientName);
 
     // Persist "which client is open" along with current filter
 saveUIState({
@@ -8124,69 +8181,27 @@ function selectClientFromButton(clientText) {
 
 // 1) Paint function
 function paintRecentBar(list){
-  const wrap = document.getElementById('recentClientsBar');
-  if (!wrap) return;
-  const active = (typeof getActiveClientName === 'function') ? getActiveClientName() : '';
-  const activeNorm = active ? String(active).trim().toLowerCase() : '';
-
-  const filtered = (list || []).filter(e => {
-    const nm = (e && e.name) ? String(e.name).trim().toLowerCase() : '';
-    return !activeNorm || nm !== activeNorm;
-  });
-
-  if (!filtered.length) { wrap.innerHTML = ''; return; }
-
-  const renderList = filtered.slice(0, 3);
-
-  wrap.innerHTML = renderList.map(e => {
-    const displayName = formatRecentClientName(e.name);
-    const muted = e.columnL ? '' : ' rc-muted';
-    const cat   = e.category ? `<span class="rc-cat">${e.category}</span>` : '';
-    const chip  = (e.chipInitials || e.chipDate)
-      ? `<span class="rc-chip">${(e.chipInitials||'').toUpperCase()}${e.chipDate?' · '+e.chipDate:''}</span>` : '';
-    const dot   = e.columnL ? '<span class="rc-dot" title="Has In-Progress"></span>' : '';
-    return `
-      <div class="recent-pill${muted}" data-name="${e.name}" title="${e.name}">
-        ${dot}
-        <span class="rc-name">${displayName}</span>
-        ${cat}
-        ${chip}
-      </div>`;
-  }).join('');
-
-  // click → open that client (use your existing loader)
-  wrap.querySelectorAll('.recent-pill').forEach(pill => {
-    pill.addEventListener('click', () => {
-      const name = pill.getAttribute('data-name');
-      // If you have a helper like selectClientFromButton(name), prefer that:
-      if (typeof selectClientFromButton === 'function') {
-        selectClientFromButton(name);
-      } else {
-        // Fallback to your existing dropdown flow
-        const sel = document.getElementById('clientSelect');
-        if (sel) {
-          sel.value = name;
-          showClientNotes();
-          // keep the text box in sync if you use it
-          const ca = document.getElementById('clientAutocomplete');
-          if (ca) ca.value = name;
-        }
-      }
-    });
-  });
+  __recentClientData = Array.isArray(list) ? list : [];
+  var names = (__recentClientData || []).map(function(it){ return it && it.name ? it.name : ''; }).filter(Boolean);
+  if (names.length) persistRecentCache(names);
+  renderRecentClientsBar();
 }
 
 // 2) Load on page load: fast render, then (optional) metadata refresh
 function loadRecentBar() {
-  // Fast: use cached metadata
+  // Render immediately from cached recents so the row is never empty
+  __recentClientData = (readRecentCache() || []).map(function(name){ return { name: name }; });
+  renderRecentClientsBar();
+
+  // Fast: use cached metadata from the server
   google.script.run
     .withSuccessHandler(list => paintRecentBar(list))
-    .getRecentClients(4, false);
+    .getRecentClients(RECENT_CACHE_LIMIT, false);
 
   // Optional: refresh metadata in a second pass so chips/categories are up to date
   google.script.run
     .withSuccessHandler(list => paintRecentBar(list))
-    .getRecentClients(4, true);
+    .getRecentClients(RECENT_CACHE_LIMIT, true);
 }
 
 // Kick it off as soon as DOM is ready
@@ -8194,9 +8209,11 @@ document.addEventListener('DOMContentLoaded', loadRecentBar);
 
 // 3) Whenever a client is opened, log it and refresh the bar
 function onClientOpened(name){
+  pushRecentClient(name);
+  renderRecentClientsBar();
   google.script.run
     .withSuccessHandler(() => loadRecentBar())
-    .logRecentClient(name, 4);
+    .logRecentClient(name, RECENT_CACHE_LIMIT);
 }
 
 // If you have a central place that runs when a client is selected, call onClientOpened there.
@@ -8258,23 +8275,41 @@ function handleCalendarTaskSelection(taskName) {
 
 
 
+var loadingBarHideTimer = null;
+
 function showLoadingBar() {
     var loadingBarContainer = document.getElementById('loadingBarContainer');
     var loadingBar = document.getElementById('loadingBar');
+    if (!loadingBarContainer || !loadingBar) return;
+
+    clearTimeout(loadingBarHideTimer);
     loadingBarContainer.style.display = 'block';
-    loadingBar.style.width = '0'; // Start with an empty bar
-    setTimeout(function() {
-        loadingBar.style.width = '100%'; // Transition to full width
-    }, 20); // Start the transition slightly after displaying the bar
+    loadingBar.classList.add('indeterminate');
+    loadingBar.style.width = '0';
+    loadingBar.style.opacity = '1';
+
+    requestAnimationFrame(function() {
+        loadingBar.style.width = '100%';
+    });
+
+    // Fallback auto-hide to prevent a stuck bar if a caller forgets to stop it
+    loadingBarHideTimer = setTimeout(function(){
+        hideLoadingBar();
+    }, 8000);
 }
 
 function hideLoadingBar() {
     var loadingBarContainer = document.getElementById('loadingBarContainer');
     var loadingBar = document.getElementById('loadingBar');
-    loadingBar.style.width = '0'; // Reset to empty
-    setTimeout(function() {
+    if (!loadingBarContainer || !loadingBar) return;
+
+    clearTimeout(loadingBarHideTimer);
+    loadingBar.classList.remove('indeterminate');
+    loadingBar.style.width = '0';
+    loadingBarHideTimer = setTimeout(function() {
+        loadingBar.style.opacity = '0';
         loadingBarContainer.style.display = 'none';
-    }, 2000); // Wait for the transition to finish before hiding the container
+    }, 450);
 }
 
 
@@ -10654,12 +10689,7 @@ document.addEventListener('DOMContentLoaded', ensureSuggestionsButtonInToolbar);
 
   // Example renderer (adapt to your UI)
   function renderRecentBar(items) {
-    // items: [{name, tsISO, category, columnL, chipInitials, chipDate}, ...]
-    // Build your pill bar here. For example:
-    // - show name
-    // - show category as a small badge
-    // - show chipInitials + chipDate as a tiny chip
-    // - maybe a small dot if columnL (in-progress) is non-empty
+    paintRecentBar(items);
   }
 
   // On initial load
@@ -10669,30 +10699,7 @@ document.addEventListener('DOMContentLoaded', ensureSuggestionsButtonInToolbar);
 
   // Build the pills
   function renderRecentBar(items) {
-    const bar = document.getElementById('recentClientsBar');
-    if (!bar) return;
-
-    if (!items || !items.length) {
-      bar.innerHTML = `<span style="opacity:.7">No recent clients yet.</span>`;
-      return;
-    }
-
-    bar.innerHTML = items.map(it => {
-      const hasInProgress = it.columnL && it.columnL.trim().length > 0;
-      const dot = `<span class="rc-dot ${hasInProgress ? '' : 'rc-muted'}" title="${hasInProgress ? 'In Progress' : 'No In Progress'}"></span>`;
-      const cat = it.category ? `<span class="rc-cat" title="Category">${it.category}</span>` : '';
-      const chip = (it.chipInitials || it.chipDate)
-          ? `<span class="rc-chip" title="Owner/Date">${(it.chipInitials||'').trim()} ${(it.chipDate||'').trim()}</span>` : '';
-      const displayName = formatRecentClientName(it.name);
-      return `
-        <button class="recent-pill" onclick="selectClientFromRecent('${escapeHtml(it.name)}')">
-          ${dot}
-          <span class="rc-name">${escapeHtml(displayName)}</span>
-          ${cat}
-          ${chip}
-        </button>
-      `;
-    }).join('');
+    paintRecentBar(items);
   }
 
   // When a pill is clicked, do whatever your app already does to open a client:
@@ -10726,54 +10733,24 @@ document.addEventListener('DOMContentLoaded', ensureSuggestionsButtonInToolbar);
 
   // 2) Ask server for the list, then render
   function refreshRecentBar() {
-    google.script.run
-      .withSuccessHandler(renderRecentBar)
-      .getRecentClients(3, /* refreshMetadata */ true);
+    loadRecentBar();
   }
 
   // 3) Paint the pills into #recentClientsBar
   function renderRecentBar(items) {
-    const bar = document.getElementById('recentClientsBar');
-    if (!bar) return;
-
-    if (!items || !items.length) {
-      bar.innerHTML = `<span style="opacity:.4">No recent clients yet.</span>`;
-      return;
-    }
-
-    bar.innerHTML = items.map(it => {
-      const hasInProgress = it.columnL && it.columnL.trim().length > 0;
-      const dot  = `<span class="rc-dot ${hasInProgress ? '' : 'rc-muted'}" title="${hasInProgress ? 'In Progress' : 'No In Progress'}"></span>`;
-      const cat  = it.category ? `<span class="rc-cat" title="Category">${escapeHTML(it.category)}</span>` : '';
-      const chip = (it.chipInitials || it.chipDate)
-        ? `<span class="rc-chip" title="Owner/Date">${escapeHTML(it.chipInitials || '')} ${escapeHTML(it.chipDate || '')}</span>`
-        : '';
-      const displayName = formatRecentClientName(it.name);
-      return `
-        <button class="recent-pill" onclick="selectClientFromRecent('${escapeHTML(it.name)}')">
-          ${dot}
-          <span class="rc-name">${escapeHTML(displayName)}</span>
-          ${cat}
-          ${chip}
-        </button>
-      `;
-    }).join('');
+    paintRecentBar(items);
   }
 
   // 4) What happens when a pill is clicked
   function selectClientFromRecent(name) {
-    // Put the name into your dropdown + trigger your existing loader
+    pushRecentClient(name);
     const dd = document.getElementById('clientSelect');
     if (dd) {
       dd.value = name;
-      // Mirror the text in your autocomplete input
-      const txt = [...dd.options].find(o => o.value === name)?.text || name;
       const auto = document.getElementById('clientAutocomplete');
-      if (auto) auto.value = txt;
-
-      if (typeof showClientNotes === 'function') showClientNotes(); // your existing flow
-      onClientOpened(name); // bump to top
-      // Optional: scroll to top where your notes live
+      if (auto) auto.value = name;
+      if (typeof showClientNotes === 'function') showClientNotes();
+      onClientOpened(name);
       if (typeof scrollToTop === 'function') scrollToTop();
     }
   }
