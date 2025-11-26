@@ -2480,7 +2480,7 @@ function sendJbChipTasksEmail() {
 
   MailApp.sendEmail({
     to: '8326215185@vtext.com',
-    subject: 'JB DASHBOARD TASKS THROUGH ' + (summary.dateString || 'today') + ':',
+    subject: 'JB DASHBOARD TEXT THROUGH ' + (summary.dateString || 'today') + ':',
     body: lines.join('\n')
   });
 
