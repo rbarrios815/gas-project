@@ -1,10 +1,9 @@
-# .github/workflows/deploy-gas.yml
 name: Deploy to Google Apps Script (clasp)
 
 on:
   push:
     branches:
-      - main        # ← change if you want a different branch to trigger pushes
+      - main
     paths-ignore:
       - '.github/**'
 
@@ -32,46 +31,8 @@ jobs:
         env:
           CLASPRC_JSON_B64: ${{ secrets.CLASPRC_JSON_B64 }}
 
-      # If your Apps Script code is in the repo root, set ROOT_DIR="."
-      # If it's in a subfolder (e.g., "gas"), set ROOT_DIR="gas"
-      - name: Define env
+      - name: Push code to Apps Script
         run: |
-          echo "ROOT_DIR=." >> $GITHUB_ENV
-          echo "SCRIPT_ID=${{ secrets.SCRIPT_ID }}" >> $GITHUB_ENV
-
-      # Write .clasp.json dynamically so we don't commit secrets
-      - name: Write .clasp.json
-        run: |
-          cd "$ROOT_DIR"
-          cat > .clasp.json <<EOF
-          {
-            "scriptId": "${SCRIPT_ID}",
-            "rootDir": "./"
-          }
-          EOF
-
-      # (Optional) Show what we’re about to push
-      - name: List files to push
-        run: |
-          cd "$ROOT_DIR"
-          ls -la
-
-      # Push to GAS
-      - name: clasp push
-        run: |
-          cd "$ROOT_DIR"
+          echo "Using .clasp.json:"
+          cat .clasp.json
           clasp push --force
-
-      # (Optional) Also bump version + deploy a web-app deployment
-      # Uncomment this block if you want auto-deploy of the web app too.
-      # Provide DEPLOYMENT_ID in repo secrets if you want to update a specific deployment.
-      # - name: Create version
-      #   run: |
-      #     cd "$ROOT_DIR"
-      #     clasp version "CI deploy $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-      #
-      # - name: Deploy web app (update existing deployment)
-      #   if: ${{ secrets.DEPLOYMENT_ID != '' }}
-      #   run: |
-      #     cd "$ROOT_DIR"
-      #     clasp deploy -i "${{ secrets.DEPLOYMENT_ID }}"
