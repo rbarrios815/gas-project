@@ -1,3 +1,4 @@
+<!-- Version 1.0.0 | 72afdbe -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -4117,7 +4118,17 @@ function fitClientInputNow(){
   const input = document.getElementById('clientAutocomplete');
   if (!input) return null;
   const basePx = parseFloat(getComputedStyle(input).fontSize) || 15;
-  fitElementTextToOneLine(input, { minPx: 6, maxPx: basePx * 4, preferredMinPx: getRecentRowFontPx() });
+  const selectEl = document.getElementById('clientSelect');
+  const hasLoadedClient = !!(selectEl && selectEl.value);
+  const maxPx = hasLoadedClient ? basePx * 4 : basePx;
+  const preferredMinPx = Math.min(getRecentRowFontPx(), maxPx);
+  const minPx = Math.min(Math.max(6, preferredMinPx), maxPx);
+
+  fitElementTextToOneLine(input, {
+    minPx,
+    maxPx,
+    preferredMinPx
+  });
   return parseFloat(getComputedStyle(input).fontSize) || basePx;
 }
 
