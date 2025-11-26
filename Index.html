@@ -3452,16 +3452,15 @@ input#clientAutocomplete, select#clientSelect {
   border-color: #9ed6b8;
   flex: 0 0 auto;
   width: fit-content;
-  min-width: fit-content;
-  max-width: 100%;
+  max-width: min(360px, 50vw);
 }
 
 .cat-input {
   font: inherit;
   color: inherit;
   width: auto;
-  min-width: fit-content;
-  max-width: none;
+  min-width: 180px;
+  max-width: 240px;
   flex: 1 1 auto;
   padding: 4px 0;
 }
