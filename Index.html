@@ -1618,7 +1618,7 @@ input, button, select {
 }
 
 .client-mention {
-  color: #0066cc;
+  color: #0b6ef6;
   text-decoration: underline;
   cursor: pointer;
 
@@ -2204,40 +2204,50 @@ input#clientAutocomplete, select#clientSelect {
 
 /* ===== NAME LINKIFY + HOVER BUBBLE ===== */
 .client-mention {
-  color: #0066cc;
+  color: #0b6ef6;
   text-decoration: underline;
   cursor: pointer;
+
+  /* keep size/shape identical to surrounding text */
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  text-transform: none;
 }
 
 #nameHoverBubble {
   position: absolute;
   z-index: 10002;
   display: none;
-  max-width: 380px;
-  max-height: 260px;
+  max-width: 460px;
+  max-height: 320px;
   overflow-y: auto;
   background: #ffffff;
-  border: 1px solid #999;
-  border-radius: 8px;
-  padding: 8px 10px;
-  box-shadow: 0 6px 16px rgba(0,0,0,0.2);
-  font-size: 0.9em;
+  border: 1px solid #d0d7de;
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  font-size: 0.85em;
+  line-height: 1.4;
 }
 
 #nameHoverBubble .bubble-title {
-  font-weight: bold;
-  margin-bottom: 6px;
+  font-weight: 800;
+  margin-bottom: 10px;
+  color: #183153;
 }
 
 #nameHoverBubble .bubble-item {
-  padding: 6px 8px;
-  border-radius: 6px;
-  margin: 4px 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  margin: 6px 0;
   cursor: pointer;
+  color: #0f172a;
 }
 
 #nameHoverBubble .bubble-item:hover {
-  background: #f0f6ff;
+  background: linear-gradient(90deg, #f0f6ff, #e8f3ff);
 }
 
 
@@ -9523,6 +9533,11 @@ function displayClient(client, container) {
 
     // (list remains read-only)
     clientDiv.appendChild(notesWrap);
+
+    if (typeof attachMentionHandlers === 'function') {
+      attachMentionHandlers(hiWrap);
+      attachMentionHandlers(olderWrap);
+    }
   }
 
   /* ── Ricky’s Suggestion (Column L) — green block; obeys global toggle; unchanged ── */
