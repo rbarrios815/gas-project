@@ -1,3 +1,5 @@
+// Version 1.0.0 | 0091c0a
+
 function doGet(e) {
   var userEmail = Session.getActiveUser().getEmail(); // Ensure it gets the active user
   Logger.log("Detected User Email: " + userEmail); // Debugging - logs detected email
