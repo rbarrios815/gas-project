@@ -1578,7 +1578,7 @@ input, button, select {
     border: 1px solid #ccc;
     border-top: none;
     position: absolute;
-    z-index: 1000;
+    z-index: 2005;
     background-color: white;
     width: 100%;
     top: 100%;
@@ -1602,24 +1602,34 @@ input, button, select {
     display: flex;
     align-items: center;
     gap: 8px;
+    position: relative;
+    z-index: 2005;
   }
 
   #autocompleteSuggestions .autocomplete-name,
   #autocompleteSuggestions .autocomplete-category-label,
   #autocompleteSuggestions .autocomplete-category-select {
     font: inherit;
+    line-height: 1.2;
   }
 
   #autocompleteSuggestions .autocomplete-category-select {
-    padding: 6px 8px;
+    padding: 0 4px;
     border-radius: 6px;
     border: 1px solid #cbd5e1;
     background: #fff;
     min-width: 140px;
+    height: 1.1em;
+    font-size: inherit;
+    line-height: 1.1;
+    position: relative;
+    z-index: 2006;
   }
 
   #autocompleteSuggestions .autocomplete-category-label {
     white-space: nowrap;
+    position: relative;
+    z-index: 2005;
   }
 
   #autocompleteSuggestions div:hover {
