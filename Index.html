@@ -1187,6 +1187,32 @@ function addNote(textOverride){
 
 addBtn?.addEventListener('click', () => addNote());
 
+function saveEditedNote(row, text, noteEl){
+  if(!row){
+    showToast('Missing row for this note');
+    return;
+  }
+
+  startLoading();
+  google.script.run
+    .withSuccessHandler(()=>{
+      stopLoading();
+      if(noteEl){
+        noteEl.dataset.originalText = text;
+      }
+      showToast('Note updated');
+    })
+    .withFailureHandler(err=>{
+      console.error(err);
+      stopLoading();
+      showToast(err && err.message ? err.message : 'Error updating note');
+      if(noteEl){
+        noteEl.innerText = noteEl.dataset.originalText || '';
+      }
+    })
+    .inboxUpdateNote(row, text);
+}
+
     /* Recent (5) with assign */
   const recentList = document.getElementById('recentList');
 
@@ -1196,16 +1222,27 @@ addBtn?.addEventListener('click', () => addNote());
     if(!items.length){ return; }
 
     items.forEach(it=>{
-      const row=document.createElement('div'); 
+      const row=document.createElement('div');
       row.className='item';
 
       // LEFT: note text
-      const note=document.createElement('div'); 
-      note.className='note'; 
+      const note=document.createElement('div');
+      note.className='note';
       note.textContent=it.note;
+      note.contentEditable='true';
+      note.setAttribute('role','textbox');
+      note.setAttribute('aria-label','Edit note text');
+      note.dataset.originalText = it.note;
+
+      note.addEventListener('blur', ()=>{
+        const updated = (note.innerText || '').trim();
+        const original = (note.dataset.originalText || '').trim();
+        if(updated === original){ return; }
+        saveEditedNote(it.row, updated, note);
+      });
 
       // RIGHT: timestamp + assign input (auto-assigns on selection)
-      const side=document.createElement('div'); 
+      const side=document.createElement('div');
       side.style.minWidth='280px';
 
       // Timestamp only (NO green assigned label)
@@ -1279,7 +1316,7 @@ function loadRecent(done){
       stopLoading();
       if (typeof done === 'function') done(e);
     })
-    .inboxGetRecent(50);
+    .inboxGetRecent(100);
 }
 
 
@@ -2033,11 +2070,10 @@ input#clientAutocomplete, select#clientSelect {
 #toggleNotesButton {
   background-color: #ff9500; /* Solid orange square */
   margin: 0;
-  font-size: 24px;
-  width: 60px;
-  height: 60px;
-  padding: 4px;
-  display: inline-flex;
+  font-size: 48px;
+  width: 120px;
+  height: 120px;
+  padding: 8px;;
   align-items: center;
   justify-content: center;
   line-height: 1;
@@ -6345,8 +6381,8 @@ function toggleNotesVisibility() {
 
   var toggleButton = document.getElementById('toggleNotesButton');
   if (toggleButton) {
-    // If expanded now, the button should read -; if collapsed, +
-    toggleButton.innerText = notesExpanded ? '-' : '+';
+    // Remove text labels from the toggle button regardless of state
+    toggleButton.innerText = '';
   }
 
   // If the user just clicked the - button (i.e., was expanded → now collapsed),
@@ -6512,7 +6548,7 @@ function displayNotes(notes) {
   toggleBtn.style.padding = '0';
   toggleBtn.style.width = '24px';
   toggleBtn.style.height = '24px';
-  toggleBtn.innerText = '+';
+  toggleBtn.innerText = '';
 
   var toggleRow = document.createElement('div');
   toggleRow.style.display = 'flex';
@@ -6778,7 +6814,7 @@ retriggerTopClientsFilter();
             // Rebuild the UI (without changes)
             showClientNotes();
           })
-          .updateNotes(clientName, 'pastWork', newText); // <-- COLUMN C ONLY
+          .updateNotes(clientName, 'pastWork', newText, existingText); // <-- COLUMN C ONLY
       } else {
         // Rebuild the UI (no changes)
         showClientNotes();
@@ -6907,7 +6943,8 @@ function submitPastWork() {
 showStarAnimation(); // SNIPPET #3
 
 
-            alert('Past work updated successfully.');
+            // Show a non-blocking confirmation so the dashboard remains usable
+            showToast('Past work updated successfully.');
 
             logPastWorkSubmissionToInbox(pastWorkContent, clientName);
 

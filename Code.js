@@ -1665,15 +1665,26 @@ function getLatestFollowUp(followUps) {
   return latestNote;
 }
 
-function updateNotes(clientName, type, newText) {
+function updateNotes(clientName, type, newText, originalText) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0'); // Replace with your sheet name
   var data = sheet.getDataRange().getValues();
+  var changes = [];
+
+  if (type === 'pastWork') {
+    changes = deriveNoteChanges_(originalText, newText);
+  }
 
   // Find the row for the client
   for (var i = 1; i < data.length; i++) {
     if (data[i][0] === clientName) { // Assuming client names are in the first column
       if (type === 'pastWork') {
         sheet.getRange(i + 1, 3).setValue(newText); // Replace 2 with the correct column number for past work
+        if (changes.length) {
+          var synced = syncDashboardChangesToInbox_(clientName, changes);
+          if (!synced) {
+            throw new Error('EDIT FAILED ON OTHER VIEW');
+          }
+        }
       } else if (type === 'followUp') {
         sheet.getRange(i + 1, 5).setValue(newText); // Replace 3 with the correct column number for follow-ups
       }
@@ -1681,6 +1692,63 @@ function updateNotes(clientName, type, newText) {
     }
   }
   throw new Error('Client not found');
+}
+
+function deriveNoteChanges_(oldText, newText) {
+  var oldLines = parsePastWorkLines_(oldText);
+  var newLines = parsePastWorkLines_(newText);
+  var max = Math.max(oldLines.length, newLines.length);
+  var changes = [];
+
+  for (var i = 0; i < max; i++) {
+    var oldNote = oldLines[i] ? oldLines[i].noteText : '';
+    var newNote = newLines[i] ? newLines[i].noteText : '';
+    if (!oldNote || !newNote) continue;
+    if (oldNote !== newNote) {
+      changes.push({ oldNote: oldNote, newNote: newNote });
+    }
+  }
+  return changes;
+}
+
+function parsePastWorkLines_(text) {
+  return String(text || '')
+    .split('\n')
+    .map(function(line) {
+      return {
+        raw: line,
+        noteText: line.replace(/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\s*:\s*/, '').trim()
+      };
+    });
+}
+
+function syncDashboardChangesToInbox_(clientName, changes) {
+  var sh = ensureNotesInbox_();
+  var last = sh.getLastRow();
+  if (last < 2) return changes.length === 0;
+
+  var data = sh.getRange(2, 1, last - 1, 2).getValues();
+  var target = normalizeClientName_(clientName);
+  var pending = changes.map(function(c) {
+    return { old: String(c.oldNote || '').trim(), updated: String(c.newNote || '').trim(), matched: false };
+  });
+
+  for (var i = 0; i < data.length; i++) {
+    var assigned = normalizeClientName_(data[i][1]);
+    if (!assigned || assigned !== target) continue;
+
+    var currentNote = String(data[i][0] || '').trim();
+    for (var j = 0; j < pending.length; j++) {
+      if (pending[j].matched) continue;
+      if (currentNote === pending[j].old) {
+        sh.getRange(i + 2, 1).setValue(pending[j].updated);
+        pending[j].matched = true;
+        break;
+      }
+    }
+  }
+
+  return pending.every(function(p) { return p.matched; });
 }
 
 
@@ -2926,13 +2994,107 @@ function inboxGetRecent(limit) {
   }));
 
   const tz = Session.getScriptTimeZone();
-  const sorted = [...all].sort((a,b)=>b.ts-a.ts).slice(0, limit||5).map(x=>({
+  const sorted = [...all]
+    .filter(x => x.ts) // only rows with a timestamp in Column C
+    .sort((a,b)=>b.ts-a.ts)
+    .slice(0, limit||5)
+    .map(x=>({
     row: x.row,
     note: x.note,
     assigned: x.assigned,
     timestamp: x.ts ? Utilities.formatDate(new Date(x.ts), tz, 'MM/dd/yy h:mma') : ''
   }));
   return { recent: sorted, raw: all };
+}
+
+function inboxUpdateNote(row, newNote){
+  if (!row || row < 2) {
+    throw new Error('A valid row number is required.');
+  }
+
+  const note = String(newNote || '').trim();
+  if (!note) {
+    throw new Error('Note cannot be empty.');
+  }
+
+  const sh = ensureNotesInbox_();
+  const hasTimestamp = sh.getRange(row, 3).getValue();
+  if (!hasTimestamp) {
+    throw new Error('Cannot edit this note because Column C is missing a date.');
+  }
+
+  const oldNote = String(sh.getRange(row, 1).getValue() || '').trim();
+  const assignedClient = String(sh.getRange(row, 2).getValue() || '').trim();
+  sh.getRange(row, 1).setValue(note);
+
+  let synced = true;
+  if (assignedClient) {
+    synced = syncInboxNoteToDashboard_(assignedClient, oldNote, note, hasTimestamp);
+  }
+
+  if (!synced) {
+    throw new Error('EDIT FAILED ON OTHER VIEW');
+  }
+
+  return { ok: true, row: row, note: note, synced: synced };
+}
+
+function syncInboxNoteToDashboard_(clientName, oldNote, newNote, timestamp) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
+  if (!sheet) return false;
+
+  const data = sheet.getDataRange().getValues();
+  const target = normalizeClientName_(clientName);
+  const dateStr = timestamp
+    ? Utilities.formatDate(new Date(timestamp), Session.getScriptTimeZone(), 'MM/dd/yy')
+    : '';
+
+  for (let i = 1; i < data.length; i++) {
+    const rowName = normalizeClientName_(data[i][0]);
+    if (rowName !== target) continue;
+
+    const pastWork = data[i][2];
+    const lines = String(pastWork || '').split('\n');
+    const idx = findNoteLineIndex_(lines, oldNote, dateStr);
+    if (idx === -1) continue;
+
+    const prefix = extractDatePrefix_(lines[idx]);
+    lines[idx] = (prefix ? prefix : '') + newNote;
+    sheet.getRange(i + 1, 3).setValue(lines.join('\n'));
+    return true;
+  }
+
+  return false;
+}
+
+function findNoteLineIndex_(lines, oldNote, dateStr) {
+  let fallback = -1;
+  const cleanOld = String(oldNote || '').trim();
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = String(lines[i] || '');
+    const noteText = line.replace(/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\s*:\s*/, '').trim();
+    if (noteText !== cleanOld) continue;
+
+    const matchesDate = dateStr && line.trim().startsWith(dateStr);
+    if (matchesDate) return i;
+    if (fallback === -1) fallback = i;
+  }
+
+  return fallback;
+}
+
+function extractDatePrefix_(line) {
+  const m = String(line || '').match(/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\s*:\s*/);
+  return m ? m[0] : '';
+}
+
+function normalizeClientName_(name) {
+  return String(name || '')
+    .replace(/\u00A0/g, ' ')
+    .replace(/\d+$/, '')
+    .trim()
+    .toLowerCase();
 }
 
 function getCanonicalClientName_(typed) {
