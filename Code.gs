@@ -11,84 +11,6 @@ function doGet(e) {
   }
 }
 
-function logUsageEvent(entry) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName('TIME SHEET');
-  if (!sheet) {
-    sheet = ss.insertSheet('TIME SHEET');
-  }
-
-  if (sheet.getLastRow() === 0) {
-    sheet.getRange(1, 1, 1, 4).setValues([
-      ['BUTTON PRESSED / FUNCTION USED', 'TIME BUTTON PRESSED', 'USER WAS RBARRIOS815@GMAIL.COM Y/N?', 'USER EMAIL']
-    ]);
-  }
-
-  var userEmail = (Session.getActiveUser().getEmail() || '').toLowerCase();
-  var isTargetUser = userEmail === 'rbarrios815@gmail.com' ? 'Y' : 'N';
-  var ts = (entry && entry.timestamp) ? new Date(entry.timestamp) : new Date();
-  var action = (entry && entry.action) ? entry.action : 'Unknown';
-
-  sheet.appendRow([action, ts, isTargetUser, userEmail]);
-}
-
-// Generates a PDF snapshot of the first sheet and emails it with the date and "JB" in the subject/body.
-function sendDailyDashboardScreenshot() {
-  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  var firstSheet = spreadsheet.getSheets()[0];
-
-  var formattedDate = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'EEE, MMM d');
-  var subject = formattedDate + ' JB - Daily Dashboard Snapshot';
-  var body = 'Attached is the dashboard snapshot for ' + formattedDate + ' (JB).';
-
-  var exportUrl = spreadsheet.getUrl().replace(/edit$/, '') +
-    'export?format=pdf' +
-    '&size=letter' +
-    '&portrait=false' +
-    '&fitw=true' +
-    '&top_margin=0.5' +
-    '&bottom_margin=0.5' +
-    '&left_margin=0.5' +
-    '&right_margin=0.5' +
-    '&sheetnames=false' +
-    '&printtitle=false' +
-    '&pagenumbers=false' +
-    '&gridlines=false' +
-    '&fzr=false' +
-    '&gid=' + firstSheet.getSheetId();
-
-  var response = UrlFetchApp.fetch(exportUrl, {
-    headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
-    muteHttpExceptions: true
-  });
-
-  var pdfName = 'Dashboard_' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd') + '.pdf';
-  var attachment = response.getBlob().setName(pdfName);
-
-  MailApp.sendEmail({
-    to: 'rbarrio1@alumni.nd.edu',
-    subject: subject,
-    body: body,
-    attachments: [attachment]
-  });
-}
-
-// Creates a daily 8 AM trigger (script time zone) for sending the dashboard snapshot if one does not already exist.
-function ensureDailyScreenshotTrigger() {
-  var handler = 'sendDailyDashboardScreenshot';
-  var existing = ScriptApp.getProjectTriggers().some(function(trigger) {
-    return trigger.getHandlerFunction() === handler;
-  });
-
-  if (!existing) {
-    ScriptApp.newTrigger(handler)
-      .timeBased()
-      .everyDays(1)
-      .atHour(8)
-      .create();
-  }
-}
-
 
 
 
@@ -1588,15 +1510,26 @@ function getLatestFollowUp(followUps) {
   return latestNote;
 }
 
-function updateNotes(clientName, type, newText) {
+function updateNotes(clientName, type, newText, originalText) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0'); // Replace with your sheet name
   var data = sheet.getDataRange().getValues();
+  var changes = [];
+
+  if (type === 'pastWork') {
+    changes = deriveNoteChanges_(originalText, newText);
+  }
 
   // Find the row for the client
   for (var i = 1; i < data.length; i++) {
     if (data[i][0] === clientName) { // Assuming client names are in the first column
       if (type === 'pastWork') {
         sheet.getRange(i + 1, 3).setValue(newText); // Replace 2 with the correct column number for past work
+        if (changes.length) {
+          var synced = syncDashboardChangesToInbox_(clientName, changes);
+          if (!synced) {
+            throw new Error('EDIT FAILED ON OTHER VIEW');
+          }
+        }
       } else if (type === 'followUp') {
         sheet.getRange(i + 1, 5).setValue(newText); // Replace 3 with the correct column number for follow-ups
       }
@@ -1604,6 +1537,63 @@ function updateNotes(clientName, type, newText) {
     }
   }
   throw new Error('Client not found');
+}
+
+function deriveNoteChanges_(oldText, newText) {
+  var oldLines = parsePastWorkLines_(oldText);
+  var newLines = parsePastWorkLines_(newText);
+  var max = Math.max(oldLines.length, newLines.length);
+  var changes = [];
+
+  for (var i = 0; i < max; i++) {
+    var oldNote = oldLines[i] ? oldLines[i].noteText : '';
+    var newNote = newLines[i] ? newLines[i].noteText : '';
+    if (!oldNote || !newNote) continue;
+    if (oldNote !== newNote) {
+      changes.push({ oldNote: oldNote, newNote: newNote });
+    }
+  }
+  return changes;
+}
+
+function parsePastWorkLines_(text) {
+  return String(text || '')
+    .split('\n')
+    .map(function(line) {
+      return {
+        raw: line,
+        noteText: line.replace(/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\s*:\s*/, '').trim()
+      };
+    });
+}
+
+function syncDashboardChangesToInbox_(clientName, changes) {
+  var sh = ensureNotesInbox_();
+  var last = sh.getLastRow();
+  if (last < 2) return changes.length === 0;
+
+  var data = sh.getRange(2, 1, last - 1, 2).getValues();
+  var target = normalizeClientName_(clientName);
+  var pending = changes.map(function(c) {
+    return { old: String(c.oldNote || '').trim(), updated: String(c.newNote || '').trim(), matched: false };
+  });
+
+  for (var i = 0; i < data.length; i++) {
+    var assigned = normalizeClientName_(data[i][1]);
+    if (!assigned || assigned !== target) continue;
+
+    var currentNote = String(data[i][0] || '').trim();
+    for (var j = 0; j < pending.length; j++) {
+      if (pending[j].matched) continue;
+      if (currentNote === pending[j].old) {
+        sh.getRange(i + 2, 1).setValue(pending[j].updated);
+        pending[j].matched = true;
+        break;
+      }
+    }
+  }
+
+  return pending.every(function(p) { return p.matched; });
 }
 
 
@@ -1624,36 +1614,16 @@ function getAllClientsData() {
 
   for (var i = 1; i < data.length; i++) { // Start from 1 to skip header row if there's a header
     var row = data[i];
-       var rawName = row[0];
-    if (!rawName) {
-      continue;
-    }
-     var category = row[5] != null ? row[5].toString().trim() : '';
-    var rowText = row
-      .map(function (cell) {
-        if (cell === null || cell === undefined) {
-          return '';
-        }
-        return cell instanceof Date
-          ? Utilities.formatDate(cell, Session.getScriptTimeZone(), 'MM/dd/yy')
-          : cell.toString();
-      })
-      .join(' ')
-      .toLowerCase();
-
-    clients.push({
-      clientName: normalizedName,
-      originalName: rawName.toString().trim(),
-      category: category,
-      rowText: rowText
-    });
-
-    var normalizedName = rawName.toString().replace(/\d+$/, '').trim();
-    if (!normalizedName) {
-      continue;
+    var clientName = row[0];
+    if (clientName) {
+      var clientData = {
+        clientName: clientName,
+        category: row[5], // Assuming column F is index 5
+        rowText: row.join(' ').toLowerCase() // Concatenate all cell values in the row
+      };
+      clients.push(clientData);
     }
   }
-  
   return clients;
 }
 
@@ -1683,17 +1653,13 @@ function updateClientCategory(clientName, newCategory) {
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sh = ss.getSheetByName('DASHBOARD 8.0');
-  const startRow = 2; // first data row (row 1 is header)
-  const totalRows = sh.getLastRow() - startRow + 1;
-  if (totalRows < 1) throw new Error('No clients available.');
-
-  const data = sh.getRange(startRow, 1, totalRows, 6).getValues(); // A..F
+  const data = sh.getRange(2, 1, sh.getLastRow() - 1, 6).getValues(); // A..F
 
   let foundRow = -1;
   for (let i = 0; i < data.length; i++) {
     const name = String(data[i][0] || '').trim();
     if (name.toLowerCase() === String(clientName).trim().toLowerCase()) {
-      foundRow = startRow + i; // sheet row (offset from header)
+      foundRow = i + 2; // sheet row (offset from header)
       break;
     }
   }
@@ -2825,13 +2791,107 @@ function inboxGetRecent(limit) {
   }));
 
   const tz = Session.getScriptTimeZone();
-  const sorted = [...all].sort((a,b)=>b.ts-a.ts).slice(0, limit||5).map(x=>({
+  const sorted = [...all]
+    .filter(x => x.ts) // only rows with a timestamp in Column C
+    .sort((a,b)=>b.ts-a.ts)
+    .slice(0, limit||5)
+    .map(x=>({
     row: x.row,
     note: x.note,
     assigned: x.assigned,
     timestamp: x.ts ? Utilities.formatDate(new Date(x.ts), tz, 'MM/dd/yy h:mma') : ''
   }));
   return { recent: sorted, raw: all };
+}
+
+function inboxUpdateNote(row, newNote){
+  if (!row || row < 2) {
+    throw new Error('A valid row number is required.');
+  }
+
+  const note = String(newNote || '').trim();
+  if (!note) {
+    throw new Error('Note cannot be empty.');
+  }
+
+  const sh = ensureNotesInbox_();
+  const hasTimestamp = sh.getRange(row, 3).getValue();
+  if (!hasTimestamp) {
+    throw new Error('Cannot edit this note because Column C is missing a date.');
+  }
+
+  const oldNote = String(sh.getRange(row, 1).getValue() || '').trim();
+  const assignedClient = String(sh.getRange(row, 2).getValue() || '').trim();
+  sh.getRange(row, 1).setValue(note);
+
+  let synced = true;
+  if (assignedClient) {
+    synced = syncInboxNoteToDashboard_(assignedClient, oldNote, note, hasTimestamp);
+  }
+
+  if (!synced) {
+    throw new Error('EDIT FAILED ON OTHER VIEW');
+  }
+
+  return { ok: true, row: row, note: note, synced: synced };
+}
+
+function syncInboxNoteToDashboard_(clientName, oldNote, newNote, timestamp) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
+  if (!sheet) return false;
+
+  const data = sheet.getDataRange().getValues();
+  const target = normalizeClientName_(clientName);
+  const dateStr = timestamp
+    ? Utilities.formatDate(new Date(timestamp), Session.getScriptTimeZone(), 'MM/dd/yy')
+    : '';
+
+  for (let i = 1; i < data.length; i++) {
+    const rowName = normalizeClientName_(data[i][0]);
+    if (rowName !== target) continue;
+
+    const pastWork = data[i][2];
+    const lines = String(pastWork || '').split('\n');
+    const idx = findNoteLineIndex_(lines, oldNote, dateStr);
+    if (idx === -1) continue;
+
+    const prefix = extractDatePrefix_(lines[idx]);
+    lines[idx] = (prefix ? prefix : '') + newNote;
+    sheet.getRange(i + 1, 3).setValue(lines.join('\n'));
+    return true;
+  }
+
+  return false;
+}
+
+function findNoteLineIndex_(lines, oldNote, dateStr) {
+  let fallback = -1;
+  const cleanOld = String(oldNote || '').trim();
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = String(lines[i] || '');
+    const noteText = line.replace(/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\s*:\s*/, '').trim();
+    if (noteText !== cleanOld) continue;
+
+    const matchesDate = dateStr && line.trim().startsWith(dateStr);
+    if (matchesDate) return i;
+    if (fallback === -1) fallback = i;
+  }
+
+  return fallback;
+}
+
+function extractDatePrefix_(line) {
+  const m = String(line || '').match(/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\s*:\s*/);
+  return m ? m[0] : '';
+}
+
+function normalizeClientName_(name) {
+  return String(name || '')
+    .replace(/\u00A0/g, ' ')
+    .replace(/\d+$/, '')
+    .trim()
+    .toLowerCase();
 }
 
 function getCanonicalClientName_(typed) {
@@ -2918,3 +2978,54 @@ function getChipStateForClients(clientNames) {
   }
   return map;
 }
+
+
+
+
+
+
+/** === Siri → Google Sheets Bridge: Column A note, Column C timestamp ===
+ * Appends note in Col A, leaves Col B blank, puts timestamp in Col C.
+ */
+const SHEET_ID = "1rzejdmR0hatqESPp9MroCwT229QGM0oB2G9mELaL4Ps";
+const TARGET_SHEET = "NOTES INBOX";
+const COL_NOTE = 1; // A
+const COL_BLANK = 2; // B
+const COL_TIME = 3; // C
+
+function doPost(e) {
+  try {
+    if (!e || !e.postData || !e.postData.contents) {
+      return _json({ ok: false, error: "No postData received" });
+    }
+    const body = JSON.parse(e.postData.contents);
+    const note = (body && body.note != null) ? String(body.note).trim() : "";
+    if (!note) return _json({ ok: false, error: "Missing 'note' value" });
+
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const sh = ss.getSheetByName(TARGET_SHEET);
+    if (!sh) return _json({ ok: false, error: `Sheet not found: ${TARGET_SHEET}` });
+
+    const nextRow = sh.getLastRow() + 1;
+    const now = new Date();
+    sh.getRange(nextRow, COL_NOTE, 1, 3).setValues([[note, "", now]]);
+
+    return _json({
+      ok: true,
+      addedTo: `${TARGET_SHEET}!A${nextRow}:C${nextRow}`,
+      note,
+      timestampISO: now.toISOString()
+    });
+  } catch (err) {
+    return _json({ ok: false, error: String(err) });
+  }
+}
+
+function _json(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+
+
+
