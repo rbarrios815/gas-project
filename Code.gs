@@ -1,4 +1,7 @@
+// Version 1.0.0 | 42931f8
+
 function doGet(e) {
+
   var userEmail = Session.getActiveUser().getEmail(); // Ensure it gets the active user
   Logger.log("Detected User Email: " + userEmail); // Debugging - logs detected email
 
@@ -76,6 +79,131 @@ function getClientNamesAndCategories() {
 }
 
 
+const BASE_TASK_COLORS = ['Red', 'Orange', 'Yellow', 'Green', 'Blue', 'Purple', 'Violet', 'Brown', 'Pink', 'Black (White Font)', 'White', 'Grey'];
+const DEFAULT_TASK_TYPE_TEXT = [
+  'Bright Red: Insert Bright & Bold Label Here',
+  'Orange:',
+  'Yellow:',
+  'Green:',
+  'Blue:',
+  'Purple:',
+  'Violet:',
+  'Brown:',
+  'Pink:',
+  'Black (White Font):',
+  'White:',
+  'Grey:'
+].join('\n');
+
+function normalizeTaskBaseColor(name) {
+  return (name || '').toString().trim().toLowerCase();
+}
+
+function stripBrightnessPrefix(colorText) {
+  var match = String(colorText || '').match(/^(Bright|Faded)\s+(.*)$/i);
+  if (match) {
+    return { baseColor: match[2].trim(), brightness: match[1].toLowerCase() === 'faded' ? 'faded' : 'bright' };
+  }
+  return { baseColor: String(colorText || '').trim(), brightness: 'bright' };
+}
+
+function ensureTaskTypeDefaults(taskTypes) {
+  var map = {};
+  var extras = [];
+
+  (taskTypes || []).forEach(function (t) {
+    var parsed = stripBrightnessPrefix(t.baseColor || t.color || '');
+    var key = normalizeTaskBaseColor(parsed.baseColor);
+    if (!key) return;
+    map[key] = {
+      baseColor: parsed.baseColor,
+      brightness: (t.brightness === 'faded') ? 'faded' : 'bright',
+      label: t.label || ''
+    };
+    if (BASE_TASK_COLORS.map(normalizeTaskBaseColor).indexOf(key) === -1) {
+      extras.push(map[key]);
+    }
+  });
+
+  var ordered = [];
+  BASE_TASK_COLORS.forEach(function (color) {
+    var key = normalizeTaskBaseColor(color);
+    if (map[key]) {
+      ordered.push(map[key]);
+    } else {
+      ordered.push({ baseColor: color, brightness: 'bright', label: '' });
+    }
+  });
+
+  extras.forEach(function (ex) {
+    var key = normalizeTaskBaseColor(ex.baseColor);
+    if (BASE_TASK_COLORS.map(normalizeTaskBaseColor).indexOf(key) === -1) {
+      ordered.push(ex);
+    }
+  });
+
+  return ordered;
+}
+
+function parseTaskTypeCell(cellValue) {
+  var text = (cellValue == null || cellValue === '') ? DEFAULT_TASK_TYPE_TEXT : String(cellValue);
+  var lines = text.split(/\r?\n/);
+  var parsed = lines.map(function (line) {
+    var parts = line.split(':');
+    var colorPart = parts[0] || '';
+    var labelPart = parts.slice(1).join(':');
+    var parsedColor = stripBrightnessPrefix(colorPart);
+    return {
+      baseColor: parsedColor.baseColor,
+      brightness: parsedColor.brightness,
+      label: (labelPart || '').trim()
+    };
+  });
+  return ensureTaskTypeDefaults(parsed);
+}
+
+function formatTaskTypeCell(taskTypes) {
+  return ensureTaskTypeDefaults(taskTypes).map(function (t) {
+    var prefix = (t.brightness === 'faded') ? 'Faded' : 'Bright';
+    var label = t.label ? ' ' + t.label : '';
+    return prefix + ' ' + t.baseColor + ':' + label;
+  }).join('\n');
+}
+
+function toTemplateOnly(taskTypes) {
+  return ensureTaskTypeDefaults(taskTypes).map(function (t) {
+    return { baseColor: t.baseColor, label: t.label || '' };
+  });
+}
+
+function mergeTemplateWithClientBrightness(template, clientTaskTypes) {
+  var brightnessMap = {};
+  (clientTaskTypes || []).forEach(function (t) {
+    brightnessMap[normalizeTaskBaseColor(t.baseColor)] = (t.brightness === 'faded') ? 'faded' : 'bright';
+  });
+
+  return ensureTaskTypeDefaults(template).map(function (t) {
+    var key = normalizeTaskBaseColor(t.baseColor);
+    return {
+      baseColor: t.baseColor,
+      label: t.label || '',
+      brightness: brightnessMap[key] || 'bright'
+    };
+  });
+}
+
+function getTaskTypeTemplateForSheet(sheet) {
+  var lastRow = sheet.getLastRow();
+  var values = sheet.getRange(1, 15, Math.max(lastRow, 1), 1).getValues();
+  for (var i = 0; i < values.length; i++) {
+    var raw = values[i][0];
+    if (raw !== '' && raw != null) {
+      return toTemplateOnly(parseTaskTypeCell(raw));
+    }
+  }
+  return toTemplateOnly(parseTaskTypeCell(DEFAULT_TASK_TYPE_TEXT));
+}
+
 
 
 ////////////////////////////////////////////////////////
@@ -89,6 +217,8 @@ function getClientDetails(clientName) {
   var columnB = "";
   var columnD = "";
   var columnLValue = "";
+  var columnOTaskTypes = [];
+  var sharedTaskTemplate = getTaskTypeTemplateForSheet(sheet);
 
   // NEW: chip fields (P/Q)
   var chipInitials = ""; // Column P (index 15)
@@ -108,6 +238,7 @@ function getClientDetails(clientName) {
         columnB = row[1];
         columnD = row[3];
         columnLValue = row[11];
+        columnOTaskTypes = parseTaskTypeCell(row[14]);
 
         // Capture P/Q (may be blank)
         chipInitials = row[15] ? row[15].toString().trim() : "";
@@ -168,6 +299,8 @@ if (clientLabels.length === 0) {
     columnB: columnB,
     columnD: columnD,
     columnL: columnLValue,
+    taskTypes: columnOTaskTypes.length ? columnOTaskTypes : parseTaskTypeCell(DEFAULT_TASK_TYPE_TEXT),
+    taskTypeTemplate: toTemplateOnly(columnOTaskTypes.length ? columnOTaskTypes : sharedTaskTemplate),
     chipInitials: chipInitials, // Column P
     chipDate: chipDate          // Column Q -> "MM/dd/yy" or ""
   };
@@ -659,6 +792,103 @@ function getTopClients() {
   return topClients;
 }
 
+
+function updateTaskTypeLabelForAll(baseColor, newLabel) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 1) return [];
+
+  var range = sheet.getRange(1, 15, lastRow, 1);
+  var values = range.getValues();
+  var normTarget = normalizeTaskBaseColor(baseColor);
+
+  var updated = values.map(function (row) {
+    var parsed = parseTaskTypeCell(row[0]);
+    var merged = ensureTaskTypeDefaults(parsed).map(function (t) {
+      if (normalizeTaskBaseColor(t.baseColor) === normTarget) {
+        return { baseColor: t.baseColor, brightness: t.brightness, label: newLabel || '' };
+      }
+      return t;
+    });
+    return [formatTaskTypeCell(merged)];
+  });
+
+  range.setValues(updated);
+  return toTemplateOnly(parseTaskTypeCell(updated[0][0]));
+}
+
+function setTaskTypeBrightnessForClient(clientName, baseColor, isBright) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
+  var data = sheet.getDataRange().getValues();
+  var normName = (clientName || '').toString().replace(/\d+$/, '').trim().toLowerCase();
+  var normColor = normalizeTaskBaseColor(baseColor);
+  var updatedTaskTypes = null;
+
+  data.forEach(function (row, idx) {
+    if (idx === 0) return;
+    var candidate = (row[0] || '').toString().replace(/\d+$/, '').trim().toLowerCase();
+    if (candidate === normName && updatedTaskTypes === null) {
+      var parsed = parseTaskTypeCell(row[14]);
+      updatedTaskTypes = ensureTaskTypeDefaults(parsed).map(function (t) {
+        if (normalizeTaskBaseColor(t.baseColor) === normColor) {
+          return { baseColor: t.baseColor, brightness: isBright ? 'bright' : 'faded', label: t.label };
+        }
+        return t;
+      });
+      sheet.getRange(idx + 1, 15).setValue(formatTaskTypeCell(updatedTaskTypes));
+    }
+  });
+
+  var template = getTaskTypeTemplateForSheet(sheet);
+  return {
+    taskTypes: updatedTaskTypes ? updatedTaskTypes : mergeTemplateWithClientBrightness(template, []),
+    template: template
+  };
+}
+
+function addTaskTypeColorForAll(baseColor, label) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 1) return [];
+
+  var range = sheet.getRange(1, 15, lastRow, 1);
+  var values = range.getValues();
+  var normTarget = normalizeTaskBaseColor(baseColor);
+  var updated = values.map(function (row) {
+    var parsed = parseTaskTypeCell(row[0]);
+    var seen = parsed.some(function (t) { return normalizeTaskBaseColor(t.baseColor) === normTarget; });
+    if (!seen) {
+      parsed.push({ baseColor: baseColor, brightness: 'bright', label: label || '' });
+    }
+    return [formatTaskTypeCell(parsed)];
+  });
+
+  range.setValues(updated);
+  return toTemplateOnly(parseTaskTypeCell(updated[0][0]));
+}
+
+function removeTaskTypeColorForAll(baseColor) {
+  var normTarget = normalizeTaskBaseColor(baseColor);
+  if (BASE_TASK_COLORS.map(normalizeTaskBaseColor).indexOf(normTarget) !== -1) {
+    return getTaskTypeTemplateForSheet(SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0'));
+  }
+
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 1) return [];
+
+  var range = sheet.getRange(1, 15, lastRow, 1);
+  var values = range.getValues();
+  var updated = values.map(function (row) {
+    var parsed = parseTaskTypeCell(row[0]).filter(function (t) {
+      return normalizeTaskBaseColor(t.baseColor) !== normTarget;
+    });
+    return [formatTaskTypeCell(parsed)];
+  });
+
+  range.setValues(updated);
+  return toTemplateOnly(parseTaskTypeCell(updated[0][0]));
+}
 
 
 
