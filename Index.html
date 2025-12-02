@@ -1,4 +1,4 @@
-<!-- Version 1.0.9 | 0102c37 -->
+<!-- Version 1.0.10 | cfa89f0 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -3842,6 +3842,14 @@ input#clientAutocomplete, select#clientSelect {
     <select id="clientSelect" onchange="showClientNotes()" style="display: none;">
       <option value="" disabled selected>Select a Client</option>
     </select>
+
+  <div id="taskTypeBarRow" class="task-type-bar-row" style="display:none;">
+    <div id="taskTypeBar" class="task-type-bar" aria-label="Task type buttons"></div>
+    <div class="task-type-controls">
+      <button type="button" id="taskTypeAddBtn" aria-label="Add task type">+</button>
+      <button type="button" id="taskTypeRemoveBtn" aria-label="Remove task type">-</button>
+    </div>
+  </div>
   </div>
 
 
@@ -3940,14 +3948,6 @@ input#clientAutocomplete, select#clientSelect {
   </div>
 </div>
 
-
-<div id="taskTypeBarRow" class="task-type-bar-row" style="display:none;">
-  <div id="taskTypeBar" class="task-type-bar" aria-label="Task type buttons"></div>
-  <div class="task-type-controls">
-    <button type="button" id="taskTypeAddBtn" aria-label="Add task type">+</button>
-    <button type="button" id="taskTypeRemoveBtn" aria-label="Remove task type">-</button>
-  </div>
-</div>
 
 <hr style="border: 4px solid black;">
 <!-- Removed the 'button-container' div -->
@@ -5423,7 +5423,17 @@ function renderTaskTypeBar(taskTypes){
   var bar = document.getElementById('taskTypeBar');
   if (!row || !bar) return;
 
-  var visible = (taskTypes || []).filter(function(t){ return (t.label || '').trim().length > 0; });
+  var seen = {};
+  var visible = [];
+  (taskTypes || []).forEach(function(t){
+    var label = (t.label || '').trim();
+    var key = normalizeTaskColorKey(t.baseColor);
+    if (!label || !key) return;
+    if (seen[key]) return; // avoid duplicate buttons for the same base color
+    seen[key] = true;
+    visible.push(t);
+  });
+
   bar.innerHTML = '';
 
   if (!currentTaskTypeClientName || visible.length === 0) {
