@@ -1,4 +1,4 @@
-<!-- Version 1.0.5 | cedd6e1 -->
+<!-- Version 1.0.6 | 56e7450 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -2106,6 +2106,9 @@ input#clientAutocomplete, select#clientSelect {
   z-index: 1;
   max-height: none;
   overflow: visible;
+  max-width: 100%;
+  flex-wrap: wrap;
+  min-width: 0;
   background: #f7f9fc;
   border: 1px solid #e5e7eb;
   border-radius: 10px;
@@ -2117,6 +2120,7 @@ input#clientAutocomplete, select#clientSelect {
   flex: 1 1 auto;
   gap: 6px;
   align-items: center;
+  min-width: 0;
 }
 
 .task-type-button {
@@ -2139,6 +2143,7 @@ input#clientAutocomplete, select#clientSelect {
   text-align: center;
   transition: transform .08s ease, box-shadow .12s ease;
   white-space: nowrap;
+  min-width: 0;
 }
 
 .task-type-button:hover { box-shadow: 0 8px 18px rgba(0,0,0,0.16); z-index: 5; }
@@ -5129,6 +5134,36 @@ function showTaskTypePopover(button, entry){
   button.appendChild(pop);
 }
 
+// Keep the task type bar aligned with the autocomplete + category width
+// and shrink text/padding as buttons grow.
+function adjustTaskTypeBarSizing(row, bar){
+  var autoInput = document.getElementById('clientAutocomplete');
+  var catWrap = document.getElementById('catCalWrap');
+  var autoWidth = autoInput ? autoInput.getBoundingClientRect().width : 0;
+  var categoryWidth = catWrap ? catWrap.getBoundingClientRect().width : 0;
+  var maxWidth = autoWidth + categoryWidth;
+
+  if (maxWidth > 0) {
+    row.style.maxWidth = maxWidth + 'px';
+    bar.style.maxWidth = maxWidth + 'px';
+  } else {
+    row.style.maxWidth = '';
+    bar.style.maxWidth = '';
+  }
+
+  var buttons = bar.querySelectorAll('.task-type-button');
+  var count = buttons.length;
+  if (!count) return;
+
+  var fontSize = Math.max(0.62, 0.9 - (count - 1) * 0.05);
+  var horizontalPadding = Math.max(6, 10 - (count - 1));
+
+  buttons.forEach(function(btn){
+    btn.style.fontSize = fontSize + 'em';
+    btn.style.padding = '6px ' + horizontalPadding + 'px';
+  });
+}
+
 function renderTaskTypeBar(taskTypes){
   var row = document.getElementById('taskTypeBarRow');
   var bar = document.getElementById('taskTypeBar');
@@ -5157,6 +5192,8 @@ function renderTaskTypeBar(taskTypes){
     btn.addEventListener('mouseleave', hideTaskTypePopoverSoon);
     bar.appendChild(btn);
   });
+
+  adjustTaskTypeBarSizing(row, bar);
 }
 
 function setTaskTypesForClient(clientName, taskTypes, template){
