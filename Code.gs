@@ -1,4 +1,4 @@
-// Version 1.0.0 | 42931f8
+// Version 1.0.1 | bdbbfc9
 
 function doGet(e) {
 
@@ -848,23 +848,18 @@ function setTaskTypeBrightnessForClient(clientName, baseColor, isBright) {
 
 function addTaskTypeColorForAll(baseColor, label) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
-  var lastRow = sheet.getLastRow();
-  if (lastRow < 1) return [];
-
-  var range = sheet.getRange(1, 15, lastRow, 1);
-  var values = range.getValues();
+  var template = getTaskTypeTemplateForSheet(sheet);
   var normTarget = normalizeTaskBaseColor(baseColor);
-  var updated = values.map(function (row) {
-    var parsed = parseTaskTypeCell(row[0]);
-    var seen = parsed.some(function (t) { return normalizeTaskBaseColor(t.baseColor) === normTarget; });
-    if (!seen) {
-      parsed.push({ baseColor: baseColor, brightness: 'bright', label: label || '' });
-    }
-    return [formatTaskTypeCell(parsed)];
+  var exists = (template || []).some(function (t) {
+    return normalizeTaskBaseColor(t.baseColor) === normTarget;
   });
 
-  range.setValues(updated);
-  return toTemplateOnly(parseTaskTypeCell(updated[0][0]));
+  if (!exists) {
+    // Do not introduce new lines/colors—just return the existing template.
+    return toTemplateOnly(template);
+  }
+
+  return updateTaskTypeLabelForAll(baseColor, label || '');
 }
 
 function removeTaskTypeColorForAll(baseColor) {
