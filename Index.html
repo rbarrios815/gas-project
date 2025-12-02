@@ -1,4 +1,4 @@
-<!-- Version 1.0.2 | 93bfdb5 -->
+<!-- Version 1.0.3 | d3e6647 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -2100,12 +2100,16 @@ input#clientAutocomplete, select#clientSelect {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 8px 0;
-  padding: 4px 0;
+  margin: 10px 0 8px;
+  padding: 6px 10px;
   position: relative;
-  z-index: 2000;
-  max-height: calc(var(--labels-font-size) * 1.2);
+  z-index: 1;
+  max-height: none;
   overflow: visible;
+  background: #f7f9fc;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.04);
 }
 
 .task-type-bar {
@@ -2150,38 +2154,42 @@ input#clientAutocomplete, select#clientSelect {
   border: 1px solid #ced4da;
   background: #fff;
   border-radius: 8px;
-  padding: 6px 12px;
+  padding: 4px 10px;
   font-weight: 800;
-  font-size: 0.9em;
+  font-size: 0.85em;
   line-height: 1.1;
-  min-height: 32px;
+  min-height: 28px;
   cursor: pointer;
   position: relative;
   z-index: 2;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
 }
 
 .task-type-popover {
   position: absolute;
-  top: -6px;
-  right: 6px;
+  top: 0;
+  right: 10px;
   background: #fff;
   border: 1px solid #e0e4ea;
   border-radius: 10px;
-  box-shadow: 0 10px 24px rgba(0,0,0,0.16);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.12);
   padding: 6px 8px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   z-index: 2005;
+  min-width: 132px;
 }
 
 .task-type-popover button {
   border: 0;
-  border-radius: 8px;
-  padding: 6px 8px;
+  border-radius: 6px;
+  padding: 4px 8px;
   cursor: pointer;
-  background: #f1f3f5;
+  background: #f5f7fb;
   font-weight: 700;
+  font-size: 12px;
+  line-height: 1.2;
 }
 
   .labels-notes-left {
