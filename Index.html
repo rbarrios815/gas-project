@@ -1,4 +1,4 @@
-<!-- Version 1.0.3 | d3e6647 -->
+<!-- Version 1.0.4 | bdbbfc9 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -5172,11 +5172,29 @@ function setTaskTypesForClient(clientName, taskTypes, template){
 }
 
 function addTaskTypeForAll(){
-  var newColor = prompt('Enter a name for the new color/task type (applies to ALL clients):');
-  if (!newColor) return;
-  var label = prompt('Enter the label text for ' + newColor + ' (visible on the button):', '');
+  var available = ensureTaskTemplateLocal(taskTypeTemplate);
+  if (!available.length) return;
+
+  var colorList = available.map(function(t){ return t.baseColor; }).join(', ');
+  var selectedColor = prompt(
+    'Select one of the existing colors to update (applies to ALL clients):\n' + colorList,
+    ''
+  );
+  if (!selectedColor) return;
+
+  var target = available.find(function(t){
+    return normalizeTaskColorKey(t.baseColor) === normalizeTaskColorKey(selectedColor);
+  });
+
+  if (!target) {
+    showToast('Please choose an existing color name.');
+    return;
+  }
+
+  var label = prompt('Enter the label text for ' + target.baseColor + ' (visible on the button):', target.label || '');
   if (label === null) return;
-  if (!confirm('This will add "' + newColor + '" for ALL clients. Continue?')) return;
+  label = label.trim();
+  if (!confirm('This will update the text for "' + target.baseColor + '" across ALL clients. Continue?')) return;
   showLoadingBar();
   google.script.run
     .withSuccessHandler(function(template){
@@ -5186,11 +5204,11 @@ function addTaskTypeForAll(){
       hideLoadingBar();
     })
     .withFailureHandler(function(err){
-      console.error('Failed to add task type', err);
+      console.error('Failed to update task type label', err);
       hideLoadingBar();
-      showToast('Could not add task type');
+      showToast('Could not update task type');
     })
-    .addTaskTypeColorForAll(newColor, label || '');
+    .updateTaskTypeLabelForAll(target.baseColor, label);
 }
 
 function removeTaskTypeForAll(){
