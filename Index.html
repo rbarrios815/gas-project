@@ -1,4 +1,4 @@
-<!-- Version 1.0.0 | 42931f8 -->
+<!-- Version 1.0.1 | 42931f8 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -2094,15 +2094,19 @@ input#clientAutocomplete, select#clientSelect {
 
 .task-type-bar-row {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   gap: 8px;
-  margin: 12px 0;
+  margin: 8px 0;
+  padding: 6px 0;
+  position: relative;
+  z-index: 1;
 }
 
 .task-type-bar {
   display: flex;
   flex: 1 1 auto;
   gap: 6px;
+  align-items: stretch;
 }
 
 .task-type-button {
@@ -2111,10 +2115,13 @@ input#clientAutocomplete, select#clientSelect {
   border-radius: 8px;
   color: #fff;
   font-weight: 800;
-  padding: 12px 10px;
+  font-size: 1em;
+  line-height: 1.2;
+  padding: 8px 10px;
   cursor: pointer;
-  min-height: 48px;
+  min-height: 40px;
   position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2128,15 +2135,18 @@ input#clientAutocomplete, select#clientSelect {
 .task-type-controls {
   display: flex;
   gap: 6px;
-  align-items: stretch;
+  align-items: center;
 }
 
 .task-type-controls button {
   border: 1px solid #ced4da;
   background: #fff;
   border-radius: 8px;
-  padding: 0 12px;
+  padding: 6px 12px;
   font-weight: 800;
+  font-size: 1em;
+  line-height: 1.2;
+  min-height: 40px;
   cursor: pointer;
 }
 
