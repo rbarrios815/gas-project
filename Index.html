@@ -1,4 +1,4 @@
-<!-- Version 1.0.7 | 3d6c696 -->
+<!-- Version 1.0.8 | 1cd089d -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -3542,9 +3542,9 @@ input#clientAutocomplete, select#clientSelect {
   padding: 10px 14px;
   background: #e7f6ed !important;
   border-color: #9ed6b8 !important;
-  flex: 1 1 0;
+  flex: 1 1 60%;
   width: 100%;
-  min-width: 0;
+  min-width: 45vw;
   max-width: none;
 }
 
@@ -3556,10 +3556,10 @@ input#clientAutocomplete, select#clientSelect {
   border-radius: 12px;
   background: #e7f6ed;
   border-color: #9ed6b8;
-  flex: 0 0 auto;
+  flex: 0 1 40%;
   width: fit-content;
   min-width: fit-content;
-  max-width: 100%;
+  max-width: 45vw;
 }
 
 .cat-input {
@@ -4457,6 +4457,73 @@ function toggleSuggestions() {
   applySuggestionsVisibility();
 }
 
+const TOP_CLIENTS_BASE_FILTERS = [
+  { value: 'JB', label: 'JB' },
+  { value: 'RB', label: 'RB' },
+  { value: 'QC', label: 'QC' },
+  { value: 'TEAM', label: 'TEAM' },
+  { value: 'BDAY', label: 'BDAY' },
+  { value: 'BRIEFCASE', label: '💼' },
+  { value: 'STAR', label: '⭐' },
+  { value: 'GRADCAP', label: '🎓' },
+  { value: 'PHONE', label: '📞' }
+];
+
+function getBrightLabelsFromClient(client) {
+  var taskTypes = (client && client.taskTypes) || [];
+  return taskTypes
+    .filter(function (t) { return (t.brightness || 'bright') === 'bright'; })
+    .map(function (t) { return (t.label || '').trim(); })
+    .filter(function (label) { return label.length > 0; });
+}
+
+function gatherBrightLabelFilters(clients) {
+  var labelSet = new Set();
+  (clients || []).forEach(function (c) {
+    getBrightLabelsFromClient(c).forEach(function (label) { labelSet.add(label); });
+  });
+  return Array.from(labelSet).sort(function (a, b) { return a.localeCompare(b); });
+}
+
+function buildTopClientsFilterDropdown(clients) {
+  var dd = document.getElementById('topClientsFilterDropdown');
+  if (!dd) return;
+
+  var current = dd.value || 'JB';
+  dd.innerHTML = '';
+
+  var frag = document.createDocumentFragment();
+  TOP_CLIENTS_BASE_FILTERS.forEach(function (opt) {
+    var node = document.createElement('option');
+    node.value = opt.value;
+    node.textContent = opt.label;
+    frag.appendChild(node);
+  });
+
+  var brightLabels = gatherBrightLabelFilters(clients);
+  if (brightLabels.length) {
+    var group = document.createElement('optgroup');
+    group.label = 'Bright labels';
+    brightLabels.forEach(function (label) {
+      var opt = document.createElement('option');
+      opt.value = 'LABEL|' + label;
+      opt.textContent = 'Bright: ' + label;
+      group.appendChild(opt);
+    });
+    frag.appendChild(group);
+  }
+
+  dd.appendChild(frag);
+
+  if (Array.prototype.some.call(dd.options, function (opt) { return opt.value === current; })) {
+    dd.value = current;
+  }
+
+  if (!dd.value && TOP_CLIENTS_BASE_FILTERS.length) {
+    dd.value = TOP_CLIENTS_BASE_FILTERS[0].value;
+  }
+}
+
 
 // ===== REQUEST TOKEN to prevent stale paints =====
 let __topClientsRenderToken = 0;
@@ -4469,6 +4536,8 @@ function fetchAndRenderTopClientsFromDropdown() {
   google.script.run
     .withSuccessHandler(function (clients) {
       if (token !== __topClientsRenderToken) return;
+
+      buildTopClientsFilterDropdown(clients);
 
       // Read again then NORMALIZE before render
       const dd2 = document.getElementById('topClientsFilterDropdown');
@@ -4801,7 +4870,8 @@ function refreshTopClientsPreservingScroll() {
 
     google.script.run
       .withSuccessHandler(function (clients) {
-showTopClients(clients, normalizeTopClientsFilter(currentFilter));
+        buildTopClientsFilterDropdown(clients);
+        showTopClients(clients, normalizeTopClientsFilter(currentFilter));
 
 // sanitize bulbs right after re-render
 sanitizeSuggestionBulbs();
@@ -6636,12 +6706,16 @@ function setupColumnDropdowns(data) {
 
 function normalizeTopClientsFilter(val) {
   const raw = (val || '').toString().trim();
+  if (/^LABEL\|/i.test(raw)) {
+    return 'LABEL|' + raw.slice(6);
+  }
+  const upper = raw.toUpperCase();
   // Map emojis/aliases to canonical keys your renderer understands
   const map = {
     'JB':'JB', 'RB':'RB', 'QC':'QC', 'TEAM':'TEAM', 'BDAY':'BDAY',
     '💼':'BRIEFCASE', '⭐':'STAR', '🎓':'GRADCAP', '📞':'PHONE'
   };
-  return map.hasOwnProperty(raw) ? map[raw] : raw.toUpperCase();
+  return map.hasOwnProperty(upper) ? map[upper] : upper;
 }
 
 // === CATEGORY CHANGE GUARDS ===
@@ -6736,6 +6810,8 @@ function repaintTopClientsWithCurrentFilter(clients) {
   var dd = document.getElementById('topClientsFilterDropdown');
   var raw = (dd && dd.value) ? dd.value : 'JB';
   var currentFilter = normalizeTopClientsFilter(raw);
+
+  buildTopClientsFilterDropdown(clients);
 
   // Use your standard renderer, passing the filter explicitly
   if (typeof showTopClients === 'function') {
@@ -8038,7 +8114,10 @@ document.getElementById('topClientsTitle').style.display = 'none';
   var dd = document.getElementById('topClientsFilterDropdown');
   if (dd && filterKey) dd.value = filterKey;
 
+  buildTopClientsFilterDropdown(clients);
+
   var filter = normalizeTopClientsFilter(filterKey || 'JB'); // you already have this helper
+  var labelFilter = filter.startsWith('LABEL|') ? filter.slice(6) : '';
   var out = document.getElementById('topClientsDisplay');
   if (!out) return;
   out.innerHTML = '';
@@ -8062,6 +8141,9 @@ document.getElementById('topClientsTitle').style.display = 'none';
   var OWNER_KEYS = ['JB','RB','QC','TEAM','BDAY'];
 
   var filtered = clients.filter(function(c){
+    if (labelFilter) {
+      return getBrightLabelsFromClient(c).some(function (label) { return label === labelFilter; });
+    }
     if (OWNER_KEYS.includes(filter)) {
       var initials = (c.chipInitials || c.initials || '').toUpperCase();
       return initials === filter;
@@ -8120,9 +8202,12 @@ function chipDateToTimeForSort(chipDateStr){
   var dd = document.getElementById('topClientsFilterDropdown');
   var chosen = filterKey || (dd && dd.value) || 'JB';
   var filter = normalizeTopClientsFilter(chosen); // you already have this helper
+  var labelFilter = filter.startsWith('LABEL|') ? filter.slice(6) : '';
 
   // Keep dropdown visually in sync with what we render
   if (dd) dd.value = filter;
+
+  buildTopClientsFilterDropdown(clients);
 
   var out = document.getElementById('topClientsDisplay');
   if (!out) return;
@@ -8139,6 +8224,9 @@ function chipDateToTimeForSort(chipDateStr){
   }
 
   var filtered = (clients || []).filter(function(c){
+    if (labelFilter) {
+      return getBrightLabelsFromClient(c).some(function (label) { return label === labelFilter; });
+    }
     if (OWNER_KEYS.includes(filter)) {
       var initials = (c.chipInitials || c.initials || '').toUpperCase();
       return initials === filter;
@@ -9854,12 +9942,14 @@ function displayClient(client, container) {
 
   var baseClientName = client.clientName || client.name || '';
   var clientCategory = client.category || '';
+  var brightLabels = getBrightLabelsFromClient(client);
+  var labelText = brightLabels.length ? ' • ' + brightLabels.join(' • ') : '';
 
   var clientButton = document.createElement('button');
   clientButton.className = 'inline-button client-button';
   clientButton.dataset.client = baseClientName;
   clientButton.dataset.category = clientCategory;
-  clientButton.innerText = baseClientName + (clientCategory ? ' (' + clientCategory + ')' : '');
+  clientButton.innerText = baseClientName + (clientCategory ? ' (' + clientCategory + ')' : '') + labelText;
   clientButton.style.cssText = "display:inline-flex; align-items:center;";
   clientButton.addEventListener('click', function () {
     var btnClient = this.getAttribute('data-client') || baseClientName || this.innerText || '';
