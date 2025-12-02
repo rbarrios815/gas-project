@@ -1,4 +1,4 @@
-<!-- Version 1.0.14 | 7ff4916 -->
+<!-- Version 1.0.15 | abeb740 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -4533,11 +4533,41 @@ function syncLabelFilterButtons() {
   });
 }
 
-function clearLabelFilter(preserveDropdownValue) {
-  if (!__activeLabelFilter) return;
-  __activeLabelFilter = '';
+function removeLabelPlaceholderOption(dd) {
+  if (!dd) return;
+  var placeholderOpt = dd.querySelector('option[data-placeholder="label"]');
+  if (placeholderOpt) dd.removeChild(placeholderOpt);
+}
+
+function setDropdownLabelPlaceholder(label) {
   var dd = document.getElementById('topClientsFilterDropdown');
-  if (dd && !preserveDropdownValue) dd.value = 'JB';
+  if (!dd || !label) return;
+
+  removeLabelPlaceholderOption(dd);
+
+  var placeholderOpt = document.createElement('option');
+  placeholderOpt.value = 'LABEL|' + label;
+  placeholderOpt.textContent = label;
+  placeholderOpt.disabled = false;
+  placeholderOpt.dataset.placeholder = 'label';
+  placeholderOpt.selected = true;
+
+  dd.insertBefore(placeholderOpt, dd.firstChild);
+  dd.value = placeholderOpt.value;
+}
+
+function clearLabelFilter(preserveDropdownValue) {
+  var dd = document.getElementById('topClientsFilterDropdown');
+  if (!__activeLabelFilter) {
+    removeLabelPlaceholderOption(dd);
+    return;
+  }
+
+  __activeLabelFilter = '';
+  if (dd) {
+    removeLabelPlaceholderOption(dd);
+    if (!preserveDropdownValue) dd.value = 'JB';
+  }
   syncLabelFilterButtons();
 }
 
@@ -4547,8 +4577,7 @@ function applyLabelFilterSelection(label) {
   } else {
     __activeLabelFilter = label;
     syncLabelFilterButtons();
-    var dd = document.getElementById('topClientsFilterDropdown');
-    if (dd) dd.value = 'JB';
+    setDropdownLabelPlaceholder(label);
   }
   retriggerTopClientsFilter();
 }
@@ -10552,8 +10581,10 @@ function handleTopClientsFilterChange(selectedFilter) {
 
   if (labelFilter) {
     __activeLabelFilter = labelFilter;
-    syncLabelFilterButtons();
+  } else {
+    clearLabelFilter(true);
   }
+  syncLabelFilterButtons();
 
   // Title updates (owners & ALL only)
   if (['JB','RB','QC','TEAM','BDAY'].includes(val)) {
