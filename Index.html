@@ -1,4 +1,4 @@
-<!-- Version 1.0.15 | d1d9f3f -->
+<!-- Version 1.0.7 | 0386e53 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -5193,7 +5193,7 @@ var __nameTokens = [];            // Unique tokens from names (first/last/etc., 
 var __nameUnionRegex = null;      // Combined regex (longest-first) of full names + tokens
 var __hideBubbleTimer = null;
 
-const DEFAULT_TASK_COLOR_ORDER = ['Red','Orange','Yellow','Green','Blue','Purple','Brown','Pink','Black','White','Grey'];
+const DEFAULT_TASK_COLOR_ORDER = ['Red','Orange','Yellow','Green','Blue','Purple','Violet','Brown','Pink','Black','Black (White Font)','White','Grey'];
   const TASK_TYPE_COLOR_MAP = {
     red:    { bright: '#ff4d4f', faded: '#f8c4c6', text: '#fff' },
     orange: { bright: '#ffa94d', faded: '#ffe8cc', text: '#7f4a12' },
@@ -5216,11 +5216,15 @@ const TASK_TYPE_LABEL_FALLBACK = {
   orange: '🎯',
   yellow: '📞',
   green: '🔍',
+  blue: '💼',
   purple: '✉️',
+  violet: '',
   brown: '📊',
   pink: '🎂',
+  black: '',
+  blackwhitefont: '',
   white: '🎓',
-  grey: '⭐'
+  grey: '✍️'
 };
 
 var taskTypeTemplate = [];

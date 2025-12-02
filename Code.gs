@@ -1,4 +1,4 @@
-// Version 1.0.6 | 0386e53
+// Version 1.0.7 | 0386e53
 
 function doGet(e) {
 
@@ -79,19 +79,20 @@ function getClientNamesAndCategories() {
 }
 
 
-const BASE_TASK_COLORS = ['Red', 'Orange', 'Yellow', 'Green', 'Blue', 'Purple', 'Brown', 'Pink', 'Black', 'White', 'Grey'];
+const BASE_TASK_COLORS = ['Red', 'Orange', 'Yellow', 'Green', 'Blue', 'Purple', 'Violet', 'Brown', 'Pink', 'Black', 'Black (White Font)', 'White', 'Grey'];
 const DEFAULT_TASK_TYPE_TEXT = [
-  'Bright Red:',
-  'Bright Orange:',
-  'Bright Yellow:',
-  'Bright Green:',
-  'Bright Blue:',
-  'Bright Purple:',
-  'Bright Brown:',
-  'Bright Pink:',
-  'Bright Black:',
-  'Bright White:',
-  'Bright Grey:'
+  'Faded Red: 🗣️',
+  'Faded Orange: 🎯',
+  'Faded Yellow: 📞',
+  'Faded Green: 🔍',
+  'Faded Blue: 💼',
+  'Faded Purple: ✉️',
+  'Bright Violet:',
+  'Faded Brown: 📊',
+  'Faded Pink: 🎂',
+  'Bright Black (White Font):',
+  'Faded White: 🎓',
+  'Faded Grey: ✍️'
 ].join('\n');
 
 function normalizeTaskBaseColor(name) {
