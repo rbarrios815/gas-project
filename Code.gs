@@ -1,4 +1,4 @@
-// Version 1.0.5 | 1cd089d
+// Version 1.0.6 | 0386e53
 
 function doGet(e) {
 
@@ -719,6 +719,7 @@ function getTopClients() {
     var columnD       = row[3];   // Day-of-week (Mon/Tues/etc) or a date
     var followUpNote  = row[4];   // Column E
     var category      = row[5];   // Column F
+    var birthdayRaw   = row[13];  // Column N (birthday)
     var columnLRaw    = row[11];  // Column L (In Progress)
     var columnOTasks  = ensureTaskTypeDefaults(parseTaskTypeCell(row[14]));
     var chipInitials  = row[15] ? row[15].toString().trim() : ""; // Column P
@@ -737,6 +738,29 @@ function getTopClients() {
         chipDate = chipDateRaw.toString();
       }
     }
+
+    var birthdayDisplay = "";
+    var birthdayMonth = null;
+    var birthdayDay = null;
+    if (birthdayRaw) {
+      var bDate = (birthdayRaw instanceof Date) ? birthdayRaw : new Date(birthdayRaw);
+      if (!isNaN(bDate.getTime())) {
+        birthdayDisplay = Utilities.formatDate(bDate, tz, "M/d");
+        birthdayMonth = bDate.getMonth() + 1;
+        birthdayDay = bDate.getDate();
+      } else {
+        var parts = birthdayRaw.toString().split('/');
+        if (parts.length >= 2) {
+          birthdayMonth = parseInt(parts[0], 10);
+          birthdayDay = parseInt(parts[1], 10);
+          if (!isNaN(birthdayMonth) && !isNaN(birthdayDay)) {
+            birthdayDisplay = birthdayMonth + '/' + birthdayDay;
+          }
+        }
+      }
+    }
+
+    var birthdayActive = !!birthdayDisplay;
 
     var key = clientName + ':' + (category || ''); // combine name+category
 
@@ -757,7 +781,12 @@ function getTopClients() {
         taskTypes: columnOTasks,
 
         chipInitials: chipInitials,
-        chipDate: chipDate
+        chipDate: chipDate,
+
+        birthday: birthdayDisplay,
+        birthdayMonth: birthdayMonth,
+        birthdayDay: birthdayDay,
+        birthdayActive: birthdayActive
       };
       if (followUpNote) clientMap[key].followUps.push(followUpNote);
       if (pastWorkNote) clientMap[key].pastWorks.push(pastWorkNote);
@@ -778,6 +807,12 @@ function getTopClients() {
       // Keep columnB/columnD if empty previously
       if (!clientMap[key].columnB && columnB) clientMap[key].columnB = columnB;
       if (!clientMap[key].columnD && columnD) clientMap[key].columnD = columnD;
+
+      // Preserve birthday details if missing; refresh display if we find one
+      if (!clientMap[key].birthday && birthdayDisplay) clientMap[key].birthday = birthdayDisplay;
+      if (!clientMap[key].birthdayMonth && birthdayMonth) clientMap[key].birthdayMonth = birthdayMonth;
+      if (!clientMap[key].birthdayDay && birthdayDay) clientMap[key].birthdayDay = birthdayDay;
+      if (birthdayActive) clientMap[key].birthdayActive = true;
     }
   });
 

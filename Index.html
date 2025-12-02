@@ -1,4 +1,4 @@
-<!-- Version 1.0.10 | 396b11e -->
+<!-- Version 1.0.11 | 0386e53 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -2125,7 +2125,7 @@ input#clientAutocomplete, select#clientSelect {
 
 .task-type-button {
   flex: 1 1 0;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 8px;
   color: #fff;
   font-weight: 800;
@@ -3560,10 +3560,10 @@ input#clientAutocomplete, select#clientSelect {
   padding: 10px 14px;
   background: #e7f6ed !important;
   border-color: #9ed6b8 !important;
-  flex: 1 1 60%;
+  flex: 1 1 auto;
   width: 100%;
-  min-width: 45vw;
-  max-width: none;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .cat-pill {
@@ -3574,10 +3574,11 @@ input#clientAutocomplete, select#clientSelect {
   border-radius: 12px;
   background: #e7f6ed;
   border-color: #9ed6b8;
-  flex: 0 1 40%;
+  flex: 0 0 auto;
   width: fit-content;
-  min-width: fit-content;
-  max-width: 45vw;
+  min-width: 0;
+  max-width: 32vw;
+  white-space: nowrap;
 }
 
 .cat-input {
@@ -4558,14 +4559,16 @@ function renderTopClientsLabelFilters(clients) {
   var labels = gatherBrightLabelFilters(clients);
   bar.innerHTML = '';
 
-  if (!labels.length) {
+  var availableLabels = labels.filter(function(label){ return label !== __activeLabelFilter; });
+
+  if (!availableLabels.length) {
     row.style.display = 'none';
     clearLabelFilter();
     return;
   }
 
   row.style.display = 'flex';
-  labels.forEach(function (label) {
+  availableLabels.forEach(function (label) {
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'task-type-button label-filter-button';
@@ -4595,10 +4598,25 @@ function buildTopClientsFilterDropdown(clients) {
   if (!dd) return;
 
   var current = dd.value || 'JB';
-  if (__activeLabelFilter) current = 'JB';
+  var labelPlaceholderValue = '';
+  if (__activeLabelFilter) {
+    labelPlaceholderValue = 'LABEL|' + __activeLabelFilter;
+    current = labelPlaceholderValue;
+  }
   dd.innerHTML = '';
 
   var frag = document.createDocumentFragment();
+
+  if (labelPlaceholderValue) {
+    var placeholderOpt = document.createElement('option');
+    placeholderOpt.value = labelPlaceholderValue;
+    placeholderOpt.textContent = __activeLabelFilter;
+    placeholderOpt.disabled = true;
+    placeholderOpt.selected = true;
+    placeholderOpt.dataset.placeholder = 'label';
+    frag.appendChild(placeholderOpt);
+  }
+
   TOP_CLIENTS_BASE_FILTERS.forEach(function (opt) {
     var node = document.createElement('option');
     node.value = opt.value;
@@ -4608,7 +4626,9 @@ function buildTopClientsFilterDropdown(clients) {
 
   dd.appendChild(frag);
 
-  if (Array.prototype.some.call(dd.options, function (opt) { return opt.value === current; })) {
+  if (labelPlaceholderValue) {
+    dd.value = labelPlaceholderValue;
+  } else if (Array.prototype.some.call(dd.options, function (opt) { return opt.value === current; })) {
     dd.value = current;
   }
 
@@ -5232,9 +5252,12 @@ function getTaskTypeButtonStyle(entry){
   var key = normalizeTaskColorKey(entry.baseColor);
   var palette = TASK_TYPE_COLOR_MAP[key] || TASK_TYPE_COLOR_MAP.default;
   var isBright = entry.brightness !== 'faded';
+  var borderColor = palette.bright || '#6b7280';
   return {
     backgroundColor: isBright ? palette.bright : (palette.faded || palette.bright),
-    color: palette.text || (isBright ? '#fff' : '#212529')
+    color: palette.text || (isBright ? '#fff' : '#212529'),
+    border: isBright ? '1px solid transparent' : '2px solid ' + borderColor,
+    boxShadow: isBright ? '' : '0 0 0 1px ' + borderColor + '66'
   };
 }
 
@@ -8220,6 +8243,7 @@ document.getElementById('topClientsTitle').style.display = 'none';
 
   var filter = normalizeTopClientsFilter(filterKey || 'JB'); // you already have this helper
   var labelFilter = filter.startsWith('LABEL|') ? filter.slice(6) : '';
+  window.__currentTopClientsFilter = filter;
   var out = document.getElementById('topClientsDisplay');
   if (!out) return;
   out.innerHTML = '';
@@ -8241,10 +8265,16 @@ document.getElementById('topClientsTitle').style.display = 'none';
 
   // OWNER filters (JB/RB/QC/TEAM)
   var OWNER_KEYS = ['JB','RB','QC','TEAM','BDAY'];
+  var isBirthdayFilter = filter === 'BDAY';
 
   var filtered = clients.filter(function(c){
     if (labelFilter) {
       return getBrightLabelsFromClient(c).some(function (label) { return label === labelFilter; });
+    }
+    if (isBirthdayFilter) {
+      var hasBirthday = !!(c.birthday || c.birthdayDisplay || c.birthdayMonth);
+      var isActive = (c.birthdayActive === undefined) ? true : !!c.birthdayActive;
+      return hasBirthday && isActive;
     }
     if (OWNER_KEYS.includes(filter)) {
       var initials = (c.chipInitials || c.initials || '').toUpperCase();
@@ -8255,8 +8285,16 @@ document.getElementById('topClientsTitle').style.display = 'none';
     return emoji ? hasEmojiLabel(c, emoji) : true;
   });
 
-  // Sort: chipDate (valid earliest first), blanks LAST; then name
+  var startMonthForBirthdays = ((new Date().getMonth() + 11) % 12) + 1;
+
+  // Sort: for birthdays use DOB cadence, otherwise chipDate (valid earliest first), blanks LAST; then name
   filtered.sort(function(a, b){
+    if (isBirthdayFilter) {
+      var ba = birthdaySortValue(a, startMonthForBirthdays);
+      var bb = birthdaySortValue(b, startMonthForBirthdays);
+      if (ba !== bb) return ba - bb;
+    }
+
     var ta = chipDateToTimeForSort(a && a.chipDate);
     var tb = chipDateToTimeForSort(b && b.chipDate);
     if (ta !== tb) return ta - tb;
@@ -8284,6 +8322,15 @@ function chipDateToTimeForSort(chipDateStr){
   return isNaN(d) ? Number.POSITIVE_INFINITY : d.getTime();
 }
 
+function birthdaySortValue(client, startMonth){
+  var month = Number(client && client.birthdayMonth);
+  var day = Number(client && client.birthdayDay);
+  if (!month || !day) return Number.POSITIVE_INFINITY;
+
+  var offset = ((month - startMonth) % 12 + 12) % 12; // rotate so startMonth is first
+  return offset * 100 + day;
+}
+
 
 /**********************************************
   (B) The "NEW" function (for initial page load)
@@ -8305,6 +8352,7 @@ function chipDateToTimeForSort(chipDateStr){
   var chosen = filterKey || (dd && dd.value) || 'JB';
   var filter = normalizeTopClientsFilter(chosen); // you already have this helper
   var labelFilter = filter.startsWith('LABEL|') ? filter.slice(6) : '';
+  window.__currentTopClientsFilter = filter;
 
   // Keep dropdown visually in sync with what we render
   if (dd && !labelFilter) dd.value = filter;
@@ -8320,6 +8368,7 @@ function chipDateToTimeForSort(chipDateStr){
   // 3) Filtering: owners OR emoji labels only
   var OWNER_KEYS = ['JB','RB','QC','TEAM','BDAY'];
   var emojiMap = { BRIEFCASE:'💼', STAR:'⭐', GRADCAP:'🎓', PHONE:'📞' };
+  var isBirthdayFilter = filter === 'BDAY';
 
   function hasEmojiLabel(c, emoji) {
     if (!emoji) return false;
@@ -8331,6 +8380,11 @@ function chipDateToTimeForSort(chipDateStr){
     if (labelFilter) {
       return getBrightLabelsFromClient(c).some(function (label) { return label === labelFilter; });
     }
+    if (isBirthdayFilter) {
+      var hasBirthday = !!(c.birthday || c.birthdayDisplay || c.birthdayMonth);
+      var isActive = (c.birthdayActive === undefined) ? true : !!c.birthdayActive;
+      return hasBirthday && isActive;
+    }
     if (OWNER_KEYS.includes(filter)) {
       var initials = (c.chipInitials || c.initials || '').toUpperCase();
       return initials === filter;
@@ -8339,8 +8393,16 @@ function chipDateToTimeForSort(chipDateStr){
     return emoji ? hasEmojiLabel(c, emoji) : true;
   });
 
-  // 4) Sort: chipDate ascending; blanks/invalids LAST; then name
+  var startMonthForBirthdays = ((new Date().getMonth() + 11) % 12) + 1;
+
+  // 4) Sort: chipDate ascending (or DOB cadence for birthday filter); blanks/invalids LAST; then name
   filtered.sort(function(a, b){
+    if (isBirthdayFilter) {
+      var ba = birthdaySortValue(a, startMonthForBirthdays);
+      var bb = birthdaySortValue(b, startMonthForBirthdays);
+      if (ba !== bb) return ba - bb;
+    }
+
     var ta = chipDateToTimeForSort(a && a.chipDate);
     var tb = chipDateToTimeForSort(b && b.chipDate);
     if (ta !== tb) return ta - tb;
@@ -8359,16 +8421,6 @@ function chipDateToTimeForSort(chipDateStr){
   if (typeof wireToplistSuggestionTextareas === 'function') wireToplistSuggestionTextareas();
   if (typeof applySuggestionsVisibility === 'function') applySuggestionsVisibility();
 }
-
-/* Helper used above: push blank/invalid chip dates to BOTTOM */
-function chipDateToTimeForSort(chipDateStr){
-  if (!chipDateStr) return Number.POSITIVE_INFINITY;
-  var d = new Date(chipDateStr);
-  return isNaN(d) ? Number.POSITIVE_INFINITY : d.getTime();
-}
-
-
-
 
 function updateColumnB(clientName, columnBValue) {
     // Show the loading bar when the update process begins
@@ -8892,6 +8944,8 @@ function handleCalendarTaskSelection(taskName) {
 
 
 var loadingBarHideTimer = null;
+var loadingBarActiveCount = 0;
+var loadingBarWatchdog = null;
 
 function showLoadingBar() {
     var loadingBarContainer = document.getElementById('loadingBarContainer');
@@ -8899,6 +8953,7 @@ function showLoadingBar() {
     if (!loadingBarContainer || !loadingBar) return;
 
     clearTimeout(loadingBarHideTimer);
+    loadingBarActiveCount = Math.max(0, loadingBarActiveCount) + 1;
     loadingBarContainer.style.display = 'block';
     loadingBar.classList.add('indeterminate');
     loadingBar.style.width = '0';
@@ -8909,9 +8964,11 @@ function showLoadingBar() {
     });
 
     // Fallback auto-hide to prevent a stuck bar if a caller forgets to stop it
-    loadingBarHideTimer = setTimeout(function(){
-        hideLoadingBar();
-    }, 8000);
+    clearTimeout(loadingBarWatchdog);
+    loadingBarWatchdog = setTimeout(function(){
+      loadingBarActiveCount = 0;
+      hideLoadingBar();
+    }, 12000);
 }
 
 function hideLoadingBar() {
@@ -8919,7 +8976,11 @@ function hideLoadingBar() {
     var loadingBar = document.getElementById('loadingBar');
     if (!loadingBarContainer || !loadingBar) return;
 
+    if (loadingBarActiveCount > 0) loadingBarActiveCount--;
+    if (loadingBarActiveCount > 0) return;
+
     clearTimeout(loadingBarHideTimer);
+    clearTimeout(loadingBarWatchdog);
     loadingBar.classList.remove('indeterminate');
     loadingBar.style.width = '0';
     loadingBarHideTimer = setTimeout(function() {
@@ -9888,6 +9949,11 @@ function hideClientNotes() {
       if (typeof renderRecentClientsBar === 'function') renderRecentClientsBar();
     }
   }
+
+  // Clear the task type bar when leaving the client view
+  if (typeof currentTaskTypeClientName !== 'undefined') currentTaskTypeClientName = '';
+  if (typeof currentClientTaskTypes !== 'undefined') currentClientTaskTypes = [];
+  if (typeof renderTaskTypeBar === 'function') renderTaskTypeBar([]);
 }
 
 
@@ -10047,7 +10113,21 @@ function displayClient(client, container) {
   var baseClientName = client.clientName || client.name || '';
   var clientCategory = client.category || '';
   var brightLabels = getBrightLabelsFromClient(client);
-  var labelText = brightLabels.length ? ' • ' + brightLabels.join(' • ') : '';
+  var isBirthdayFilter = window.__currentTopClientsFilter === 'BDAY';
+  var birthdayLabel = client.birthdayDisplay || client.birthday || client.birthdayRaw || '';
+  var labelParts = brightLabels.slice();
+
+  if (isBirthdayFilter && birthdayLabel) {
+    var cakeIdx = labelParts.indexOf('🎂');
+    var decoratedCake = '🎂 (DOB: ' + birthdayLabel + ')';
+    if (cakeIdx !== -1) {
+      labelParts[cakeIdx] = decoratedCake;
+    } else {
+      labelParts.push(decoratedCake);
+    }
+  }
+
+  var labelText = labelParts.length ? ' • ' + labelParts.join(' • ') : '';
 
   var clientButton = document.createElement('button');
   clientButton.className = 'inline-button client-button';
