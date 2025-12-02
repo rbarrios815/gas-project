@@ -1,4 +1,4 @@
-<!-- Version 1.0.1 | 42931f8 -->
+<!-- Version 1.0.2 | 93bfdb5 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -2092,21 +2092,27 @@ input#clientAutocomplete, select#clientSelect {
   align-items: flex-start;
 }
 
+:root {
+  --labels-font-size: 32px;
+}
+
 .task-type-bar-row {
   display: flex;
   align-items: center;
   gap: 8px;
   margin: 8px 0;
-  padding: 6px 0;
+  padding: 4px 0;
   position: relative;
-  z-index: 1;
+  z-index: 2000;
+  max-height: calc(var(--labels-font-size) * 1.2);
+  overflow: visible;
 }
 
 .task-type-bar {
   display: flex;
   flex: 1 1 auto;
   gap: 6px;
-  align-items: stretch;
+  align-items: center;
 }
 
 .task-type-button {
@@ -2115,21 +2121,23 @@ input#clientAutocomplete, select#clientSelect {
   border-radius: 8px;
   color: #fff;
   font-weight: 800;
-  font-size: 1em;
-  line-height: 1.2;
-  padding: 8px 10px;
+  font-size: 0.9em;
+  line-height: 1.1;
+  padding: 6px 10px;
   cursor: pointer;
-  min-height: 40px;
+  min-height: 32px;
+  max-height: 100%;
   position: relative;
-  z-index: 1;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
   transition: transform .08s ease, box-shadow .12s ease;
+  white-space: nowrap;
 }
 
-.task-type-button:hover { box-shadow: 0 8px 18px rgba(0,0,0,0.16); }
+.task-type-button:hover { box-shadow: 0 8px 18px rgba(0,0,0,0.16); z-index: 5; }
 .task-type-button:active { transform: translateY(1px); }
 
 .task-type-controls {
@@ -2144,10 +2152,12 @@ input#clientAutocomplete, select#clientSelect {
   border-radius: 8px;
   padding: 6px 12px;
   font-weight: 800;
-  font-size: 1em;
-  line-height: 1.2;
-  min-height: 40px;
+  font-size: 0.9em;
+  line-height: 1.1;
+  min-height: 32px;
   cursor: pointer;
+  position: relative;
+  z-index: 2;
 }
 
 .task-type-popover {
@@ -2162,7 +2172,7 @@ input#clientAutocomplete, select#clientSelect {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  z-index: 10;
+  z-index: 2005;
 }
 
 .task-type-popover button {
@@ -2197,7 +2207,7 @@ input#clientAutocomplete, select#clientSelect {
   }
 
 #labelsDisplay {
-  font-size: 32px;
+  font-size: var(--labels-font-size);
 }
 
   #labelsAdditionSection {
