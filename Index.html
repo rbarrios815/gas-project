@@ -1,4 +1,4 @@
-<!-- Version 1.0.12 | 0386e53 -->
+<!-- Version 1.0.13 | 6cd5bdf -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -4620,7 +4620,8 @@ function buildTopClientsFilterDropdown(clients) {
     var placeholderOpt = document.createElement('option');
     placeholderOpt.value = labelPlaceholderValue;
     placeholderOpt.textContent = __activeLabelFilter;
-    placeholderOpt.disabled = true;
+    // Keep the placeholder selectable so users can switch to other filters without being stuck
+    placeholderOpt.disabled = false;
     placeholderOpt.selected = true;
     placeholderOpt.dataset.placeholder = 'label';
     frag.appendChild(placeholderOpt);
