@@ -1,4 +1,4 @@
-<!-- Version 1.0.4 | bdbbfc9 -->
+<!-- Version 1.0.5 | cedd6e1 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -5009,21 +5009,17 @@ function normalizeTaskColorKey(name){
 
 function ensureTaskTemplateLocal(template){
   var map = {};
+  var allowed = DEFAULT_TASK_COLOR_ORDER.map(normalizeTaskColorKey);
   (template || []).forEach(function(t){
     var key = normalizeTaskColorKey(t.baseColor || t.color || '');
     if (!key) return;
+    if (allowed.indexOf(key) === -1) return;
     map[key] = { baseColor: t.baseColor || t.color || '', label: t.label || '' };
   });
 
   var ordered = DEFAULT_TASK_COLOR_ORDER.map(function(color){
     var key = normalizeTaskColorKey(color);
     return map[key] ? map[key] : { baseColor: color, label: '' };
-  });
-
-  Object.keys(map).forEach(function(key){
-    if (!DEFAULT_TASK_COLOR_ORDER.map(normalizeTaskColorKey).includes(key)) {
-      ordered.push(map[key]);
-    }
   });
 
   return ordered;
