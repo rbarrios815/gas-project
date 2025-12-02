@@ -1,4 +1,4 @@
-<!-- Version 1.0.9 | b481c04 -->
+<!-- Version 1.0.10 | 396b11e -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -2170,10 +2170,27 @@ input#clientAutocomplete, select#clientSelect {
   box-shadow: 0 2px 6px rgba(0,0,0,0.06);
 }
 
+.label-filter-row {
+  background: linear-gradient(180deg, #f4f7fb, #eef2f7);
+}
+
+.label-filter-button {
+  background: linear-gradient(135deg, #9fb8ff, #4f7bff);
+  opacity: 0.35;
+  box-shadow: none;
+}
+
+.label-filter-button.is-active {
+  opacity: 1;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.16);
+  filter: brightness(1.08) saturate(1.1);
+}
+
 .task-type-popover {
   position: absolute;
-  top: 0;
-  right: 10px;
+  top: calc(100% + 8px);
+  right: auto;
+  left: 50%;
   background: #fff;
   border: 1px solid #e0e4ea;
   border-radius: 10px;
@@ -2184,6 +2201,7 @@ input#clientAutocomplete, select#clientSelect {
   gap: 4px;
   z-index: 2005;
   min-width: 132px;
+  transform: translateX(-50%);
 }
 
 .task-type-popover button {
@@ -3956,6 +3974,10 @@ input#clientAutocomplete, select#clientSelect {
         </button>
     </div>
 
+    <div id="labelFilterBarRow" class="task-type-bar-row label-filter-row" style="display:none;">
+      <div id="labelFilterBar" class="task-type-bar" aria-label="Bright label filters"></div>
+    </div>
+
     <!-- Second Row: Top Clients Title and Add New Client Button -->
     <div class="row" id="topClientsAddNewRow">
         <div id="topClientsTitle" class="title-text"></div>
@@ -4496,11 +4518,84 @@ function gatherBrightLabelFilters(clients) {
   return Array.from(labelSet).sort(function (a, b) { return a.localeCompare(b); });
 }
 
+let __activeLabelFilter = '';
+
+function syncLabelFilterButtons() {
+  var bar = document.getElementById('labelFilterBar');
+  if (!bar) return;
+
+  bar.querySelectorAll('.label-filter-button').forEach(function (btn) {
+    var isActive = btn.dataset.label === __activeLabelFilter;
+    btn.classList.toggle('is-active', isActive);
+  });
+}
+
+function clearLabelFilter() {
+  if (!__activeLabelFilter) return;
+  __activeLabelFilter = '';
+  var dd = document.getElementById('topClientsFilterDropdown');
+  if (dd) dd.value = 'JB';
+  syncLabelFilterButtons();
+}
+
+function applyLabelFilterSelection(label) {
+  if (__activeLabelFilter === label) {
+    clearLabelFilter();
+  } else {
+    __activeLabelFilter = label;
+    syncLabelFilterButtons();
+    var dd = document.getElementById('topClientsFilterDropdown');
+    if (dd) dd.value = 'JB';
+  }
+  retriggerTopClientsFilter();
+}
+
+function renderTopClientsLabelFilters(clients) {
+  var row = document.getElementById('labelFilterBarRow');
+  var bar = document.getElementById('labelFilterBar');
+  if (!row || !bar) return;
+
+  var labels = gatherBrightLabelFilters(clients);
+  bar.innerHTML = '';
+
+  if (!labels.length) {
+    row.style.display = 'none';
+    clearLabelFilter();
+    return;
+  }
+
+  row.style.display = 'flex';
+  labels.forEach(function (label) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'task-type-button label-filter-button';
+    btn.dataset.label = label;
+    btn.textContent = label;
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      applyLabelFilterSelection(label);
+    });
+    bar.appendChild(btn);
+  });
+
+  syncLabelFilterButtons();
+}
+
+function getCurrentTopClientsFilter() {
+  if (__activeLabelFilter) {
+    return normalizeTopClientsFilter('LABEL|' + __activeLabelFilter);
+  }
+  var dd = document.getElementById('topClientsFilterDropdown');
+  var raw = dd && dd.value ? dd.value.trim() : 'JB';
+  return normalizeTopClientsFilter(raw);
+}
+
 function buildTopClientsFilterDropdown(clients) {
   var dd = document.getElementById('topClientsFilterDropdown');
   if (!dd) return;
 
   var current = dd.value || 'JB';
+  if (__activeLabelFilter) current = 'JB';
   dd.innerHTML = '';
 
   var frag = document.createDocumentFragment();
@@ -4510,19 +4605,6 @@ function buildTopClientsFilterDropdown(clients) {
     node.textContent = opt.label;
     frag.appendChild(node);
   });
-
-  var brightLabels = gatherBrightLabelFilters(clients);
-  if (brightLabels.length) {
-    var group = document.createElement('optgroup');
-    group.label = 'Bright labels';
-    brightLabels.forEach(function (label) {
-      var opt = document.createElement('option');
-      opt.value = 'LABEL|' + label;
-      opt.textContent = 'Bright: ' + label;
-      group.appendChild(opt);
-    });
-    frag.appendChild(group);
-  }
 
   dd.appendChild(frag);
 
@@ -4540,8 +4622,7 @@ function buildTopClientsFilterDropdown(clients) {
 let __topClientsRenderToken = 0;
 
 function fetchAndRenderTopClientsFromDropdown() {
-  const dd = document.getElementById('topClientsFilterDropdown');
-  const wantedFilter = dd && dd.value ? dd.value.trim() : 'JB';
+  const wantedFilter = getCurrentTopClientsFilter();
   const token = ++__topClientsRenderToken;
 
   google.script.run
@@ -4549,10 +4630,13 @@ function fetchAndRenderTopClientsFromDropdown() {
       if (token !== __topClientsRenderToken) return;
 
       buildTopClientsFilterDropdown(clients);
+      renderTopClientsLabelFilters(clients);
 
       // Read again then NORMALIZE before render
       const dd2 = document.getElementById('topClientsFilterDropdown');
-      const raw = dd2 && dd2.value ? dd2.value.trim() : wantedFilter;
+      const raw = __activeLabelFilter
+        ? 'LABEL|' + __activeLabelFilter
+        : (dd2 && dd2.value ? dd2.value.trim() : wantedFilter);
       const currentFilter = normalizeTopClientsFilter(raw);
 
      if (typeof showTopClients === 'function') {
@@ -4661,8 +4745,7 @@ function applySuggestionsVisibility() {
 
 // === SINGLE SOURCE OF TRUTH: list <- dropdown value ===
 function syncClientsListToDropdown(){
-  var dd = document.getElementById('topClientsFilterDropdown');
-  var val = dd && dd.value ? dd.value : 'JB';
+  var val = getCurrentTopClientsFilter();
   // Persist current choice + currently-open client (if any)
   try {
     saveUIState({
@@ -4697,6 +4780,7 @@ function retriggerTopClientsFilter() {
 function setFilterAndSync(value) {
   var dd = document.getElementById('topClientsFilterDropdown');
   if (!dd) return;
+  clearLabelFilter();
   dd.value = (value || '').trim();
   syncClientsListToDropdown();
 }
@@ -4850,6 +4934,8 @@ function applyDefaultJBFilter() {
   var dd = document.getElementById('topClientsFilterDropdown');
   if (!dd) return;
 
+  clearLabelFilter();
+
   // Select JB in the dropdown (this makes the visible label "JB")
   dd.value = 'JB';
 
@@ -4876,12 +4962,12 @@ setFilterAndSync('JB'); // uses the canonical path
 function refreshTopClientsPreservingScroll() {
   try {
     const y = window.scrollY || 0;
-    const dd = document.getElementById('topClientsFilterDropdown');
-    const currentFilter = (dd && dd.value) ? dd.value : 'JB';
+    const currentFilter = getCurrentTopClientsFilter();
 
     google.script.run
       .withSuccessHandler(function (clients) {
         buildTopClientsFilterDropdown(clients);
+        renderTopClientsLabelFilters(clients);
         showTopClients(clients, normalizeTopClientsFilter(currentFilter));
 
 // sanitize bulbs right after re-render
@@ -5209,6 +5295,8 @@ function showTaskTypePopover(button, entry){
   var pop = document.createElement('div');
   pop.className = 'task-type-popover';
 
+  pop.style.pointerEvents = 'auto';
+
   var edit = document.createElement('button');
   edit.textContent = 'Edit text';
   edit.addEventListener('click', function(e){
@@ -5217,15 +5305,6 @@ function showTaskTypePopover(button, entry){
     hideTaskTypePopover();
   });
   pop.appendChild(edit);
-
-  var toggle = document.createElement('button');
-  toggle.textContent = entry.brightness === 'faded' ? 'Brighten' : 'Fade';
-  toggle.addEventListener('click', function(e){
-    e.stopPropagation();
-    toggleTaskTypeBrightness(entry.baseColor);
-    hideTaskTypePopover();
-  });
-  pop.appendChild(toggle);
 
   button.appendChild(pop);
 }
@@ -6710,12 +6789,12 @@ updateCategorySelectValue(data.category);
     .withFailureHandler(function(err){
         markOpFailed('Failed to load client details', err);
         showToast('Unable to load client');
-    })
+  })
     .getClientDetails(clientName);
 
     // Persist "which client is open" along with current filter
 saveUIState({
-  filter: (document.getElementById('topClientsFilterDropdown')||{}).value || '',
+  filter: getCurrentTopClientsFilter(),
   client: (document.getElementById('clientSelect')||{}).value || ''
 });
 
@@ -6830,11 +6909,10 @@ function requestCategoryChange(newCategory){
 /* === HELPER: repaint Top Clients using the CURRENT dropdown filter === */
 function repaintTopClientsWithCurrentFilter(clients) {
   // Read the dropdown safely
-  var dd = document.getElementById('topClientsFilterDropdown');
-  var raw = (dd && dd.value) ? dd.value : 'JB';
-  var currentFilter = normalizeTopClientsFilter(raw);
+  var currentFilter = getCurrentTopClientsFilter();
 
   buildTopClientsFilterDropdown(clients);
+  renderTopClientsLabelFilters(clients);
 
   // Use your standard renderer, passing the filter explicitly
   if (typeof showTopClients === 'function') {
@@ -7580,10 +7658,9 @@ buttonRow.style.display = 'flex'; // keep the row visible so ✏️ stays
 const UI_STATE_KEY = 'uiState.v1';
 
 function getCurrentUIState() {
-  const dd = document.getElementById('topClientsFilterDropdown');
   const sel = document.getElementById('clientSelect');
   return {
-    filter: dd ? dd.value : '',
+    filter: getCurrentTopClientsFilter(),
     client: sel ? sel.value : ''
   };
 }
@@ -7598,6 +7675,7 @@ function restoreUIState() {
   // Always start in JB on a fresh load
   const dd = document.getElementById('topClientsFilterDropdown');
   if (dd) {
+    clearLabelFilter();
     dd.value = 'JB';
     if (typeof handleTopClientsFilterChange === 'function') {
       handleTopClientsFilterChange('JB');
@@ -7863,8 +7941,7 @@ google.script.run
 
 // Re-apply the current dropdown filter after any category change/save
 function retriggerTopClientsFilter(){
-  var dd = document.getElementById('topClientsFilterDropdown');
-  var current = (dd && dd.value) ? dd.value : 'JB';
+  var current = getCurrentTopClientsFilter();
   if (typeof handleTopClientsFilterChange === 'function') {
     handleTopClientsFilterChange(current);
   } else if (typeof syncClientsListToDropdown === 'function') {
@@ -8135,9 +8212,11 @@ document.getElementById('topClientsTitle').style.display = 'none';
 **********************************************/function showTopClients(clients, filterKey) {
   // Keep dropdown visually in sync
   var dd = document.getElementById('topClientsFilterDropdown');
-  if (dd && filterKey) dd.value = filterKey;
+  if (dd && filterKey && !/^LABEL\|/.test(filterKey)) dd.value = filterKey;
 
   buildTopClientsFilterDropdown(clients);
+  renderTopClientsLabelFilters(clients);
+  if (/^LABEL\|/.test(filterKey || '')) syncLabelFilterButtons();
 
   var filter = normalizeTopClientsFilter(filterKey || 'JB'); // you already have this helper
   var labelFilter = filter.startsWith('LABEL|') ? filter.slice(6) : '';
@@ -8228,9 +8307,11 @@ function chipDateToTimeForSort(chipDateStr){
   var labelFilter = filter.startsWith('LABEL|') ? filter.slice(6) : '';
 
   // Keep dropdown visually in sync with what we render
-  if (dd) dd.value = filter;
+  if (dd && !labelFilter) dd.value = filter;
 
   buildTopClientsFilterDropdown(clients);
+  renderTopClientsLabelFilters(clients);
+  if (labelFilter) syncLabelFilterButtons();
 
   var out = document.getElementById('topClientsDisplay');
   if (!out) return;
@@ -10368,6 +10449,12 @@ var selectEl = document.getElementById('clientSelect');
 function handleTopClientsFilterChange(selectedFilter) {
   var titleEl = document.getElementById('topClientsTitle');
   var val = normalizeFilterValue(selectedFilter);
+  var labelFilter = val.startsWith('LABEL|') ? val.slice(6) : '';
+
+  if (labelFilter) {
+    __activeLabelFilter = labelFilter;
+    syncLabelFilterButtons();
+  }
 
   // Title updates (owners & ALL only)
   if (['JB','RB','QC','TEAM','BDAY'].includes(val)) {
@@ -10386,7 +10473,11 @@ function handleTopClientsFilterChange(selectedFilter) {
       var filtered = clients || [];
       var emoji = asEmojiOrNull(val);
 
-      if (val === 'ALL') {
+      if (labelFilter) {
+        filtered = filtered.filter(function(c){
+          return getBrightLabelsFromClient(c).some(function (label) { return label === labelFilter; });
+        });
+      } else if (val === 'ALL') {
         // no-op
       } else if (isOwnerKey(val)) {
         // Owner filter = exact initials match
@@ -11299,16 +11390,18 @@ document.addEventListener('DOMContentLoaded', ensureSuggestionsButtonInToolbar);
 
 // Re-run the Top Clients filter as if the dropdown changed (even if value didn’t)
 function retriggerTopClientsFilter() {
+  if (typeof syncClientsListToDropdown === 'function') {
+    syncClientsListToDropdown();
+    return;
+  }
+
   var dd = document.getElementById('topClientsFilterDropdown');
   if (!dd) return;
   try {
     dd.dispatchEvent(new Event('change', { bubbles: true }));
   } catch (_) {
-    // Fallback if the listener ignores synthetic events
-    if (typeof syncClientsListToDropdown === 'function') {
-      syncClientsListToDropdown();
-    } else if (typeof handleTopClientsFilterChange === 'function') {
-      handleTopClientsFilterChange(dd.value || 'JB');
+    if (typeof handleTopClientsFilterChange === 'function') {
+      handleTopClientsFilterChange(getCurrentTopClientsFilter());
     }
   }
 }
