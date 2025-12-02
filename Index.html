@@ -1,4 +1,4 @@
-<!-- Version 1.0.10 | cfa89f0 -->
+<!-- Version 1.0.11 | 295b267 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -1002,8 +1002,8 @@ function showToast(msg){
     if (e.key === 'Escape' && isOpen()) window.closeDashboard();
   });
 
-// initial state — default OPEN (and still restore if previously saved)
-let startOpen = true;
+// initial state — default CLOSED so only the green CHANGE VIEW bar is visible
+let startOpen = false;
 try {
   const saved = sessionStorage.getItem('v1.dashboardOpen');
   if (saved === 'true') startOpen = true;
@@ -2149,6 +2149,18 @@ input#clientAutocomplete, select#clientSelect {
 
 .task-type-button:hover { box-shadow: 0 8px 18px rgba(0,0,0,0.16); z-index: 5; }
 .task-type-button:active { transform: translateY(1px); }
+
+.task-type-button.is-faded {
+  background: #f1f3f5 !important;
+  color: #6c757d !important;
+  border: 1px solid #ced4da !important;
+  box-shadow: none !important;
+  filter: grayscale(0.35);
+  opacity: 0.8;
+}
+
+.task-type-button.is-faded:hover { box-shadow: none; }
+.task-type-button.is-faded:active { transform: none; }
 
 .task-type-controls {
   display: flex;
@@ -5308,12 +5320,20 @@ function getTaskTypeButtonStyle(entry){
   var key = normalizeTaskColorKey(entry.baseColor);
   var palette = TASK_TYPE_COLOR_MAP[key] || TASK_TYPE_COLOR_MAP.default;
   var isBright = entry.brightness !== 'faded';
-  var borderColor = palette.bright || '#6b7280';
+  if (!isBright) {
+    return {
+      backgroundColor: '#f1f3f5',
+      color: '#6c757d',
+      border: '1px solid #ced4da',
+      boxShadow: 'none'
+    };
+  }
+
   return {
-    backgroundColor: isBright ? palette.bright : (palette.faded || palette.bright),
-    color: palette.text || (isBright ? '#fff' : '#212529'),
-    border: isBright ? '1px solid transparent' : '2px solid ' + borderColor,
-    boxShadow: isBright ? '' : '0 0 0 1px ' + borderColor + '66'
+    backgroundColor: palette.bright,
+    color: palette.text || '#fff',
+    border: '1px solid transparent',
+    boxShadow: ''
   };
 }
 
@@ -5451,6 +5471,7 @@ function renderTaskTypeBar(taskTypes){
     btn.dataset.brightness = entry.brightness;
     var styles = getTaskTypeButtonStyle(entry);
     Object.keys(styles).forEach(function(k){ btn.style[k] = styles[k]; });
+    btn.classList.toggle('is-faded', entry.brightness === 'faded');
     btn.addEventListener('click', function(e){ e.stopPropagation(); toggleTaskTypeBrightness(entry.baseColor); });
     btn.addEventListener('mouseenter', function(){ showTaskTypePopover(btn, entry); });
     btn.addEventListener('mouseleave', hideTaskTypePopoverSoon);
