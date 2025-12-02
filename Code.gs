@@ -1,4 +1,4 @@
-// Version 1.0.3 | cedd6e1
+// Version 1.0.4 | 3d6c696
 
 function doGet(e) {
 
@@ -79,7 +79,7 @@ function getClientNamesAndCategories() {
 }
 
 
-const BASE_TASK_COLORS = ['Red', 'Orange', 'Yellow', 'Green', 'Blue', 'Purple', 'Violet', 'Brown', 'Pink', 'Black (White Font)', 'White', 'Grey'];
+const BASE_TASK_COLORS = ['Red', 'Orange', 'Yellow', 'Green', 'Blue', 'Purple', 'Brown', 'Pink', 'Black', 'White', 'Grey'];
 const DEFAULT_TASK_TYPE_TEXT = [
   'Bright Red:',
   'Bright Orange:',
@@ -87,16 +87,17 @@ const DEFAULT_TASK_TYPE_TEXT = [
   'Bright Green:',
   'Bright Blue:',
   'Bright Purple:',
-  'Bright Violet:',
   'Bright Brown:',
   'Bright Pink:',
-  'Bright Black (White Font):',
+  'Bright Black:',
   'Bright White:',
   'Bright Grey:'
 ].join('\n');
 
 function normalizeTaskBaseColor(name) {
-  return (name || '').toString().trim().toLowerCase();
+  var key = (name || '').toString().trim().toLowerCase().replace(/[^a-z]/g, '');
+  if (key === 'blackwhitefont') return 'black';
+  return key;
 }
 
 function stripBrightnessPrefix(colorText) {
