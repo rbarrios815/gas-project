@@ -1,4 +1,4 @@
-// Version 1.0.7 | 0386e53
+// Version 1.0.8 | 54e74f5
 
 function doGet(e) {
 
@@ -111,13 +111,22 @@ function stripBrightnessPrefix(colorText) {
 
 function ensureTaskTypeDefaults(taskTypes) {
   var map = {};
-  var baseKeys = BASE_TASK_COLORS.map(normalizeTaskBaseColor);
+
+  var uniqueBaseColors = [];
+  var seenBaseKeys = {};
+  BASE_TASK_COLORS.forEach(function (color) {
+    var key = normalizeTaskBaseColor(color);
+    if (seenBaseKeys[key]) return;
+    seenBaseKeys[key] = true;
+    // Prevent duplicate entries when different labels normalize to the same base color (e.g., Black variants)
+    uniqueBaseColors.push({ color: color, key: key });
+  });
 
   (taskTypes || []).forEach(function (t) {
     var parsed = stripBrightnessPrefix(t.baseColor || t.color || '');
     var key = normalizeTaskBaseColor(parsed.baseColor);
     if (!key) return;
-    if (baseKeys.indexOf(key) === -1) return;
+    if (!seenBaseKeys[key]) return;
     map[key] = {
       baseColor: parsed.baseColor,
       brightness: (t.brightness === 'faded') ? 'faded' : 'bright',
@@ -126,12 +135,12 @@ function ensureTaskTypeDefaults(taskTypes) {
   });
 
   var ordered = [];
-  BASE_TASK_COLORS.forEach(function (color) {
-    var key = normalizeTaskBaseColor(color);
+  uniqueBaseColors.forEach(function (entry) {
+    var key = entry.key;
     if (map[key]) {
       ordered.push(map[key]);
     } else {
-      ordered.push({ baseColor: color, brightness: 'bright', label: '' });
+      ordered.push({ baseColor: entry.color, brightness: 'bright', label: '' });
     }
   });
 
