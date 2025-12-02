@@ -1,4 +1,4 @@
-// Version 1.0.2 | 62fac62
+// Version 1.0.3 | cedd6e1
 
 function doGet(e) {
 
@@ -109,20 +109,18 @@ function stripBrightnessPrefix(colorText) {
 
 function ensureTaskTypeDefaults(taskTypes) {
   var map = {};
-  var extras = [];
+  var baseKeys = BASE_TASK_COLORS.map(normalizeTaskBaseColor);
 
   (taskTypes || []).forEach(function (t) {
     var parsed = stripBrightnessPrefix(t.baseColor || t.color || '');
     var key = normalizeTaskBaseColor(parsed.baseColor);
     if (!key) return;
+    if (baseKeys.indexOf(key) === -1) return;
     map[key] = {
       baseColor: parsed.baseColor,
       brightness: (t.brightness === 'faded') ? 'faded' : 'bright',
       label: t.label || ''
     };
-    if (BASE_TASK_COLORS.map(normalizeTaskBaseColor).indexOf(key) === -1) {
-      extras.push(map[key]);
-    }
   });
 
   var ordered = [];
@@ -132,13 +130,6 @@ function ensureTaskTypeDefaults(taskTypes) {
       ordered.push(map[key]);
     } else {
       ordered.push({ baseColor: color, brightness: 'bright', label: '' });
-    }
-  });
-
-  extras.forEach(function (ex) {
-    var key = normalizeTaskBaseColor(ex.baseColor);
-    if (BASE_TASK_COLORS.map(normalizeTaskBaseColor).indexOf(key) === -1) {
-      ordered.push(ex);
     }
   });
 
