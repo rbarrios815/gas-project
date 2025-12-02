@@ -1,4 +1,4 @@
-// Version 1.0.1 | bdbbfc9
+// Version 1.0.2 | 62fac62
 
 function doGet(e) {
 
@@ -81,18 +81,18 @@ function getClientNamesAndCategories() {
 
 const BASE_TASK_COLORS = ['Red', 'Orange', 'Yellow', 'Green', 'Blue', 'Purple', 'Violet', 'Brown', 'Pink', 'Black (White Font)', 'White', 'Grey'];
 const DEFAULT_TASK_TYPE_TEXT = [
-  'Bright Red: Insert Bright & Bold Label Here',
-  'Orange:',
-  'Yellow:',
-  'Green:',
-  'Blue:',
-  'Purple:',
-  'Violet:',
-  'Brown:',
-  'Pink:',
-  'Black (White Font):',
-  'White:',
-  'Grey:'
+  'Bright Red:',
+  'Bright Orange:',
+  'Bright Yellow:',
+  'Bright Green:',
+  'Bright Blue:',
+  'Bright Purple:',
+  'Bright Violet:',
+  'Bright Brown:',
+  'Bright Pink:',
+  'Bright Black (White Font):',
+  'Bright White:',
+  'Bright Grey:'
 ].join('\n');
 
 function normalizeTaskBaseColor(name) {
@@ -219,6 +219,7 @@ function getClientDetails(clientName) {
   var columnLValue = "";
   var columnOTaskTypes = [];
   var sharedTaskTemplate = getTaskTypeTemplateForSheet(sheet);
+  var defaultTaskTemplate = sharedTaskTemplate.length ? sharedTaskTemplate : parseTaskTypeCell(DEFAULT_TASK_TYPE_TEXT);
 
   // NEW: chip fields (P/Q)
   var chipInitials = ""; // Column P (index 15)
@@ -299,8 +300,8 @@ if (clientLabels.length === 0) {
     columnB: columnB,
     columnD: columnD,
     columnL: columnLValue,
-    taskTypes: columnOTaskTypes.length ? columnOTaskTypes : parseTaskTypeCell(DEFAULT_TASK_TYPE_TEXT),
-    taskTypeTemplate: toTemplateOnly(columnOTaskTypes.length ? columnOTaskTypes : sharedTaskTemplate),
+    taskTypes: ensureTaskTypeDefaults(columnOTaskTypes.length ? columnOTaskTypes : defaultTaskTemplate),
+    taskTypeTemplate: toTemplateOnly(columnOTaskTypes.length ? columnOTaskTypes : defaultTaskTemplate),
     chipInitials: chipInitials, // Column P
     chipDate: chipDate          // Column Q -> "MM/dd/yy" or ""
   };
