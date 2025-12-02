@@ -1,4 +1,4 @@
-<!-- Version 1.0.15 | abeb740 -->
+<!-- Version 1.0.15 | d1d9f3f -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -8012,13 +8012,8 @@ google.script.run
 
 // Re-apply the current dropdown filter after any category change/save
 function retriggerTopClientsFilter(){
-  var current = getCurrentTopClientsFilter();
-  if (typeof handleTopClientsFilterChange === 'function') {
-    handleTopClientsFilterChange(current);
-  } else if (typeof syncClientsListToDropdown === 'function') {
-    // Fallback: full sync
-    syncClientsListToDropdown();
-  }
+  // Keep the dropdown and label chips unified
+  syncClientsListToDropdown();
 }
 
 
@@ -10576,13 +10571,16 @@ var selectEl = document.getElementById('clientSelect');
 
 function handleTopClientsFilterChange(selectedFilter) {
   var titleEl = document.getElementById('topClientsTitle');
-  var val = normalizeFilterValue(selectedFilter);
+  var val = normalizeTopClientsFilter(selectedFilter);
   var labelFilter = val.startsWith('LABEL|') ? val.slice(6) : '';
 
   if (labelFilter) {
     __activeLabelFilter = labelFilter;
+    setDropdownLabelPlaceholder(labelFilter);
   } else {
     clearLabelFilter(true);
+    var dd = document.getElementById('topClientsFilterDropdown');
+    if (dd) dd.value = val;
   }
   syncLabelFilterButtons();
 
@@ -10591,55 +10589,14 @@ function handleTopClientsFilterChange(selectedFilter) {
     titleEl.innerText = val;
   } else if (val === 'ALL') {
     titleEl.innerText = 'TOP CLIENTS';
-  } else {
+  } else if (titleEl) {
     // For text or emoji filters we keep the date-only header per your current UI
-    if (titleEl) { titleEl.innerText = ''; titleEl.style.display = 'none'; }
+    titleEl.innerText = '';
+    titleEl.style.display = 'none';
   }
 
-  // Always pull the latest list, then filter client-side
-  showLoadingBar();
-  google.script.run
-    .withSuccessHandler(function(clients){
-      var filtered = clients || [];
-      var emoji = asEmojiOrNull(val);
-
-      if (labelFilter) {
-        filtered = filtered.filter(function(c){
-          return getBrightLabelsFromClient(c).some(function (label) { return label === labelFilter; });
-        });
-      } else if (val === 'ALL') {
-        // no-op
-      } else if (isOwnerKey(val)) {
-        // Owner filter = exact initials match
-        var target = val.toUpperCase();
-        filtered = filtered.filter(function(c){
-          return String(c.chipInitials || c.initials || '').toUpperCase() === target;
-        });
-      } else if (emoji) {
-        // Emoji filter = look inside Column L (suggestions/lightbulb)
-        filtered = filtered.filter(function(c){
-          return suggestionsContainEmoji(c, emoji);
-        });
-      } else {
-        // Text filter = look inside Column P (chip text)
-        var needle = val.toLowerCase();
-        filtered = filtered.filter(function(c){
-          return chipSearchString(c).includes(needle);
-        });
-      }
-
-      showTopClients(filtered, 'all');
-      hideLoadingBar();
-
-      // Keep the dropdown visually in sync
-      var dd = document.getElementById('topClientsFilterDropdown');
-      if (dd) dd.value = selectedFilter;
-    })
-    .withFailureHandler(function(err){
-      hideLoadingBar();
-      alert('Failed to filter top clients: ' + (err && err.message ? err.message : err));
-    })
-    .getTopClients();
+  // Drive filtering through the unified dropdown path so buttons and dropdown stay in sync
+  syncClientsListToDropdown();
 }
 
 
