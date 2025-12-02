@@ -1,4 +1,4 @@
-<!-- Version 1.0.11 | 0386e53 -->
+<!-- Version 1.0.12 | 0386e53 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -1653,7 +1653,7 @@ input, button, select {
   }
 
   #autocompleteSuggestions {
-    font-size: 0.35rem; /* roughly 1/4 the previous size */
+    font-size: 0.7rem; /* doubled for easier reading */
     line-height: 1.35;
   }
 
@@ -2106,8 +2106,9 @@ input#clientAutocomplete, select#clientSelect {
   z-index: 1;
   max-height: none;
   overflow: visible;
+  overflow-x: auto;
   max-width: 100%;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   min-width: 0;
   background: #f7f9fc;
   border: 1px solid #e5e7eb;
@@ -2153,6 +2154,7 @@ input#clientAutocomplete, select#clientSelect {
   display: flex;
   gap: 6px;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .task-type-controls button {
@@ -2188,7 +2190,7 @@ input#clientAutocomplete, select#clientSelect {
 
 .task-type-popover {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% - 6px); /* slight overlap for steadier mouse travel */
   right: auto;
   left: 50%;
   background: #fff;
@@ -2201,7 +2203,7 @@ input#clientAutocomplete, select#clientSelect {
   gap: 4px;
   z-index: 2005;
   min-width: 132px;
-  transform: translateX(-50%);
+  transform: translate(-50%, 0);
 }
 
 .task-type-popover button {
@@ -4531,11 +4533,11 @@ function syncLabelFilterButtons() {
   });
 }
 
-function clearLabelFilter() {
+function clearLabelFilter(preserveDropdownValue) {
   if (!__activeLabelFilter) return;
   __activeLabelFilter = '';
   var dd = document.getElementById('topClientsFilterDropdown');
-  if (dd) dd.value = 'JB';
+  if (dd && !preserveDropdownValue) dd.value = 'JB';
   syncLabelFilterButtons();
 }
 
@@ -4585,10 +4587,17 @@ function renderTopClientsLabelFilters(clients) {
 }
 
 function getCurrentTopClientsFilter() {
-  if (__activeLabelFilter) {
-    return normalizeTopClientsFilter('LABEL|' + __activeLabelFilter);
-  }
   var dd = document.getElementById('topClientsFilterDropdown');
+  var selected = dd && dd.options ? dd.options[dd.selectedIndex] : null;
+  var usingLabelPlaceholder = selected && selected.dataset && selected.dataset.placeholder === 'label';
+
+  if (__activeLabelFilter) {
+    if (usingLabelPlaceholder || !dd) {
+      return normalizeTopClientsFilter('LABEL|' + __activeLabelFilter);
+    }
+    clearLabelFilter(true);
+  }
+
   var raw = dd && dd.value ? dd.value.trim() : 'JB';
   return normalizeTopClientsFilter(raw);
 }
@@ -6570,6 +6579,11 @@ function initTopClientsFilterAfterList(){
   if (!dd) return;
   if (!dd._wired) {
     dd.addEventListener('change', function(){
+      var selected = dd.options[dd.selectedIndex];
+      var isLabelPlaceholder = selected && selected.dataset && selected.dataset.placeholder === 'label';
+      if (__activeLabelFilter && !isLabelPlaceholder) {
+        clearLabelFilter(true);
+      }
       // Single source of truth: always go through syncClientsListToDropdown
       syncClientsListToDropdown();
     });
