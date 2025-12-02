@@ -1,4 +1,4 @@
-<!-- Version 1.0.8 | 1cd089d -->
+<!-- Version 1.0.9 | b481c04 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -4471,10 +4471,21 @@ const TOP_CLIENTS_BASE_FILTERS = [
 
 function getBrightLabelsFromClient(client) {
   var taskTypes = (client && client.taskTypes) || [];
-  return taskTypes
-    .filter(function (t) { return (t.brightness || 'bright') === 'bright'; })
-    .map(function (t) { return (t.label || '').trim(); })
-    .filter(function (label) { return label.length > 0; });
+  var labels = [];
+
+  taskTypes.forEach(function (t) {
+    if ((t.brightness || 'bright') !== 'bright') return;
+
+    var label = (t.label || '').trim();
+    if (!label) {
+      var fallback = TASK_TYPE_LABEL_FALLBACK[normalizeTaskColorKey(t.baseColor)];
+      if (fallback) label = fallback;
+    }
+
+    if (label) labels.push(label);
+  });
+
+  return labels;
 }
 
 function gatherBrightLabelFilters(clients) {
@@ -5049,6 +5060,18 @@ const DEFAULT_TASK_COLOR_ORDER = ['Red','Orange','Yellow','Green','Blue','Purple
     white:  { bright: '#ffffff', faded: '#f8f9fa', text: '#212529' },
     grey:   { bright: '#868e96', faded: '#dee2e6', text: '#1f2226' },
   default: { bright: '#adb5bd', faded: '#e9ecef', text: '#212529' }
+};
+
+const TASK_TYPE_LABEL_FALLBACK = {
+  red: '🗣️',
+  orange: '🎯',
+  yellow: '📞',
+  green: '🔍',
+  purple: '✉️',
+  brown: '📊',
+  pink: '🎂',
+  white: '🎓',
+  grey: '⭐'
 };
 
 var taskTypeTemplate = [];
