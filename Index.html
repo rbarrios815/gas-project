@@ -1,4 +1,4 @@
-<!-- Version 1.0.7 | 0386e53 -->
+<!-- Version 1.0.8 | 0386e53 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -4482,6 +4482,8 @@ function toggleSuggestions() {
   applySuggestionsVisibility();
 }
 
+let __topClientsCache = [];
+
 const TOP_CLIENTS_BASE_FILTERS = [
   { value: 'JB', label: 'JB' },
   { value: 'RB', label: 'RB' },
@@ -4578,6 +4580,9 @@ function applyLabelFilterSelection(label) {
     __activeLabelFilter = label;
     syncLabelFilterButtons();
     setDropdownLabelPlaceholder(label);
+    if (typeof handleTopClientsFilterChange === 'function') {
+      handleTopClientsFilterChange('LABEL|' + label);
+    }
   }
   retriggerTopClientsFilter();
 }
@@ -4587,7 +4592,11 @@ function renderTopClientsLabelFilters(clients) {
   var bar = document.getElementById('labelFilterBar');
   if (!row || !bar) return;
 
-  var labels = gatherBrightLabelFilters(clients);
+  if (Array.isArray(clients)) {
+    __topClientsCache = clients;
+  }
+
+  var labels = gatherBrightLabelFilters(clients || __topClientsCache);
   bar.innerHTML = '';
   var hasActiveLabel = __activeLabelFilter && labels.includes(__activeLabelFilter);
 
@@ -4692,6 +4701,7 @@ function fetchAndRenderTopClientsFromDropdown() {
     .withSuccessHandler(function (clients) {
       if (token !== __topClientsRenderToken) return;
 
+      __topClientsCache = Array.isArray(clients) ? clients : [];
       buildTopClientsFilterDropdown(clients);
       renderTopClientsLabelFilters(clients);
 
