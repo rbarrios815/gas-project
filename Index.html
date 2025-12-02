@@ -1,4 +1,4 @@
-<!-- Version 1.0.13 | 6cd5bdf -->
+<!-- Version 1.0.14 | 7ff4916 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -4560,17 +4560,21 @@ function renderTopClientsLabelFilters(clients) {
 
   var labels = gatherBrightLabelFilters(clients);
   bar.innerHTML = '';
+  var hasActiveLabel = __activeLabelFilter && labels.includes(__activeLabelFilter);
 
-  var availableLabels = labels.filter(function(label){ return label !== __activeLabelFilter; });
-
-  if (!availableLabels.length) {
+  if (!labels.length) {
     row.style.display = 'none';
     clearLabelFilter();
     return;
   }
 
+  // If the active label disappeared from the dataset, reset the selection but keep the buttons visible.
+  if (__activeLabelFilter && !hasActiveLabel) {
+    clearLabelFilter(true);
+  }
+
   row.style.display = 'flex';
-  availableLabels.forEach(function (label) {
+  labels.forEach(function (label) {
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'task-type-button label-filter-button';
