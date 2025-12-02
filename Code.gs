@@ -1,4 +1,4 @@
-// Version 1.0.4 | 3d6c696
+// Version 1.0.5 | 1cd089d
 
 function doGet(e) {
 
@@ -720,6 +720,7 @@ function getTopClients() {
     var followUpNote  = row[4];   // Column E
     var category      = row[5];   // Column F
     var columnLRaw    = row[11];  // Column L (In Progress)
+    var columnOTasks  = ensureTaskTypeDefaults(parseTaskTypeCell(row[14]));
     var chipInitials  = row[15] ? row[15].toString().trim() : ""; // Column P
     var chipDateRaw   = row[16];                                 // Column Q
 
@@ -752,6 +753,8 @@ function getTopClients() {
         // ✅ Expose Column L under BOTH names for the UI
         columnL: colL,
         columnLContent: colL,
+
+        taskTypes: columnOTasks,
 
         chipInitials: chipInitials,
         chipDate: chipDate
