@@ -1,4 +1,4 @@
-// Version 1.0.8 | 54e74f5
+// Version 1.0.9 | 7c131af
 
 function doGet(e) {
 
@@ -2759,8 +2759,10 @@ function sendJbChipTasksEmail() {
     });
   }
 
+  var recipients = ['8326215185@vtext.com', '2817146370@vtext.com'];
+
   MailApp.sendEmail({
-    to: '8326215185@vtext.com',
+    to: recipients.join(','),
     subject: 'JB DASHBOARD TEXT THROUGH ' + (summary.dateString || 'today') + ':',
     body: lines.join('\n')
   });
