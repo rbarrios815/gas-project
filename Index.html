@@ -1,4 +1,4 @@
-<!-- Version 1.0.11 | 295b267 -->
+<!-- Version 1.0.12 | 1b69f0b -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -2515,6 +2515,16 @@ input#clientAutocomplete, select#clientSelect {
 
 #topClientsDisplay .client-button {
   margin: 0 auto;
+}
+
+#topClientsDisplay .client-button.bday-eligible {
+  background: #2f9e44;
+  color: #fff;
+}
+
+#topClientsDisplay .client-button.bday-ineligible {
+  background: #fa5252;
+  color: #fff;
 }
 
 
@@ -8317,6 +8327,38 @@ document.getElementById('topClientsTitle').style.display = 'none';
     }).getTopClients(); // Your server-side function to fetch top clients
 }
 
+function clientHasBirthdayIndicator(client) {
+  if (!client) return false;
+
+  var initials = (client.chipInitials || client.initials || '').toUpperCase();
+  if (initials === 'BDAY') return true;
+
+  var labelsText = '';
+  if (Array.isArray(client.labels)) {
+    labelsText = client.labels
+      .map(function (l) { return (l && l.label) ? l.label : l; })
+      .join(' ');
+  }
+  if (!labelsText) {
+    labelsText = String(client.labelsText || client.labelsRaw || '');
+  }
+  if (labelsText.indexOf('🎂') !== -1 || client.hasCakeLabel) return true;
+
+  return (client.taskTypes || []).some(function (t) {
+    var brightness = (t.brightness || 'bright').toLowerCase();
+    if (brightness !== 'bright') return false;
+
+    var key = normalizeTaskColorKey(t.baseColor || t.color || '');
+    var label = (t.label || '').trim();
+    if (!label) {
+      var fallback = TASK_TYPE_LABEL_FALLBACK[key];
+      if (fallback) label = fallback;
+    }
+
+    return label.indexOf('🎂') !== -1;
+  });
+}
+
 /**********************************************
   (A) The "OLD" function (for updates/reloading)
 **********************************************/function showTopClients(clients, filterKey) {
@@ -8359,9 +8401,7 @@ document.getElementById('topClientsTitle').style.display = 'none';
       return getBrightLabelsFromClient(c).some(function (label) { return label === labelFilter; });
     }
     if (isBirthdayFilter) {
-      var hasBirthday = !!(c.birthday || c.birthdayDisplay || c.birthdayMonth);
-      var isActive = (c.birthdayActive === undefined) ? true : !!c.birthdayActive;
-      return hasBirthday && isActive;
+      return clientHasBirthdayIndicator(c);
     }
     if (OWNER_KEYS.includes(filter)) {
       var initials = (c.chipInitials || c.initials || '').toUpperCase();
@@ -8468,9 +8508,7 @@ function birthdaySortValue(client, startMonth){
       return getBrightLabelsFromClient(c).some(function (label) { return label === labelFilter; });
     }
     if (isBirthdayFilter) {
-      var hasBirthday = !!(c.birthday || c.birthdayDisplay || c.birthdayMonth);
-      var isActive = (c.birthdayActive === undefined) ? true : !!c.birthdayActive;
-      return hasBirthday && isActive;
+      return clientHasBirthdayIndicator(c);
     }
     if (OWNER_KEYS.includes(filter)) {
       var initials = (c.chipInitials || c.initials || '').toUpperCase();
@@ -10203,6 +10241,7 @@ function displayClient(client, container) {
   var isBirthdayFilter = window.__currentTopClientsFilter === 'BDAY';
   var birthdayLabel = client.birthdayDisplay || client.birthday || client.birthdayRaw || '';
   var labelParts = brightLabels.slice();
+  var hasBirthdayIndicator = clientHasBirthdayIndicator(client);
 
   if (isBirthdayFilter && birthdayLabel) {
     var cakeIdx = labelParts.indexOf('🎂');
@@ -10222,6 +10261,9 @@ function displayClient(client, container) {
   clientButton.dataset.category = clientCategory;
   clientButton.innerText = baseClientName + (clientCategory ? ' (' + clientCategory + ')' : '') + labelText;
   clientButton.style.cssText = "display:inline-flex; align-items:center;";
+  if (isBirthdayFilter) {
+    clientButton.classList.add(hasBirthdayIndicator ? 'bday-eligible' : 'bday-ineligible');
+  }
   clientButton.addEventListener('click', function () {
     var btnClient = this.getAttribute('data-client') || baseClientName || this.innerText || '';
 
