@@ -1,4 +1,4 @@
-<!-- Version 1.0.15 | ed61f03 -->
+<!-- Version 1.0.16 | 4252b9d -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -3992,6 +3992,8 @@ input#clientAutocomplete, select#clientSelect {
     <div class="row" id="topClientsControlRow">
         <div id="dateTitle" class="title-text"></div>
 
+        <button id="birthdayScopeToggleBtn" class="secondary-button" type="button" style="display:none;" onclick="toggleBirthdayScope()">SHOW ALL BIRTHDAYS</button>
+
         <!-- FILTER DROPDOWN (unchanged) -->
         <select id="topClientsFilterDropdown">
             <option value="JB">JB</option>
@@ -4013,10 +4015,6 @@ input#clientAutocomplete, select#clientSelect {
 
     <div id="labelFilterBarRow" class="task-type-bar-row label-filter-row" style="display:none;">
       <div id="labelFilterBar" class="task-type-bar" aria-label="Bright label filters"></div>
-    </div>
-
-    <div class="row" id="birthdayToggleRow" style="display:none;">
-      <button id="birthdayScopeToggleBtn" class="secondary-button" type="button" onclick="toggleBirthdayScope()">SHOW ALL BIRTHDAYS</button>
     </div>
 
     <!-- Second Row: Top Clients Title and Add New Client Button -->
@@ -8355,6 +8353,10 @@ document.getElementById('topClientsTitle').style.display = 'none';
 function clientHasBirthdayIndicator(client) {
   if (!client) return false;
 
+  if (client.birthdayActive || client.birthdayMonth || client.birthdayDay || client.birthday) {
+    return true;
+  }
+
   var initials = (client.chipInitials || client.initials || '').toUpperCase();
   if (initials === 'BDAY') return true;
 
@@ -8410,15 +8412,12 @@ function birthdayFilterAllowsClient(client, currentMonth) {
 }
 
 function updateBirthdayToggleButton() {
-  var row = document.getElementById('birthdayToggleRow');
   var btn = document.getElementById('birthdayScopeToggleBtn');
   var isBirthdayFilter = getCurrentTopClientsFilter() === 'BDAY';
 
-  if (row) {
-    row.style.display = isBirthdayFilter ? 'flex' : 'none';
-  }
+  if (!btn) return;
 
-  if (!btn || !isBirthdayFilter) return;
+  btn.style.display = isBirthdayFilter ? 'inline-flex' : 'none';
 
   btn.textContent = __showAllBirthdays
     ? "SHOW ONLY THIS MONTH'S BIRTHDAYS"
