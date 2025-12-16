@@ -1,4 +1,4 @@
-<!-- Version 1.0.13 | 608e18f -->
+<!-- Version 1.0.14 | ed61f03 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -4645,7 +4645,8 @@ function renderTopClientsLabelFilters(clients) {
     clearLabelFilter(true);
   }
 
-  row.style.display = 'flex';
+  var shouldShowBar = !!window.__suggestionsVisible;
+  row.style.display = shouldShowBar ? 'flex' : 'none';
   labels.forEach(function (label) {
     var btn = document.createElement('button');
     btn.type = 'button';
@@ -4836,15 +4837,21 @@ function scheduleSuggestionTextareaFit(textarea) {
 
 
 function applySuggestionsVisibility() {
+  var visible = !!window.__suggestionsVisible;
   var blocks = document.querySelectorAll('.toplist-suggestion');
   blocks.forEach(function(b) {
-    var visible = !!window.__suggestionsVisible;
     b.style.display = visible ? 'flex' : 'none';
     if (visible) {
       var ta = b.querySelector('textarea');
       if (ta) scheduleSuggestionTextareaFit(ta);
     }
   });
+
+  var labelRow = document.getElementById('labelFilterBarRow');
+  if (labelRow) {
+    var hasButtons = labelRow.querySelectorAll('.label-filter-button').length > 0;
+    labelRow.style.display = (visible && hasButtons) ? 'flex' : 'none';
+  }
 
   // after visibility flips, re-enforce the single-left-bulb layout
   sanitizeSuggestionBulbs();
