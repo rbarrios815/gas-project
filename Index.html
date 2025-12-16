@@ -1,4 +1,4 @@
-<!-- Version 1.0.12 | 1b69f0b -->
+<!-- Version 1.0.13 | 608e18f -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -2068,6 +2068,18 @@ button:active {
   transition: padding .2s ease, max-height .2s ease, border-width .2s ease;
 }
 
+.client-container.hide-recents .task-type-bar-row {
+  transform: translateY(-120%);
+  opacity: 0;
+  max-height: 0;
+  margin: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-width: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
 
 body {
     margin-top: 0; /* Adjust the value to match the height of the fixed header */
@@ -2102,6 +2114,7 @@ input#clientAutocomplete, select#clientSelect {
   gap: 8px;
   margin: 10px 0 8px;
   padding: 6px 10px;
+  transition: transform .2s ease, opacity .2s ease, max-height .2s ease, margin .2s ease, padding .2s ease;
   position: relative;
   z-index: 1;
   max-height: none;
