@@ -1,4 +1,4 @@
-<!-- Version 1.0.14 | ed61f03 -->
+<!-- Version 1.0.15 | ed61f03 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -4015,6 +4015,10 @@ input#clientAutocomplete, select#clientSelect {
       <div id="labelFilterBar" class="task-type-bar" aria-label="Bright label filters"></div>
     </div>
 
+    <div class="row" id="birthdayToggleRow" style="display:none;">
+      <button id="birthdayScopeToggleBtn" class="secondary-button" type="button" onclick="toggleBirthdayScope()">SHOW ALL BIRTHDAYS</button>
+    </div>
+
     <!-- Second Row: Top Clients Title and Add New Client Button -->
     <div class="row" id="topClientsAddNewRow">
         <div id="topClientsTitle" class="title-text"></div>
@@ -4878,6 +4882,7 @@ function syncClientsListToDropdown(){
   })();
 
   fitTopClientsHeaderControls();
+  updateBirthdayToggleButton();
 
 // Drive the render using a single, token-protected fetch
 fetchAndRenderTopClientsFromDropdown();
@@ -8379,6 +8384,53 @@ function clientHasBirthdayIndicator(client) {
   });
 }
 
+var __showAllBirthdays = false;
+
+function getClientBirthdayMonth(client) {
+  if (!client) return null;
+
+  var month = Number(client.birthdayMonth || client.month);
+  if (!Number.isNaN(month) && month > 0) return month;
+
+  var raw = client.birthday || client.birthdayRaw || client.birthdayDisplay || '';
+  var match = String(raw).match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
+  if (match) {
+    return parseInt(match[1], 10);
+  }
+
+  return null;
+}
+
+function birthdayFilterAllowsClient(client, currentMonth) {
+  if (!clientHasBirthdayIndicator(client)) return false;
+  if (__showAllBirthdays) return true;
+
+  var month = getClientBirthdayMonth(client);
+  return month === currentMonth;
+}
+
+function updateBirthdayToggleButton() {
+  var row = document.getElementById('birthdayToggleRow');
+  var btn = document.getElementById('birthdayScopeToggleBtn');
+  var isBirthdayFilter = getCurrentTopClientsFilter() === 'BDAY';
+
+  if (row) {
+    row.style.display = isBirthdayFilter ? 'flex' : 'none';
+  }
+
+  if (!btn || !isBirthdayFilter) return;
+
+  btn.textContent = __showAllBirthdays
+    ? "SHOW ONLY THIS MONTH'S BIRTHDAYS"
+    : 'SHOW ALL BIRTHDAYS';
+}
+
+function toggleBirthdayScope() {
+  __showAllBirthdays = !__showAllBirthdays;
+  updateBirthdayToggleButton();
+  retriggerTopClientsFilter();
+}
+
 /**********************************************
   (A) The "OLD" function (for updates/reloading)
 **********************************************/function showTopClients(clients, filterKey) {
@@ -8415,13 +8467,14 @@ function clientHasBirthdayIndicator(client) {
   // OWNER filters (JB/RB/QC/TEAM)
   var OWNER_KEYS = ['JB','RB','QC','TEAM','BDAY'];
   var isBirthdayFilter = filter === 'BDAY';
+  var currentMonth = new Date().getMonth() + 1;
 
   var filtered = clients.filter(function(c){
     if (labelFilter) {
       return getBrightLabelsFromClient(c).some(function (label) { return label === labelFilter; });
     }
     if (isBirthdayFilter) {
-      return clientHasBirthdayIndicator(c);
+      return birthdayFilterAllowsClient(c, currentMonth);
     }
     if (OWNER_KEYS.includes(filter)) {
       var initials = (c.chipInitials || c.initials || '').toUpperCase();
@@ -8432,7 +8485,7 @@ function clientHasBirthdayIndicator(client) {
     return emoji ? hasEmojiLabel(c, emoji) : true;
   });
 
-  var startMonthForBirthdays = ((new Date().getMonth() + 11) % 12) + 1;
+  var startMonthForBirthdays = currentMonth;
 
   // Sort: for birthdays use DOB cadence, otherwise chipDate (valid earliest first), blanks LAST; then name
   filtered.sort(function(a, b){
@@ -8516,6 +8569,7 @@ function birthdaySortValue(client, startMonth){
   var OWNER_KEYS = ['JB','RB','QC','TEAM','BDAY'];
   var emojiMap = { BRIEFCASE:'💼', STAR:'⭐', GRADCAP:'🎓', PHONE:'📞' };
   var isBirthdayFilter = filter === 'BDAY';
+  var currentMonth = new Date().getMonth() + 1;
 
   function hasEmojiLabel(c, emoji) {
     if (!emoji) return false;
@@ -8528,7 +8582,7 @@ function birthdaySortValue(client, startMonth){
       return getBrightLabelsFromClient(c).some(function (label) { return label === labelFilter; });
     }
     if (isBirthdayFilter) {
-      return clientHasBirthdayIndicator(c);
+      return birthdayFilterAllowsClient(c, currentMonth);
     }
     if (OWNER_KEYS.includes(filter)) {
       var initials = (c.chipInitials || c.initials || '').toUpperCase();
@@ -8538,7 +8592,7 @@ function birthdaySortValue(client, startMonth){
     return emoji ? hasEmojiLabel(c, emoji) : true;
   });
 
-  var startMonthForBirthdays = ((new Date().getMonth() + 11) % 12) + 1;
+  var startMonthForBirthdays = currentMonth;
 
   // 4) Sort: chipDate ascending (or DOB cadence for birthday filter); blanks/invalids LAST; then name
   filtered.sort(function(a, b){
@@ -10679,6 +10733,13 @@ function handleTopClientsFilterChange(selectedFilter) {
   var titleEl = document.getElementById('topClientsTitle');
   var val = normalizeTopClientsFilter(selectedFilter);
   var labelFilter = val.startsWith('LABEL|') ? val.slice(6) : '';
+  var previousFilter = window.__currentTopClientsFilter;
+  window.__currentTopClientsFilter = val;
+
+  if (val !== 'BDAY' || previousFilter !== 'BDAY') {
+    __showAllBirthdays = false;
+  }
+  updateBirthdayToggleButton();
 
   if (labelFilter) {
     __activeLabelFilter = labelFilter;
