@@ -747,6 +747,7 @@ function getTopClients() {
     var columnD       = row[3];   // Day-of-week (Mon/Tues/etc) or a date
     var followUpNote  = row[4];   // Column E
     var category      = row[5];   // Column F
+    var columnGLabels = row[6] ? row[6].toString() : ""; // Column G (labels with emojis)
     var columnLRaw    = row[11];  // Column L (In Progress)
     var chipInitials  = row[15] ? row[15].toString().trim() : ""; // Column P
     var chipDateRaw   = row[16];                                 // Column Q
@@ -782,7 +783,10 @@ function getTopClients() {
         columnLContent: colL,
 
         chipInitials: chipInitials,
-        chipDate: chipDate
+        chipDate: chipDate,
+
+        labelsText: columnGLabels,
+        hasCakeLabel: columnGLabels.indexOf('🎂') !== -1
       };
       if (followUpNote) clientMap[key].followUps.push(followUpNote);
       if (pastWorkNote) clientMap[key].pastWorks.push(pastWorkNote);
@@ -803,6 +807,9 @@ function getTopClients() {
       // Keep columnB/columnD if empty previously
       if (!clientMap[key].columnB && columnB) clientMap[key].columnB = columnB;
       if (!clientMap[key].columnD && columnD) clientMap[key].columnD = columnD;
+
+      if (!clientMap[key].labelsText && columnGLabels) clientMap[key].labelsText = columnGLabels;
+      if (columnGLabels && columnGLabels.indexOf('🎂') !== -1) clientMap[key].hasCakeLabel = true;
     }
   });
 

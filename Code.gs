@@ -1,4 +1,4 @@
-// Version 1.0.9 | 7c131af
+// Version 1.0.10 | 1b69f0b
 
 function doGet(e) {
 
@@ -729,6 +729,7 @@ function getTopClients() {
     var columnD       = row[3];   // Day-of-week (Mon/Tues/etc) or a date
     var followUpNote  = row[4];   // Column E
     var category      = row[5];   // Column F
+    var columnGLabels = row[6] ? row[6].toString() : ""; // Column G (labels with emojis)
     var birthdayRaw   = row[13];  // Column N (birthday)
     var columnLRaw    = row[11];  // Column L (In Progress)
     var columnOTasks  = ensureTaskTypeDefaults(parseTaskTypeCell(row[14]));
@@ -790,6 +791,9 @@ function getTopClients() {
 
         taskTypes: columnOTasks,
 
+        labelsText: columnGLabels,
+        hasCakeLabel: columnGLabels.indexOf('🎂') !== -1,
+
         chipInitials: chipInitials,
         chipDate: chipDate,
 
@@ -823,6 +827,9 @@ function getTopClients() {
       if (!clientMap[key].birthdayMonth && birthdayMonth) clientMap[key].birthdayMonth = birthdayMonth;
       if (!clientMap[key].birthdayDay && birthdayDay) clientMap[key].birthdayDay = birthdayDay;
       if (birthdayActive) clientMap[key].birthdayActive = true;
+
+      if (!clientMap[key].labelsText && columnGLabels) clientMap[key].labelsText = columnGLabels;
+      if (columnGLabels && columnGLabels.indexOf('🎂') !== -1) clientMap[key].hasCakeLabel = true;
     }
   });
 
