@@ -1,4 +1,4 @@
-// Version 1.0.12 | 8d777af
+// Version 1.0.13 | 850b6b7
 
 function doGet(e) {
 
@@ -2767,9 +2767,7 @@ function sendJbChipTasksEmail() {
 
       function labelForIndex(idx) {
         var rankFromLatest = total - idx;
-        if (rankFromLatest === 1) return 'LATEST';
-        if (rankFromLatest === 2) return '2ND LATEST';
-        if (rankFromLatest === 3) return '3RD LATEST';
+        if (rankFromLatest <= 3) return '';
         return rankFromLatest + 'TH LATEST';
       }
 
