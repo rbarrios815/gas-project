@@ -1,4 +1,4 @@
-// Version 1.0.10 | 1b69f0b
+// Version 1.0.11 | 86d1c85
 
 function doGet(e) {
 
@@ -2626,9 +2626,14 @@ function formatDateTaskLine_(line, tz) {
   return remainder ? (formattedDate + ': ' + remainder) : formattedDate;
 }
 
-function extractHighlightedLines_(lines, tz, cutoffDate) {
+// Limit JB MMS payload size by capping highlighted notes per client and using MMS gateways.
+const MAX_JB_HIGHLIGHTS_PER_CLIENT = 1;
+const JB_CHIP_RECIPIENTS = ['8326215185@vzwpix.com', '2817146370@vzwpix.com'];
+
+function extractHighlightedLines_(lines, tz, cutoffDate, maxLines) {
   var withDates = [];
   var withoutDates = [];
+  var limit = (typeof maxLines === 'number' && maxLines > 0) ? Math.floor(maxLines) : null;
 
   (lines || []).forEach(function(item) {
     var isHighlighted = true;
@@ -2653,8 +2658,10 @@ function extractHighlightedLines_(lines, tz, cutoffDate) {
   });
 
   withDates.sort(function(a, b) { return a.date - b.date; });
-  return withDates.map(function(item) { return item.text; })
+  var combined = withDates.map(function(item) { return item.text; })
     .concat(withoutDates.map(function(item) { return item.text; }));
+
+  return limit ? combined.slice(0, limit) : combined;
 }
 
 function normalizeChipDate_(value) {
@@ -2727,7 +2734,7 @@ function collectJbChipClients_(targetDate) {
     var entry = clients[name];
     return {
       name: entry.name,
-      highlights: extractHighlightedLines_(entry.pastWorks, tz, targetDay)
+      highlights: extractHighlightedLines_(entry.pastWorks, tz, targetDay, MAX_JB_HIGHLIGHTS_PER_CLIENT)
     };
   });
 
@@ -2766,10 +2773,8 @@ function sendJbChipTasksEmail() {
     });
   }
 
-  var recipients = ['8326215185@vtext.com', '2817146370@vtext.com'];
-
   MailApp.sendEmail({
-    to: recipients.join(','),
+    to: JB_CHIP_RECIPIENTS.join(','),
     subject: 'JB DASHBOARD TEXT THROUGH ' + (summary.dateString || 'today') + ':',
     body: lines.join('\n')
   });
