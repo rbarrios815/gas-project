@@ -2795,7 +2795,7 @@ function sendJbChipTasksEmail() {
 
   MailApp.sendEmail({
     to: JB_CHIP_RECIPIENTS.join(','),
-    subject: 'DASHBOARD TASKS THROUGH TODAY (' + (summary.dateString || 'today') + '):',
+    subject: 'DASHBOARD CLIENT TASKS FOR TODAY (' + (summary.dateString || 'today') + '):',
     body: lines.join('\n')
   });
 
