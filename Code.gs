@@ -1,4 +1,4 @@
-// Version 1.0.11 | 86d1c85
+// Version 1.0.12 | 8d777af
 
 function doGet(e) {
 
@@ -2627,7 +2627,7 @@ function formatDateTaskLine_(line, tz) {
 }
 
 // Limit JB MMS payload size by capping highlighted notes per client and using MMS gateways.
-const MAX_JB_HIGHLIGHTS_PER_CLIENT = 1;
+const MAX_JB_HIGHLIGHTS_PER_CLIENT = 3;
 const JB_CHIP_RECIPIENTS = ['8326215185@vzwpix.com', '2817146370@vzwpix.com'];
 
 function extractHighlightedLines_(lines, tz, cutoffDate, maxLines) {
@@ -2649,19 +2649,28 @@ function extractHighlightedLines_(lines, tz, cutoffDate, maxLines) {
     if (!isHighlighted || !text) return;
 
     var dt = parseDateFromLine_(text);
-    if (dt) {
-      if (cutoffDate && dt.getTime() > cutoffDate.getTime()) return;
-      withDates.push({ date: dt, text: formatDateTaskLine_(text, tz) });
-    } else {
-      withoutDates.push({ text: text });
+    if (dt && (!cutoffDate || dt.getTime() <= cutoffDate.getTime())) {
+      withDates.push({ date: dt, formatted: formatDateTaskLine_(text, tz) });
+      return;
     }
+
+    withoutDates.push({ date: null, formatted: text });
   });
 
-  withDates.sort(function(a, b) { return a.date - b.date; });
-  var combined = withDates.map(function(item) { return item.text; })
-    .concat(withoutDates.map(function(item) { return item.text; }));
+  // Sort with dates descending (latest first).
+  withDates.sort(function(a, b) { return b.date - a.date; });
 
-  return limit ? combined.slice(0, limit) : combined;
+  var combined = [];
+  if (limit !== null) {
+    var datedPortion = withDates.slice(0, limit);
+    var remainingSlots = limit - datedPortion.length;
+    var undatedPortion = remainingSlots > 0 ? withoutDates.slice(0, remainingSlots) : [];
+    combined = datedPortion.concat(undatedPortion);
+  } else {
+    combined = withDates.concat(withoutDates);
+  }
+
+  return combined;
 }
 
 function normalizeChipDate_(value) {
@@ -2753,6 +2762,17 @@ function sendJbChipTasksEmail() {
     lines.push('No clients matched the JB chip for ' + (summary.dateString || 'today') + '.');
   } else {
     summary.clients.forEach(function(client) {
+      var orderedHighlights = (client.highlights || []).slice().reverse(); // oldest of the selected first
+      var total = orderedHighlights.length;
+
+      function labelForIndex(idx) {
+        var rankFromLatest = total - idx;
+        if (rankFromLatest === 1) return 'LATEST';
+        if (rankFromLatest === 2) return '2ND LATEST';
+        if (rankFromLatest === 3) return '3RD LATEST';
+        return rankFromLatest + 'TH LATEST';
+      }
+
       // Client name
       lines.push(client.name);
 
@@ -2760,11 +2780,13 @@ function sendJbChipTasksEmail() {
       lines.push('');
 
       // Indented tasks (5 spaces)
-      if (client.highlights.length === 0) {
+      if (total === 0) {
         lines.push('     No highlighted tasks available');
       } else {
-        client.highlights.forEach(function(line) {
-          lines.push('     ' + line);
+        orderedHighlights.forEach(function(item, idx) {
+          var label = labelForIndex(idx);
+          var prefix = label ? (label + ': ') : '';
+          lines.push('     ' + prefix + item.formatted);
         });
       }
 
@@ -2775,7 +2797,7 @@ function sendJbChipTasksEmail() {
 
   MailApp.sendEmail({
     to: JB_CHIP_RECIPIENTS.join(','),
-    subject: 'JB DASHBOARD TEXT THROUGH ' + (summary.dateString || 'today') + ':',
+    subject: 'DASHBOARD TASKS THROUGH TODAY (' + (summary.dateString || 'today') + '):',
     body: lines.join('\n')
   });
 
