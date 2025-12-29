@@ -21,19 +21,17 @@ jobs:
       - name: Install clasp
         run: npm i -g @google/clasp
 
-      - name: Restore ~/.clasprc.json from secret (with diagnostics)
+      - name: Restore ~/.clasprc.json from secret (diagnose)
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "$HOME"
-
-          # Write decoded file
           printf '%s' "$CLASPRC_JSON_B64" | base64 --decode > "$HOME/.clasprc.json"
-
+      
           echo "B64 length: ${#CLASPRC_JSON_B64}"
           echo "Decoded bytes: $(wc -c < "$HOME/.clasprc.json")"
-          echo "First 1 char: $(head -c 1 "$HOME/.clasprc.json" | od -An -t x1)"
-          echo "Last 1 char:  $(tail -c 1 "$HOME/.clasprc.json" | od -An -t x1)"
+          echo "First char (hex): $(head -c 1 "$HOME/.clasprc.json" | od -An -t x1)"
+          echo "Last char  (hex): $(tail -c 1 "$HOME/.clasprc.json" | od -An -t x1)"
         env:
           CLASPRC_JSON_B64: ${{ secrets.CLASPRC_JSON_B64 }}
 
