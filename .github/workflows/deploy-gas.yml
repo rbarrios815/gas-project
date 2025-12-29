@@ -1,4 +1,4 @@
-name: Deploy to Google Apps Script (clasp) Guard: prevent duplicate GAS file titles
+name: Deploy to Google Apps Script (clasp)
 
 on:
   push:
@@ -26,49 +26,41 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          dups=$(python - <<'PY'
-          import glob, os, collections
-          files = glob.glob("*.gs") + glob.glob("*.js")
-          base = [os.path.splitext(os.path.basename(f))[0] for f in files]
-          c = collections.Counter(base)
-          bad = [k for k,v in c.items() if v > 1]
-          print("\n".join(bad))
-          PY
+          dups=$(python3 - <<'PY'
+import glob, os, collections
+files = glob.glob("*.gs") + glob.glob("*.js")
+base = [os.path.splitext(os.path.basename(f))[0] for f in files]
+c = collections.Counter(base)
+bad = [k for k,v in c.items() if v > 1]
+print("\n".join(bad))
+PY
           )
           if [ -n "$dups" ]; then
-            echo "❌ Duplicate GAS titles found (same basename across files):"
+            echo "Duplicate GAS titles found (same basename across files):"
             echo "$dups"
-            echo "Fix by keeping only ONE of .gs or .js per basename."
             exit 1
           fi
-          echo "✅ No duplicate GAS filenames detected"
 
-      - name: Restore ~/.clasprc.json from secret (diagnose)
+      - name: Restore ~/.clasprc.json from secret
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "$HOME"
           printf '%s' "$CLASPRC_JSON_B64" | base64 --decode > "$HOME/.clasprc.json"
-      
-          echo "B64 length: ${#CLASPRC_JSON_B64}"
-          echo "Decoded bytes: $(wc -c < "$HOME/.clasprc.json")"
-          echo "First char (hex): $(head -c 1 "$HOME/.clasprc.json" | od -An -t x1)"
-          echo "Last char  (hex): $(tail -c 1 "$HOME/.clasprc.json" | od -An -t x1)"
         env:
           CLASPRC_JSON_B64: ${{ secrets.CLASPRC_JSON_B64 }}
 
       - name: Validate clasp credential JSON (no secrets printed)
+        shell: bash
         run: |
           node -e "JSON.parse(require('fs').readFileSync(process.env.HOME + '/.clasprc.json','utf8')); console.log('OK: ~/.clasprc.json is valid JSON');"
 
       - name: Validate project JSON files
+        shell: bash
         run: |
           test -f .clasp.json
           node -e "JSON.parse(require('fs').readFileSync('.clasp.json','utf8')); console.log('OK: .clasp.json is valid JSON');"
-          if [ -f appsscript.json ]; then
-            node -e "JSON.parse(require('fs').readFileSync('appsscript.json','utf8')); console.log('OK: appsscript.json is valid JSON');"
-          fi
+          if [ -f appsscript.json ]; then node -e "JSON.parse(require('fs').readFileSync('appsscript.json','utf8')); console.log('OK: appsscript.json is valid JSON');"; fi
 
-      # 🚀 ONLY RUNS IF ALL VALIDATIONS + GUARD PASS
       - name: Push repo to Apps Script
         run: clasp push -f
