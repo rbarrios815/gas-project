@@ -1,4 +1,4 @@
-name: Deploy to Google Apps Script (clasp)
+name: Deploy to Google Apps Script (clasp) Guard: prevent duplicate GAS file titles
 
 on:
   push:
