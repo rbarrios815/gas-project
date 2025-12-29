@@ -3,7 +3,7 @@ name: Deploy to Google Apps Script (clasp)
 on:
   push:
     branches:
-      - main        # whenever anything is merged/pushed to main, this runs
+      - main   # whenever anything is merged/pushed to main, this runs
 
 jobs:
   deploy:
@@ -20,6 +20,28 @@ jobs:
 
       - name: Install clasp
         run: npm i -g @google/clasp
+
+      # 🔒 GUARD: prevent duplicate GAS file titles (.gs + .js with same basename)
+      - name: Guard: prevent duplicate GAS file titles
+        shell: bash
+        run: |
+          set -euo pipefail
+          dups=$(python - <<'PY'
+          import glob, os, collections
+          files = glob.glob("*.gs") + glob.glob("*.js")
+          base = [os.path.splitext(os.path.basename(f))[0] for f in files]
+          c = collections.Counter(base)
+          bad = [k for k,v in c.items() if v > 1]
+          print("\n".join(bad))
+          PY
+          )
+          if [ -n "$dups" ]; then
+            echo "❌ Duplicate GAS titles found (same basename across files):"
+            echo "$dups"
+            echo "Fix by keeping only ONE of .gs or .js per basename."
+            exit 1
+          fi
+          echo "✅ No duplicate GAS filenames detected"
 
       - name: Restore ~/.clasprc.json from secret (diagnose)
         shell: bash
@@ -43,9 +65,10 @@ jobs:
         run: |
           test -f .clasp.json
           node -e "JSON.parse(require('fs').readFileSync('.clasp.json','utf8')); console.log('OK: .clasp.json is valid JSON');"
-          if [ -f appsscript.json ]; then node -e "JSON.parse(require('fs').readFileSync('appsscript.json','utf8')); console.log('OK: appsscript.json is valid JSON');"; fi
+          if [ -f appsscript.json ]; then
+            node -e "JSON.parse(require('fs').readFileSync('appsscript.json','utf8')); console.log('OK: appsscript.json is valid JSON');"
+          fi
 
-
-
+      # 🚀 ONLY RUNS IF ALL VALIDATIONS + GUARD PASS
       - name: Push repo to Apps Script
         run: clasp push -f
