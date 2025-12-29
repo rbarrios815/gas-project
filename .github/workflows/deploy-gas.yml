@@ -21,12 +21,22 @@ jobs:
       - name: Install clasp
         run: npm i -g @google/clasp
 
-      - name: Restore ~/.clasprc.json from secret
+      - name: Restore ~/.clasprc.json from secret (with diagnostics)
+        shell: bash
         run: |
-          mkdir -p "${HOME}"
-          echo "${CLASPRC_JSON_B64}" | base64 --decode > "${HOME}/.clasprc.json"
+          set -euo pipefail
+          mkdir -p "$HOME"
+
+          # Write decoded file
+          printf '%s' "$CLASPRC_JSON_B64" | base64 --decode > "$HOME/.clasprc.json"
+
+          echo "B64 length: ${#CLASPRC_JSON_B64}"
+          echo "Decoded bytes: $(wc -c < "$HOME/.clasprc.json")"
+          echo "First 1 char: $(head -c 1 "$HOME/.clasprc.json" | od -An -t x1)"
+          echo "Last 1 char:  $(tail -c 1 "$HOME/.clasprc.json" | od -An -t x1)"
         env:
           CLASPRC_JSON_B64: ${{ secrets.CLASPRC_JSON_B64 }}
+
       - name: Validate clasp credential JSON (no secrets printed)
         run: |
           node -e "JSON.parse(require('fs').readFileSync(process.env.HOME + '/.clasprc.json','utf8')); console.log('OK: ~/.clasprc.json is valid JSON');"
