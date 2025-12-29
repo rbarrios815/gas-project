@@ -3,7 +3,7 @@ name: Deploy to Google Apps Script (clasp)
 on:
   push:
     branches:
-      - main   # whenever anything is merged/pushed to main, this runs
+      - main
 
 jobs:
   deploy:
@@ -21,20 +21,10 @@ jobs:
       - name: Install clasp
         run: npm i -g @google/clasp
 
-      # 🔒 GUARD: prevent duplicate GAS file titles (.gs + .js with same basename)
       - name: Guard: prevent duplicate GAS file titles
-        shell: bash
         run: |
           set -euo pipefail
-          dups=$(python3 - <<'PY'
-          import glob, os, collections
-          files = glob.glob("*.gs") + glob.glob("*.js")
-          base = [os.path.splitext(os.path.basename(f))[0] for f in files]
-          c = collections.Counter(base)
-          bad = [k for k,v in c.items() if v > 1]
-          print("\n".join(bad))
-          PY
-          )
+          dups="$(python3 -c "import glob,os,collections; files=glob.glob('*.gs')+glob.glob('*.js'); base=[os.path.splitext(os.path.basename(f))[0] for f in files]; c=collections.Counter(base); bad=[k for k,v in c.items() if v>1]; print('\n'.join(bad))")"
           if [ -n "$dups" ]; then
             echo "Duplicate GAS titles found (same basename across files):"
             echo "$dups"
@@ -42,7 +32,6 @@ jobs:
           fi
 
       - name: Restore ~/.clasprc.json from secret
-        shell: bash
         env:
           CLASPRC_JSON_B64: ${{ secrets.CLASPRC_JSON_B64 }}
         run: |
@@ -51,13 +40,11 @@ jobs:
           printf '%s' "$CLASPRC_JSON_B64" | base64 --decode > "$HOME/.clasprc.json"
 
       - name: Validate clasp credential JSON (no secrets printed)
-        shell: bash
         run: |
           set -euo pipefail
           node -e "JSON.parse(require('fs').readFileSync(process.env.HOME + '/.clasprc.json','utf8')); console.log('OK: ~/.clasprc.json is valid JSON');"
 
       - name: Validate project JSON files
-        shell: bash
         run: |
           set -euo pipefail
           test -f .clasp.json
@@ -67,7 +54,6 @@ jobs:
           fi
 
       - name: Push repo to Apps Script
-        shell: bash
         run: |
           set -euo pipefail
           clasp push -f
