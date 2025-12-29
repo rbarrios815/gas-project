@@ -1,10 +1,14 @@
+// Version 1.0.13 | 850b6b7
+
 function doGet(e) {
+
   var userEmail = Session.getActiveUser().getEmail(); // Ensure it gets the active user
   Logger.log("Detected User Email: " + userEmail); // Debugging - logs detected email
 
-  var allowedUsers = ['jbgreatfamily1@gmail.com', 'rbarrios815@gmail.com', 'domlozano7@gmail.com', 'rbarrio1nd@gmail.com', 'rbarrio1@alumni.nd.edu','barriosgreatfamily1@gmail.com']; 
+  var allowedUsers = ['jbgreatfamily1@gmail.com', 'rbarrios815@gmail.com', 'domlozano7@gmail.com', 'rbarrio1nd@gmail.com', 'rbarrio1@alumni.nd.edu','barriosgreatfamily1@gmail.com'];
 
   if (allowedUsers.includes(userEmail)) {
+    ensureJbChipDailyTrigger();
     return HtmlService.createHtmlOutputFromFile('Index');
   } else {
     return HtmlService.createHtmlOutput("Sorry, you do not have access to this app.<br>Your detected email: " + userEmail);
@@ -75,6 +79,133 @@ function getClientNamesAndCategories() {
 }
 
 
+const BASE_TASK_COLORS = ['Red', 'Orange', 'Yellow', 'Green', 'Blue', 'Purple', 'Violet', 'Brown', 'Pink', 'Black', 'Black (White Font)', 'White', 'Grey'];
+const DEFAULT_TASK_TYPE_TEXT = [
+  'Faded Red: 🗣️',
+  'Faded Orange: 🎯',
+  'Faded Yellow: 📞',
+  'Faded Green: 🔍',
+  'Faded Blue: 💼',
+  'Faded Purple: ✉️',
+  'Bright Violet:',
+  'Faded Brown: 📊',
+  'Faded Pink: 🎂',
+  'Bright Black (White Font):',
+  'Faded White: 🎓',
+  'Faded Grey: ✍️'
+].join('\n');
+
+function normalizeTaskBaseColor(name) {
+  var key = (name || '').toString().trim().toLowerCase().replace(/[^a-z]/g, '');
+  if (key === 'blackwhitefont') return 'black';
+  return key;
+}
+
+function stripBrightnessPrefix(colorText) {
+  var match = String(colorText || '').match(/^(Bright|Faded)\s+(.*)$/i);
+  if (match) {
+    return { baseColor: match[2].trim(), brightness: match[1].toLowerCase() === 'faded' ? 'faded' : 'bright' };
+  }
+  return { baseColor: String(colorText || '').trim(), brightness: 'bright' };
+}
+
+function ensureTaskTypeDefaults(taskTypes) {
+  var map = {};
+
+  var uniqueBaseColors = [];
+  var seenBaseKeys = {};
+  BASE_TASK_COLORS.forEach(function (color) {
+    var key = normalizeTaskBaseColor(color);
+    if (seenBaseKeys[key]) return;
+    seenBaseKeys[key] = true;
+    // Prevent duplicate entries when different labels normalize to the same base color (e.g., Black variants)
+    uniqueBaseColors.push({ color: color, key: key });
+  });
+
+  (taskTypes || []).forEach(function (t) {
+    var parsed = stripBrightnessPrefix(t.baseColor || t.color || '');
+    var key = normalizeTaskBaseColor(parsed.baseColor);
+    if (!key) return;
+    if (!seenBaseKeys[key]) return;
+    map[key] = {
+      baseColor: parsed.baseColor,
+      brightness: (t.brightness === 'faded') ? 'faded' : 'bright',
+      label: t.label || ''
+    };
+  });
+
+  var ordered = [];
+  uniqueBaseColors.forEach(function (entry) {
+    var key = entry.key;
+    if (map[key]) {
+      ordered.push(map[key]);
+    } else {
+      ordered.push({ baseColor: entry.color, brightness: 'bright', label: '' });
+    }
+  });
+
+  return ordered;
+}
+
+function parseTaskTypeCell(cellValue) {
+  var text = (cellValue == null || cellValue === '') ? DEFAULT_TASK_TYPE_TEXT : String(cellValue);
+  var lines = text.split(/\r?\n/);
+  var parsed = lines.map(function (line) {
+    var parts = line.split(':');
+    var colorPart = parts[0] || '';
+    var labelPart = parts.slice(1).join(':');
+    var parsedColor = stripBrightnessPrefix(colorPart);
+    return {
+      baseColor: parsedColor.baseColor,
+      brightness: parsedColor.brightness,
+      label: (labelPart || '').trim()
+    };
+  });
+  return ensureTaskTypeDefaults(parsed);
+}
+
+function formatTaskTypeCell(taskTypes) {
+  return ensureTaskTypeDefaults(taskTypes).map(function (t) {
+    var prefix = (t.brightness === 'faded') ? 'Faded' : 'Bright';
+    var label = t.label ? ' ' + t.label : '';
+    return prefix + ' ' + t.baseColor + ':' + label;
+  }).join('\n');
+}
+
+function toTemplateOnly(taskTypes) {
+  return ensureTaskTypeDefaults(taskTypes).map(function (t) {
+    return { baseColor: t.baseColor, label: t.label || '' };
+  });
+}
+
+function mergeTemplateWithClientBrightness(template, clientTaskTypes) {
+  var brightnessMap = {};
+  (clientTaskTypes || []).forEach(function (t) {
+    brightnessMap[normalizeTaskBaseColor(t.baseColor)] = (t.brightness === 'faded') ? 'faded' : 'bright';
+  });
+
+  return ensureTaskTypeDefaults(template).map(function (t) {
+    var key = normalizeTaskBaseColor(t.baseColor);
+    return {
+      baseColor: t.baseColor,
+      label: t.label || '',
+      brightness: brightnessMap[key] || 'bright'
+    };
+  });
+}
+
+function getTaskTypeTemplateForSheet(sheet) {
+  var lastRow = sheet.getLastRow();
+  var values = sheet.getRange(1, 15, Math.max(lastRow, 1), 1).getValues();
+  for (var i = 0; i < values.length; i++) {
+    var raw = values[i][0];
+    if (raw !== '' && raw != null) {
+      return toTemplateOnly(parseTaskTypeCell(raw));
+    }
+  }
+  return toTemplateOnly(parseTaskTypeCell(DEFAULT_TASK_TYPE_TEXT));
+}
+
 
 
 ////////////////////////////////////////////////////////
@@ -88,6 +219,9 @@ function getClientDetails(clientName) {
   var columnB = "";
   var columnD = "";
   var columnLValue = "";
+  var columnOTaskTypes = [];
+  var sharedTaskTemplate = getTaskTypeTemplateForSheet(sheet);
+  var defaultTaskTemplate = sharedTaskTemplate.length ? sharedTaskTemplate : parseTaskTypeCell(DEFAULT_TASK_TYPE_TEXT);
 
   // NEW: chip fields (P/Q)
   var chipInitials = ""; // Column P (index 15)
@@ -107,6 +241,7 @@ function getClientDetails(clientName) {
         columnB = row[1];
         columnD = row[3];
         columnLValue = row[11];
+        columnOTaskTypes = parseTaskTypeCell(row[14]);
 
         // Capture P/Q (may be blank)
         chipInitials = row[15] ? row[15].toString().trim() : "";
@@ -167,6 +302,8 @@ if (clientLabels.length === 0) {
     columnB: columnB,
     columnD: columnD,
     columnL: columnLValue,
+    taskTypes: ensureTaskTypeDefaults(columnOTaskTypes.length ? columnOTaskTypes : defaultTaskTemplate),
+    taskTypeTemplate: toTemplateOnly(columnOTaskTypes.length ? columnOTaskTypes : defaultTaskTemplate),
     chipInitials: chipInitials, // Column P
     chipDate: chipDate          // Column Q -> "MM/dd/yy" or ""
   };
@@ -592,7 +729,10 @@ function getTopClients() {
     var columnD       = row[3];   // Day-of-week (Mon/Tues/etc) or a date
     var followUpNote  = row[4];   // Column E
     var category      = row[5];   // Column F
+    var columnGLabels = row[6] ? row[6].toString() : ""; // Column G (labels with emojis)
+    var birthdayRaw   = row[13];  // Column N (birthday)
     var columnLRaw    = row[11];  // Column L (In Progress)
+    var columnOTasks  = ensureTaskTypeDefaults(parseTaskTypeCell(row[14]));
     var chipInitials  = row[15] ? row[15].toString().trim() : ""; // Column P
     var chipDateRaw   = row[16];                                 // Column Q
 
@@ -610,6 +750,29 @@ function getTopClients() {
       }
     }
 
+    var birthdayDisplay = "";
+    var birthdayMonth = null;
+    var birthdayDay = null;
+    if (birthdayRaw) {
+      var bDate = (birthdayRaw instanceof Date) ? birthdayRaw : new Date(birthdayRaw);
+      if (!isNaN(bDate.getTime())) {
+        birthdayDisplay = Utilities.formatDate(bDate, tz, "M/d");
+        birthdayMonth = bDate.getMonth() + 1;
+        birthdayDay = bDate.getDate();
+      } else {
+        var parts = birthdayRaw.toString().split('/');
+        if (parts.length >= 2) {
+          birthdayMonth = parseInt(parts[0], 10);
+          birthdayDay = parseInt(parts[1], 10);
+          if (!isNaN(birthdayMonth) && !isNaN(birthdayDay)) {
+            birthdayDisplay = birthdayMonth + '/' + birthdayDay;
+          }
+        }
+      }
+    }
+
+    var birthdayActive = !!birthdayDisplay;
+
     var key = clientName + ':' + (category || ''); // combine name+category
 
     if (!clientMap[key]) {
@@ -626,8 +789,18 @@ function getTopClients() {
         columnL: colL,
         columnLContent: colL,
 
+        taskTypes: columnOTasks,
+
+        labelsText: columnGLabels,
+        hasCakeLabel: columnGLabels.indexOf('🎂') !== -1,
+
         chipInitials: chipInitials,
-        chipDate: chipDate
+        chipDate: chipDate,
+
+        birthday: birthdayDisplay,
+        birthdayMonth: birthdayMonth,
+        birthdayDay: birthdayDay,
+        birthdayActive: birthdayActive
       };
       if (followUpNote) clientMap[key].followUps.push(followUpNote);
       if (pastWorkNote) clientMap[key].pastWorks.push(pastWorkNote);
@@ -648,6 +821,15 @@ function getTopClients() {
       // Keep columnB/columnD if empty previously
       if (!clientMap[key].columnB && columnB) clientMap[key].columnB = columnB;
       if (!clientMap[key].columnD && columnD) clientMap[key].columnD = columnD;
+
+      // Preserve birthday details if missing; refresh display if we find one
+      if (!clientMap[key].birthday && birthdayDisplay) clientMap[key].birthday = birthdayDisplay;
+      if (!clientMap[key].birthdayMonth && birthdayMonth) clientMap[key].birthdayMonth = birthdayMonth;
+      if (!clientMap[key].birthdayDay && birthdayDay) clientMap[key].birthdayDay = birthdayDay;
+      if (birthdayActive) clientMap[key].birthdayActive = true;
+
+      if (!clientMap[key].labelsText && columnGLabels) clientMap[key].labelsText = columnGLabels;
+      if (columnGLabels && columnGLabels.indexOf('🎂') !== -1) clientMap[key].hasCakeLabel = true;
     }
   });
 
@@ -658,6 +840,98 @@ function getTopClients() {
   return topClients;
 }
 
+
+function updateTaskTypeLabelForAll(baseColor, newLabel) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 1) return [];
+
+  var range = sheet.getRange(1, 15, lastRow, 1);
+  var values = range.getValues();
+  var normTarget = normalizeTaskBaseColor(baseColor);
+
+  var updated = values.map(function (row) {
+    var parsed = parseTaskTypeCell(row[0]);
+    var merged = ensureTaskTypeDefaults(parsed).map(function (t) {
+      if (normalizeTaskBaseColor(t.baseColor) === normTarget) {
+        return { baseColor: t.baseColor, brightness: t.brightness, label: newLabel || '' };
+      }
+      return t;
+    });
+    return [formatTaskTypeCell(merged)];
+  });
+
+  range.setValues(updated);
+  return toTemplateOnly(parseTaskTypeCell(updated[0][0]));
+}
+
+function setTaskTypeBrightnessForClient(clientName, baseColor, isBright) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
+  var data = sheet.getDataRange().getValues();
+  var normName = (clientName || '').toString().replace(/\d+$/, '').trim().toLowerCase();
+  var normColor = normalizeTaskBaseColor(baseColor);
+  var updatedTaskTypes = null;
+
+  data.forEach(function (row, idx) {
+    if (idx === 0) return;
+    var candidate = (row[0] || '').toString().replace(/\d+$/, '').trim().toLowerCase();
+    if (candidate === normName && updatedTaskTypes === null) {
+      var parsed = parseTaskTypeCell(row[14]);
+      updatedTaskTypes = ensureTaskTypeDefaults(parsed).map(function (t) {
+        if (normalizeTaskBaseColor(t.baseColor) === normColor) {
+          return { baseColor: t.baseColor, brightness: isBright ? 'bright' : 'faded', label: t.label };
+        }
+        return t;
+      });
+      sheet.getRange(idx + 1, 15).setValue(formatTaskTypeCell(updatedTaskTypes));
+    }
+  });
+
+  var template = getTaskTypeTemplateForSheet(sheet);
+  return {
+    taskTypes: updatedTaskTypes ? updatedTaskTypes : mergeTemplateWithClientBrightness(template, []),
+    template: template
+  };
+}
+
+function addTaskTypeColorForAll(baseColor, label) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
+  var template = getTaskTypeTemplateForSheet(sheet);
+  var normTarget = normalizeTaskBaseColor(baseColor);
+  var exists = (template || []).some(function (t) {
+    return normalizeTaskBaseColor(t.baseColor) === normTarget;
+  });
+
+  if (!exists) {
+    // Do not introduce new lines/colors—just return the existing template.
+    return toTemplateOnly(template);
+  }
+
+  return updateTaskTypeLabelForAll(baseColor, label || '');
+}
+
+function removeTaskTypeColorForAll(baseColor) {
+  var normTarget = normalizeTaskBaseColor(baseColor);
+  if (BASE_TASK_COLORS.map(normalizeTaskBaseColor).indexOf(normTarget) !== -1) {
+    return getTaskTypeTemplateForSheet(SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0'));
+  }
+
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 1) return [];
+
+  var range = sheet.getRange(1, 15, lastRow, 1);
+  var values = range.getValues();
+  var updated = values.map(function (row) {
+    var parsed = parseTaskTypeCell(row[0]).filter(function (t) {
+      return normalizeTaskBaseColor(t.baseColor) !== normTarget;
+    });
+    return [formatTaskTypeCell(parsed)];
+  });
+
+  range.setValues(updated);
+  return toTemplateOnly(parseTaskTypeCell(updated[0][0]));
+}
 
 
 
@@ -1410,6 +1684,36 @@ function updateClientData(clientName, newData) {
     }
 }
 
+ /* Update Column L ("In Progress") for the given client.
+ * Mirrors updateInProgress but exposes a concise name for the client UI.
+ * Returns a small payload so the frontend can trust the saved value.
+ */
+function updateClientColumnL(clientName, newValue) {
+  var name = String(clientName || '').trim();
+  if (!name) {
+    throw new Error('Missing clientName.');
+  }
+
+  var text = newValue == null ? '' : String(newValue);
+
+  // Reuse the normalized lookup logic that already strips trailing digits.
+  updateInProgress(name, text);
+
+  // Keep recent-clients metadata in sync (ignore failures – best effort only).
+  try {
+    logRecentClient(name, 5);
+  } catch (err) {
+    console.warn('logRecentClient failed inside updateClientColumnL:', err);
+  }
+
+  return {
+    ok: true,
+    client: name,
+    value: text
+  };
+}
+
+
 // Example of function to handle quadrant selection
 function selectQuadrant(clientType, timeFrame) {
     // Assuming you have a function to call your Google Apps Script with parameters
@@ -1480,15 +1784,26 @@ function getLatestFollowUp(followUps) {
   return latestNote;
 }
 
-function updateNotes(clientName, type, newText) {
+function updateNotes(clientName, type, newText, originalText) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0'); // Replace with your sheet name
   var data = sheet.getDataRange().getValues();
+  var changes = [];
+
+  if (type === 'pastWork') {
+    changes = deriveNoteChanges_(originalText, newText);
+  }
 
   // Find the row for the client
   for (var i = 1; i < data.length; i++) {
     if (data[i][0] === clientName) { // Assuming client names are in the first column
       if (type === 'pastWork') {
         sheet.getRange(i + 1, 3).setValue(newText); // Replace 2 with the correct column number for past work
+        if (changes.length) {
+          var synced = syncDashboardChangesToInbox_(clientName, changes);
+          if (!synced) {
+            throw new Error('EDIT FAILED ON OTHER VIEW');
+          }
+        }
       } else if (type === 'followUp') {
         sheet.getRange(i + 1, 5).setValue(newText); // Replace 3 with the correct column number for follow-ups
       }
@@ -1496,6 +1811,63 @@ function updateNotes(clientName, type, newText) {
     }
   }
   throw new Error('Client not found');
+}
+
+function deriveNoteChanges_(oldText, newText) {
+  var oldLines = parsePastWorkLines_(oldText);
+  var newLines = parsePastWorkLines_(newText);
+  var max = Math.max(oldLines.length, newLines.length);
+  var changes = [];
+
+  for (var i = 0; i < max; i++) {
+    var oldNote = oldLines[i] ? oldLines[i].noteText : '';
+    var newNote = newLines[i] ? newLines[i].noteText : '';
+    if (!oldNote || !newNote) continue;
+    if (oldNote !== newNote) {
+      changes.push({ oldNote: oldNote, newNote: newNote });
+    }
+  }
+  return changes;
+}
+
+function parsePastWorkLines_(text) {
+  return String(text || '')
+    .split('\n')
+    .map(function(line) {
+      return {
+        raw: line,
+        noteText: line.replace(/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\s*:\s*/, '').trim()
+      };
+    });
+}
+
+function syncDashboardChangesToInbox_(clientName, changes) {
+  var sh = ensureNotesInbox_();
+  var last = sh.getLastRow();
+  if (last < 2) return changes.length === 0;
+
+  var data = sh.getRange(2, 1, last - 1, 2).getValues();
+  var target = normalizeClientName_(clientName);
+  var pending = changes.map(function(c) {
+    return { old: String(c.oldNote || '').trim(), updated: String(c.newNote || '').trim(), matched: false };
+  });
+
+  for (var i = 0; i < data.length; i++) {
+    var assigned = normalizeClientName_(data[i][1]);
+    if (!assigned || assigned !== target) continue;
+
+    var currentNote = String(data[i][0] || '').trim();
+    for (var j = 0; j < pending.length; j++) {
+      if (pending[j].matched) continue;
+      if (currentNote === pending[j].old) {
+        sh.getRange(i + 2, 1).setValue(pending[j].updated);
+        pending[j].matched = true;
+        break;
+      }
+    }
+  }
+
+  return pending.every(function(p) { return p.matched; });
 }
 
 
@@ -2205,6 +2577,233 @@ function findLineWithLargestDate(textArray) {
   return mostRecentLine;
 }
 
+/**
+ * Ensure a time-based trigger exists to send the JB chip summary at 8 AM daily.
+ */
+function ensureJbChipDailyTrigger() {
+  var handler = 'sendJbChipTasksEmail';
+  var hasTrigger = ScriptApp.getProjectTriggers().some(function(t) {
+    return t.getHandlerFunction() === handler;
+  });
+
+  if (!hasTrigger) {
+    ScriptApp.newTrigger(handler)
+      .timeBased()
+      .atHour(8)
+      .everyDays(1)
+      .create();
+  }
+}
+
+function parseDateFromLine_(line) {
+  if (!line) return null;
+  var match = String(line).match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/);
+  if (!match) return null;
+
+  var month = parseInt(match[1], 10) - 1;
+  var day = parseInt(match[2], 10);
+  var year = parseInt(match[3], 10);
+  if (year < 100) {
+    year += 2000;
+  }
+
+  var dt = new Date(year, month, day);
+  return isNaN(dt.getTime()) ? null : dt;
+}
+
+function formatDateTaskLine_(line, tz) {
+  var match = String(line).match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/);
+  if (!match) {
+    return String(line || '').trim();
+  }
+
+  var date = parseDateFromLine_(line);
+  var formattedDate = date
+    ? Utilities.formatDate(date, tz, "MM/dd/yy")
+    : match[0];
+
+  var remainder = String(line).replace(match[0], '').trim().replace(/^[:\-–\s]+/, '');
+  return remainder ? (formattedDate + ': ' + remainder) : formattedDate;
+}
+
+// Limit JB MMS payload size by capping highlighted notes per client and using MMS gateways.
+const MAX_JB_HIGHLIGHTS_PER_CLIENT = 3;
+const JB_CHIP_RECIPIENTS = ['8326215185@vzwpix.com', '2817146370@vzwpix.com'];
+
+function extractHighlightedLines_(lines, tz, cutoffDate, maxLines) {
+  var withDates = [];
+  var withoutDates = [];
+  var limit = (typeof maxLines === 'number' && maxLines > 0) ? Math.floor(maxLines) : null;
+
+  (lines || []).forEach(function(item) {
+    var isHighlighted = true;
+    var text = '';
+
+    if (typeof item === 'object' && item !== null) {
+      isHighlighted = !!item.highlighted;
+      text = String(item.text || '').trim();
+    } else {
+      text = String(item || '').trim();
+    }
+
+    if (!isHighlighted || !text) return;
+
+    var dt = parseDateFromLine_(text);
+    if (dt && (!cutoffDate || dt.getTime() <= cutoffDate.getTime())) {
+      withDates.push({ date: dt, formatted: formatDateTaskLine_(text, tz) });
+      return;
+    }
+
+    withoutDates.push({ date: null, formatted: text });
+  });
+
+  // Sort with dates descending (latest first).
+  withDates.sort(function(a, b) { return b.date - a.date; });
+
+  var combined = [];
+  if (limit !== null) {
+    var datedPortion = withDates.slice(0, limit);
+    var remainingSlots = limit - datedPortion.length;
+    var undatedPortion = remainingSlots > 0 ? withoutDates.slice(0, remainingSlots) : [];
+    combined = datedPortion.concat(undatedPortion);
+  } else {
+    combined = withDates.concat(withoutDates);
+  }
+
+  return combined;
+}
+
+function normalizeChipDate_(value) {
+  if (!value) return null;
+
+  var parsed = parseDateFromLine_(String(value));
+  var date = parsed || (value instanceof Date && !isNaN(value.getTime()) ? new Date(value) : null);
+  if (!date) return null;
+
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function isHighlightedCell_(bg) {
+  if (!bg) return false;
+  var c = String(bg).toLowerCase();
+  return c !== '#ffffff' && c !== '#fff' && c !== 'white';
+}
+
+function collectJbChipClients_(targetDate) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
+  if (!sheet) {
+    return { dateString: '', clients: [] };
+  }
+
+  var dataRange = sheet.getDataRange();
+  var data = dataRange.getValues();
+  var backgrounds = dataRange.getBackgrounds();
+  var tz = Session.getScriptTimeZone();
+  var targetDay = new Date(targetDate);
+  targetDay.setHours(0, 0, 0, 0);
+  var targetStr = Utilities.formatDate(targetDay, tz, "MM/dd/yy");
+  var clients = {};
+
+  data.forEach(function(row, idx) {
+    if (idx === 0) return; // header
+
+    var rawName = row[0];
+    if (!rawName) return;
+
+    var initials = row[15] ? row[15].toString().trim().toUpperCase() : '';
+    var chipDate = normalizeChipDate_(row[16]);
+
+    if (initials !== 'JB' || !chipDate || chipDate.getTime() > targetDay.getTime()) {
+      return;
+    }
+
+    var name = rawName.toString().replace(/\d+$/, '').trim();
+    if (!clients[name]) {
+      clients[name] = { name: name, pastWorks: [] };
+    }
+
+    var noteBg = backgrounds[idx][2];
+    var pastNote = row[2];
+    if (pastNote) {
+      String(pastNote).split('\n').forEach(function(line) {
+        var t = line.trim();
+        if (t) {
+          clients[name].pastWorks.push({ text: t, highlighted: isHighlightedCell_(noteBg) });
+        }
+      });
+    }
+  });
+
+  var sortedNames = Object.keys(clients).sort(function(a, b) {
+    return a.localeCompare(b);
+  });
+
+  var resultClients = sortedNames.map(function(name) {
+    var entry = clients[name];
+    return {
+      name: entry.name,
+      highlights: extractHighlightedLines_(entry.pastWorks, tz, targetDay, MAX_JB_HIGHLIGHTS_PER_CLIENT)
+    };
+  });
+
+  return { dateString: targetStr, clients: resultClients };
+}
+
+
+function sendJbChipTasksEmail() {
+  var summary = collectJbChipClients_(new Date());
+  var lines = [];
+
+  // Blank line at the very top of the body (creates visual gap after subject)
+  lines.push('');
+
+  if (!summary.clients.length) {
+    lines.push('No clients matched the JB chip for ' + (summary.dateString || 'today') + '.');
+  } else {
+    summary.clients.forEach(function(client) {
+      var orderedHighlights = (client.highlights || []).slice().reverse(); // oldest of the selected first
+      var total = orderedHighlights.length;
+
+      function labelForIndex(idx) {
+        var rankFromLatest = total - idx;
+        if (rankFromLatest <= 3) return '';
+        return rankFromLatest + 'TH LATEST';
+      }
+
+      // Client name
+      lines.push(client.name);
+
+      // Blank line between client name and tasks
+      lines.push('');
+
+      // Indented tasks (5 spaces)
+      if (total === 0) {
+        lines.push('     No highlighted tasks available');
+      } else {
+        orderedHighlights.forEach(function(item, idx) {
+          var label = labelForIndex(idx);
+          var prefix = label ? (label + ': ') : '';
+          lines.push('     ' + prefix + item.formatted);
+        });
+      }
+
+      // Blank line between clients
+      lines.push('');
+    });
+  }
+
+  MailApp.sendEmail({
+    to: JB_CHIP_RECIPIENTS.join(','),
+    subject: 'DASHBOARD CLIENT TASKS FOR TODAY (' + (summary.dateString || 'today') + '):',
+    body: lines.join('\n')
+  });
+
+  ensureJbChipDailyTrigger();
+}
+
+
+
 /***********************************************************************
  SNIPPET #4: SERVER-SIDE TASKS INTEGRATION
 ***********************************************************************/
@@ -2553,7 +3152,7 @@ function logRecentClient(clientName, cap) {
 
   var up = PropertiesService.getUserProperties();
   var key = 'recentClients';
-  var capSize = Math.max(1, cap || 12);
+  var capSize = Math.max(1, cap || 3);
 
   var existing = [];
   try {
@@ -2611,7 +3210,7 @@ function getRecentClients(limit, refreshMetadata) {
     up.setProperty(key, JSON.stringify(list)); // keep cache fresh
   }
 
-  var lim = Math.max(1, limit || 12);
+  var lim = Math.max(1, limit || 3);
   return list.slice(0, lim);
 }
 
@@ -2634,7 +3233,7 @@ function ensureNotesInbox_() {
   return sh;
 }
 
-function inboxAddNote(rawNote) {
+function inboxAddNote(rawNote, assignedClient) {
   // === CONFIG: who receives the "ADD" email ===
   var EMAIL_TO = 'rbarrio1@alumni.nd.edu';  // change if needed
 
@@ -2649,6 +3248,12 @@ function inboxAddNote(rawNote) {
   var cleanNote = String(rawNote).trim();
   sh.getRange(row, 1).setValue(cleanNote);   // Col A: NOTE
   sh.getRange(row, 3).setValue(new Date());  // Col C: TIMESTAMP
+
+  // Optionally assign to a client immediately (Column B)
+  if (assignedClient && String(assignedClient).trim()) {
+    var resolved = getCanonicalClientName_(assignedClient) || String(assignedClient).trim();
+    sh.getRange(row, 2).setValue(resolved);
+  }
 
   // Build a helpful subject and body for the email
   var tz = Session.getScriptTimeZone();
@@ -2687,13 +3292,119 @@ function inboxGetRecent(limit) {
   }));
 
   const tz = Session.getScriptTimeZone();
-  const sorted = [...all].sort((a,b)=>b.ts-a.ts).slice(0, limit||5).map(x=>({
+  const sorted = [...all]
+    .filter(x => x.ts) // only rows with a timestamp in Column C
+    .sort((a,b)=>b.ts-a.ts)
+    .slice(0, limit||5)
+    .map(x=>({
     row: x.row,
     note: x.note,
     assigned: x.assigned,
     timestamp: x.ts ? Utilities.formatDate(new Date(x.ts), tz, 'MM/dd/yy h:mma') : ''
   }));
-  return { recent: sorted, raw: all };
+
+  // Pull chip data (Columns P/Q) for any assigned clients so the UI can render chips
+  var assignedNames = all
+    .map(function(entry){ return entry.assigned; })
+    .filter(function(name){ return name; });
+  var chipMap = {};
+  try {
+    chipMap = getChipStateForClients(assignedNames);
+  } catch (e) {
+    chipMap = {};
+  }
+
+  return { recent: sorted, raw: all, chipMap: chipMap };
+}
+
+function inboxUpdateNote(row, newNote){
+  if (!row || row < 2) {
+    throw new Error('A valid row number is required.');
+  }
+
+  const note = String(newNote || '').trim();
+  if (!note) {
+    throw new Error('Note cannot be empty.');
+  }
+
+  const sh = ensureNotesInbox_();
+  const hasTimestamp = sh.getRange(row, 3).getValue();
+  if (!hasTimestamp) {
+    throw new Error('Cannot edit this note because Column C is missing a date.');
+  }
+
+  const oldNote = String(sh.getRange(row, 1).getValue() || '').trim();
+  const assignedClient = String(sh.getRange(row, 2).getValue() || '').trim();
+  sh.getRange(row, 1).setValue(note);
+
+  let synced = true;
+  if (assignedClient) {
+    synced = syncInboxNoteToDashboard_(assignedClient, oldNote, note, hasTimestamp);
+  }
+
+  if (!synced) {
+    throw new Error('EDIT FAILED ON OTHER VIEW');
+  }
+
+  return { ok: true, row: row, note: note, synced: synced };
+}
+
+function syncInboxNoteToDashboard_(clientName, oldNote, newNote, timestamp) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
+  if (!sheet) return false;
+
+  const data = sheet.getDataRange().getValues();
+  const target = normalizeClientName_(clientName);
+  const dateStr = timestamp
+    ? Utilities.formatDate(new Date(timestamp), Session.getScriptTimeZone(), 'MM/dd/yy')
+    : '';
+
+  for (let i = 1; i < data.length; i++) {
+    const rowName = normalizeClientName_(data[i][0]);
+    if (rowName !== target) continue;
+
+    const pastWork = data[i][2];
+    const lines = String(pastWork || '').split('\n');
+    const idx = findNoteLineIndex_(lines, oldNote, dateStr);
+    if (idx === -1) continue;
+
+    const prefix = extractDatePrefix_(lines[idx]);
+    lines[idx] = (prefix ? prefix : '') + newNote;
+    sheet.getRange(i + 1, 3).setValue(lines.join('\n'));
+    return true;
+  }
+
+  return false;
+}
+
+function findNoteLineIndex_(lines, oldNote, dateStr) {
+  let fallback = -1;
+  const cleanOld = String(oldNote || '').trim();
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = String(lines[i] || '');
+    const noteText = line.replace(/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\s*:\s*/, '').trim();
+    if (noteText !== cleanOld) continue;
+
+    const matchesDate = dateStr && line.trim().startsWith(dateStr);
+    if (matchesDate) return i;
+    if (fallback === -1) fallback = i;
+  }
+
+  return fallback;
+}
+
+function extractDatePrefix_(line) {
+  const m = String(line || '').match(/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\s*:\s*/);
+  return m ? m[0] : '';
+}
+
+function normalizeClientName_(name) {
+  return String(name || '')
+    .replace(/\u00A0/g, ' ')
+    .replace(/\d+$/, '')
+    .trim()
+    .toLowerCase();
 }
 
 function getCanonicalClientName_(typed) {
@@ -2781,254 +3492,49 @@ function getChipStateForClients(clientNames) {
   return map;
 }
 
-/** DASHBOARD 8.0 backend for the Notes Carousel **/
 
-/** Returns [{name, category, chipDateISO}] for all rows (filter client-side). */
-function getClientsForCarouselWithChipDates(){
-  const ss = SpreadsheetApp.getActive();
-  const sh = ss.getSheetByName('DASHBOARD 8.0');   // <-- your sheet
-  const NAME_COL = 1;                               // A (name)
-  const CAT_COL  = 6;                               // F (category: JB/RB/QC/…)
-  const CHIP_COL = 17;                              // Q (chip date)  <-- updated
-  if (!sh) return [];
 
-  const last = sh.getLastRow();
-  if (last < 2) return [];
 
-  const maxCol = Math.max(NAME_COL, CAT_COL, CHIP_COL);
-  const rng = sh.getRange(2, 1, last - 1, maxCol);
-  const values = rng.getValues();
 
-  const out = [];
-  for (let i = 0; i < values.length; i++){
-    const row = values[i];
-    const name = String(row[NAME_COL-1] || '').trim();
-    const category = String(row[CAT_COL-1] || '').trim();
-    const chip = row[CHIP_COL-1];
-    if (!name) continue;
-    out.push({ name, category, chipDateISO: toISO(chip) });
-  }
-  return out;
-}
 
-/** For live pruning: return fresh chip dates only for specific names. */
-function getChipDatesForNames(names){
-  names = (names || []).map(String);
-  const want = {};
-  names.forEach(n => want[n.toLowerCase()] = true);
+/** === Siri → Google Sheets Bridge: Column A note, Column C timestamp ===
+ * Appends note in Col A, leaves Col B blank, puts timestamp in Col C.
+ */
+const SHEET_ID = "1rzejdmR0hatqESPp9MroCwT229QGM0oB2G9mELaL4Ps";
+const TARGET_SHEET = "NOTES INBOX";
+const COL_NOTE = 1; // A
+const COL_BLANK = 2; // B
+const COL_TIME = 3; // C
 
-  const ss = SpreadsheetApp.getActive();
-  const sh = ss.getSheetByName('DASHBOARD 8.0');   // <-- your sheet
-  const NAME_COL = 1;                               // A
-  const CHIP_COL = 17;                              // Q  <-- updated
-  if (!sh) return [];
-
-  const last = sh.getLastRow();
-  if (last < 2) return [];
-
-  const maxCol = Math.max(NAME_COL, CHIP_COL);
-  const rng = sh.getRange(2, 1, last - 1, maxCol);
-  const values = rng.getValues();
-
-  const out = [];
-  for (let i = 0; i < values.length; i++){
-    const row = values[i];
-    const name = String(row[NAME_COL-1] || '').trim();
-    if (!name || !want[name.toLowerCase()]) continue;
-    const chip = row[CHIP_COL-1];
-    out.push({ name, chipDateISO: toISO(chip) });
-  }
-  return out;
-}
-
-/** Helper: best-effort to ISO (yyyy-mm-dd). */
-function toISO(v){
-  if (!v) return '';
-  if (Object.prototype.toString.call(v) === '[object Date]' && !isNaN(v)){
-    return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  }
-  // try to parse text like MM/DD/YY or MM/DD/YYYY
-  const m = String(v).match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/);
-  if (m){
-    let [_, mm, dd, yy] = m;
-    yy = (yy.length === 2) ? (2000 + parseInt(yy,10)) : parseInt(yy,10);
-    const d = new Date(yy, parseInt(mm,10)-1, parseInt(dd,10));
-    if (!isNaN(d)) return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  }
-  return '';
-}
-
-/**************************************
- * JB Notes Cycling Helpers (Server) — Read-only chip policy
- * Sheet: "DASHBOARD 8.0"
- * A: Name, F: Category, Q: Chip Date (MM/dd/yy)
- **************************************/
-
-function _parseChipDate_(v) {
-  if (!v) return null;
-  if (Object.prototype.toString.call(v) === '[object Date]') return v;
+function doPost(e) {
   try {
-    var parts = String(v).trim().split(/[\/\-\.]/);
-    if (parts.length >= 3) {
-      var mm = parseInt(parts[0], 10) - 1;
-      var dd = parseInt(parts[1], 10);
-      var yy = parts[2].length === 2 ? 2000 + parseInt(parts[2], 10) : parseInt(parts[2], 10);
-      return new Date(yy, mm, dd);
+    if (!e || !e.postData || !e.postData.contents) {
+      return _json({ ok: false, error: "No postData received" });
     }
-  } catch (e) {}
-  var d = new Date(v);
-  return isNaN(d.getTime()) ? null : d;
-}
+    const body = JSON.parse(e.postData.contents);
+    const note = (body && body.note != null) ? String(body.note).trim() : "";
+    if (!note) return _json({ ok: false, error: "Missing 'note' value" });
 
-/**
- * Returns JB clients whose chip date (Q) is blank or <= today, oldest first (blanks first).
- * Does NOT modify chip dates (read-only).
- */
-function listJBCycleClients() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName('DASHBOARD 8.0');
-  var last = sh.getLastRow();
-  if (last < 2) return [];
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const sh = ss.getSheetByName(TARGET_SHEET);
+    if (!sh) return _json({ ok: false, error: `Sheet not found: ${TARGET_SHEET}` });
 
-  var data = sh.getRange(2, 1, last - 1, sh.getLastColumn()).getValues();
-  var today = new Date(); today.setHours(0,0,0,0);
+    const nextRow = sh.getLastRow() + 1;
+    const now = new Date();
+    sh.getRange(nextRow, COL_NOTE, 1, 3).setValues([[note, "", now]]);
 
-  var NAME_COL = 1;     // A
-  var CAT_COL  = 6;     // F
-  var CHIP_COL = 17;    // Q
-
-  var out = [];
-  for (var i = 0; i < data.length; i++) {
-    var row = data[i];
-    if (String(row[CAT_COL - 1]).trim().toUpperCase() !== 'JB') continue;
-
-    var nm = String(row[NAME_COL - 1]).trim();
-    if (!nm) continue;
-
-    var chip = _parseChipDate_(row[CHIP_COL - 1]);
-    if (!chip) {
-      out.push({ name: nm, row: i + 2, chipDate: '' });
-      continue;
-    }
-    var chipDay = new Date(chip.getTime()); chipDay.setHours(0,0,0,0);
-    if (chipDay.getTime() <= today.getTime()) {
-      out.push({ name: nm, row: i + 2, chipDate: Utilities.formatDate(chip, Session.getScriptTimeZone(), 'MM/dd/yy') });
-    }
+    return _json({
+      ok: true,
+      addedTo: `${TARGET_SHEET}!A${nextRow}:C${nextRow}`,
+      note,
+      timestampISO: now.toISOString()
+    });
+  } catch (err) {
+    return _json({ ok: false, error: String(err) });
   }
-
-  out.sort(function(a, b) {
-    if (!a.chipDate && !b.chipDate) return 0;
-    if (!a.chipDate) return -1;
-    if (!b.chipDate) return 1;
-    var ad = _parseChipDate_(a.chipDate), bd = _parseChipDate_(b.chipDate);
-    return ad - bd;
-  });
-
-  return out;
 }
 
-/** Get distinct category values (Column F), sorted A→Z, for the category dropdown in Focus Mode. */
-function listDistinctCategories() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName('DASHBOARD 8.0');
-  var last = sh.getLastRow();
-  if (last < 2) return [];
-  var vals = sh.getRange(2, 6, last - 1, 1).getValues().map(function(r){ return String(r[0] || '').trim(); });
-  var set = {};
-  vals.forEach(function(v){ if (v) set[v] = true; });
-  return Object.keys(set).sort();
+function _json(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
 }
-
-/** Update a client's Category (Column F). Does NOT touch chip (Column Q). */
-function setClientCategory(clientName, newCategory) {
-  if (!clientName) throw new Error('No client name provided');
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName('DASHBOARD 8.0');
-  var last = sh.getLastRow();
-  if (last < 2) return false;
-
-  var names = sh.getRange(2, 1, last - 1, 1).getValues();
-  var targetRow = -1;
-  var find = String(clientName).trim
-}
-
-/**************************************
- * FOCUS MODE: Update Category (Col F)
- * Sheet: "DASHBOARD 8.0"
- * A: Name, F: Category
- **************************************/
-function updateClientCategory(clientName, newCategory) {
-  if (!clientName || !newCategory) throw new Error('Missing clientName or newCategory');
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName('DASHBOARD 8.0');
-  var last = sh.getLastRow();
-  if (last < 2) return false;
-
-  var NAME_COL = 1; // A
-  var CAT_COL  = 6; // F
-
-  var names = sh.getRange(2, NAME_COL, last - 1, 1).getValues();
-  var targetRow = -1, find = String(clientName).trim().toLowerCase();
-
-  for (var i=0; i<names.length; i++){
-    var nm = String(names[i][0]||'').trim().toLowerCase();
-    if (nm === find) { targetRow = i + 2; break; }
-  }
-  if (targetRow === -1) return false;
-
-  sh.getRange(targetRow, CAT_COL).setValue(String(newCategory).trim());
-  return true;
-}
-
-/**
- * listDueClientsByCategory(category)
- * Returns [{ name, chipDateISO }] for rows in "DASHBOARD 8.0"
- * where column F == category and chip date (col Q) is <= today (oldest first).
- */
-function listDueClientsByCategory(category) {
-  var ss = SpreadsheetApp.getActive();
-  var sh = ss.getSheetByName('DASHBOARD 8.0');
-  if (!sh) return [];
-
-  var NAME_COL = 1;  // A
-  var CAT_COL  = 6;  // F
-  var CHIP_COL = 17; // Q
-  var last = sh.getLastRow();
-  if (last < 2) return [];
-
-  var maxCol = Math.max(NAME_COL, CAT_COL, CHIP_COL);
-  var values = sh.getRange(2, 1, last - 1, maxCol).getValues();
-
-  // midnight "today" in script timezone
-  var tz = Session.getScriptTimeZone() || 'America/Chicago';
-  var today = new Date();
-  today.setHours(0,0,0,0);
-
-  var want = String(category || '').trim().toUpperCase();
-  var out = [];
-
-  for (var i = 0; i < values.length; i++) {
-    var name = String(values[i][NAME_COL - 1] || '').trim();
-    var cat  = String(values[i][CAT_COL  - 1] || '').trim().toUpperCase();
-    var raw  = values[i][CHIP_COL - 1];
-    if (!name || !cat || !raw) continue;
-    if (cat !== want) continue;
-
-    var d = _parseChipDate_(raw); // uses your existing helper
-    if (!d) continue;
-    var dd = new Date(d); dd.setHours(0,0,0,0);
-    if (dd.getTime() <= today.getTime()) {
-      out.push({
-        name: name,
-        chipDateISO: Utilities.formatDate(d, tz, "yyyy-MM-dd'T'HH:mm:ssXXX")
-      });
-    }
-  }
-
-  out.sort(function(a, b) {
-    return new Date(a.chipDateISO).getTime() - new Date(b.chipDateISO).getTime();
-  });
-  return out;
-}
-
-
