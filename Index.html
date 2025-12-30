@@ -1,4 +1,4 @@
-<!-- Version 1.0.16 | 4252b9d -->
+<!-- Version 1.0.17 | 3ee7041 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -1041,7 +1041,7 @@ function addNote(textOverride){
     return;
   }
 
- const rawText = typeof textOverride === 'string' ? textOverride : (noteInput.value || '');
+  const rawText = typeof textOverride === 'string' ? textOverride : (noteInput.value || '');
   const txt = rawText.trim();
   if (!txt) {
     addStatus.textContent = '';
@@ -1055,7 +1055,7 @@ function addNote(textOverride){
   addNotePending = true;
 
   startLoading();
-  addStatus.textContent = '';
+  addStatus.textContent = 'Saving...';
   if (addBtn) {
     addBtn.disabled = true;
   }
@@ -1065,19 +1065,29 @@ function addNote(textOverride){
       if (noteInput) {
         noteInput.value = '';
       }
-   loadRecent(() => {
-        addBtn.disabled = false;
+      loadRecent(err => {
+        addNotePending = false;
+        stopLoading();
+        addStatus.textContent = '';
+        if (addBtn) {
+          addBtn.disabled = false;
+        }
+        if (err) {
+          showToast('Note added but could not refresh list');
+          return;
+        }
         showToast('Note added successfully');
       });
     })
     .withFailureHandler(err => {
       console.log(err);
       stopLoading();
-   addNotePending = false;
-        if (addBtn) {
-          addBtn.disabled = false;
-        }
-              showToast('Error adding note');
+      addNotePending = false;
+      if (addBtn) {
+        addBtn.disabled = false;
+      }
+      addStatus.textContent = '';
+      showToast('Error adding note');
     })
     .inboxAddNote(txt, preferredClient);
 }
@@ -1884,7 +1894,7 @@ button:active {
     position: fixed;
     top: 0;
     left: 0;
-    z-index: 1001; /* Increase z-index to stay above other elements */
+    z-index: 11000; /* Ensure the bar stays visible above sheets/overlays */
 }
 
 /* === GREEN GRADIENT + SMOOTH WIDTH === */
