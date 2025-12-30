@@ -1,4 +1,4 @@
-<!-- Version 1.0.22 | 36cd6ba -->
+<!-- Version 1.0.21 | 298d612 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -10469,82 +10469,87 @@ function displayClient(client, container) {
   clientDiv.appendChild(topRow);
 
   /* ── Notes highlight section (read-only in list) ── */
-  var allLines = [];
+  var allC = [];
   (client.pastWorks || []).forEach(function(pw){
     String(pw || '').split('\n').forEach(function(line){
-      allLines.push(String(line || ''));
+      var t = (line || '').trim();
+      if (t) allC.push(t);
     });
   });
 
   if (allC.length > 0) {
-    var blocks = (typeof groupLinesIntoBlocks === 'function')
-      ? groupLinesIntoBlocks(allC)
-      : allC.map(function(line) {
-          var parseDate = (typeof extractDateFromLine === 'function') ? extractDateFromLine(line) : null;
-          return { date: parseDate, lines: [line] };
-        });
+    function parseMDY(line){
+      var m = String(line).match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/);
+      if (!m) return null;
+      var mm=+m[1], dd=+m[2], yy=+m[3]; if (yy<100) yy+=2000;
+      return new Date(yy, mm-1, dd);
+    }
+    function safeFormatNoteHTML(s){
+      return typeof formatNoteHTML === 'function' ? formatNoteHTML(s)
+        : String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
 
-    if (blocks.length) {
-      var notesWrap = document.createElement('div');
-      notesWrap.style.cssText = "display:flex; flex-direction:column; align-items:stretch; margin-top:5px; width:100%;";
+    var withDates=[], noDates=[];
+    allC.forEach(function(line){
+      var d=parseMDY(line);
+      if(d) withDates.push({line,d}); else noDates.push({line});
+    });
+    withDates.sort(function(a,b){ return a.d - b.d; });
+    var sorted = withDates.map(x=>x.line).concat(noDates.map(x=>x.line));
 
-      // Older notes container (remains hidden, and no MORE button in the list)
-      var olderWrap = document.createElement('div');
-      olderWrap.style.cssText = "display:none; flex-direction:column; gap:5px;";
-      notesWrap.appendChild(olderWrap);
+    var notesWrap = document.createElement('div');
+    notesWrap.style.cssText = "display:flex; flex-direction:column; align-items:stretch; margin-top:5px; width:100%;";
 
-      // Highlighted (newest 3) container
-      var hiWrap = document.createElement('div');
-      hiWrap.style.cssText = "display:flex; flex-direction:column; gap:5px;";
-      notesWrap.appendChild(hiWrap);
+    // Older notes container (remains hidden, and no MORE button in the list)
+    var olderWrap = document.createElement('div');
+    olderWrap.style.cssText = "display:none; flex-direction:column; gap:5px;";
+    notesWrap.appendChild(olderWrap);
 
-      var lastIdx = blocks.length - 1;
-      var hiCount = Math.min(3, blocks.length);
-      var firstHi = lastIdx - (hiCount - 1);
+    // Highlighted (newest 3) container
+    var hiWrap = document.createElement('div');
+    hiWrap.style.cssText = "display:flex; flex-direction:column; gap:5px;";
+    notesWrap.appendChild(hiWrap);
 
-      blocks.forEach(function(block, i){
-        var div = document.createElement('div');
-        div.className = 'note-line';
-        div.style.fontSize = '32px';
-        div.style.marginBottom = '0px';
+    var lastIdx = sorted.length - 1;
+    var hiCount = Math.min(3, sorted.length);
+    var firstHi = lastIdx - (hiCount - 1);
 
-        var safeHTML = (typeof renderBlockHTML === 'function')
-          ? renderBlockHTML(block)
-          : String(block.lines && block.lines.length ? block.lines.join('<br>') : '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        div.innerHTML = safeHTML;
+    sorted.forEach(function(line, i){
+      var div = document.createElement('div');
+      div.className = 'note-line';
+      div.style.fontSize = '32px';
+      div.style.marginBottom = '0px';
+      div.innerHTML = safeFormatNoteHTML(line);
 
-        if (i >= firstHi) {
-          // HIGHLIGHTED
-          div.classList.add('latest-note');
-          div.style.backgroundColor = 'yellow';
-          hiWrap.appendChild(div);
+      if (i >= firstHi) {
+        // HIGHLIGHTED
+        div.classList.add('latest-note');
+        div.style.backgroundColor = 'yellow';
+        hiWrap.appendChild(div);
 
-          // Newest block gets chip (read-only edit still opens chip editor if clicked)
-          if (i === lastIdx) {
-            div.innerHTML = div.innerHTML.replace(/(<br\s*\/?>(\s|&nbsp;)*)+$/i, '');
-            var chipEl = createChipElement(
-              client.name,
-              (client.chipInitials || "").toUpperCase(),
-              client.chipDate || ""
-            );
-            div.appendChild(document.createTextNode(' '));
-            div.appendChild(chipEl);
-          }
-        } else {
-          // OLDER — stays hidden (no MORE button to reveal)
-          div.classList.add('older-note');
-          div.style.display = 'none';
-          olderWrap.appendChild(div);
+        // Newest line gets chip (read-only edit still opens chip editor if clicked)
+        if (i === lastIdx) {
+          var chipEl = createChipElement(
+            client.name,
+            (client.chipInitials || "").toUpperCase(),
+            client.chipDate || ""
+          );
+          div.appendChild(chipEl);
         }
-      });
-
-      // (list remains read-only)
-      clientDiv.appendChild(notesWrap);
-
-      if (typeof attachMentionHandlers === 'function') {
-        attachMentionHandlers(hiWrap);
-        attachMentionHandlers(olderWrap);
+      } else {
+        // OLDER — stays hidden (no MORE button to reveal)
+        div.classList.add('older-note');
+        div.style.display = 'none';
+        olderWrap.appendChild(div);
       }
+    });
+
+    // (list remains read-only)
+    clientDiv.appendChild(notesWrap);
+
+    if (typeof attachMentionHandlers === 'function') {
+      attachMentionHandlers(hiWrap);
+      attachMentionHandlers(olderWrap);
     }
   }
 
