@@ -1,4 +1,4 @@
-<!-- Version 1.0.18 | 47a0268 -->
+<!-- Version 1.0.19 | 36abbe4 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -9163,6 +9163,10 @@ function handleCalendarTaskSelection(taskName) {
 var loadingBarHideTimer = null;
 var loadingBarActiveCount = 0;
 var loadingBarWatchdog = null;
+var loadingBarIdleTimer = null;
+var loadingBarLastActivity = 0;
+var loadingBarMutationObserver = null;
+var LOADING_BAR_IDLE_MS = 400;
 
 function showLoadingBar() {
     var loadingBarContainer = document.getElementById('loadingBarContainer');
@@ -9205,6 +9209,82 @@ function hideLoadingBar() {
         loadingBarContainer.style.display = 'none';
     }, 450);
 }
+
+// When the UI stops changing (e.g., user stops typing or suggestions settle),
+// force the loading bar to disappear so it never stays stuck from autocomplete noise.
+(function installLoadingBarIdleWatcher(){
+  let attempts = 0;
+  const maxAttempts = 50;
+
+  function markActivity(){
+    loadingBarLastActivity = Date.now();
+
+    clearTimeout(loadingBarIdleTimer);
+    loadingBarIdleTimer = setTimeout(function(){
+      // Only hide if nothing has changed during the idle window
+      if (Date.now() - loadingBarLastActivity >= LOADING_BAR_IDLE_MS) {
+        if (typeof window.forceHideLoadingBar === 'function') {
+          window.forceHideLoadingBar();
+        } else if (typeof window.hideLoadingBar === 'function') {
+          try { window.hideLoadingBar(); } catch (_) {}
+        }
+      }
+    }, LOADING_BAR_IDLE_MS);
+  }
+
+  function ensureMutationObserver(){
+    if (loadingBarMutationObserver || !('MutationObserver' in window)) return;
+
+    const targets = [
+      document.getElementById('clientAutocompleteRow'),
+      document.getElementById('autocompleteSuggestions'),
+      document.getElementById('recentClientsBar')
+    ].filter(Boolean);
+
+    if (!targets.length) return;
+
+    loadingBarMutationObserver = new MutationObserver(markActivity);
+    targets.forEach(function(node){
+      loadingBarMutationObserver.observe(node, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        characterData: true
+      });
+    });
+
+    window.addEventListener('resize', markActivity, { passive: true });
+  }
+
+  function tryWrap(){
+    attempts++;
+
+    if (window.showLoadingBar && window.hideLoadingBar && !window.showLoadingBar.__idleWrapped) {
+      const originalShow = window.showLoadingBar;
+      const originalHide = window.hideLoadingBar;
+
+      window.showLoadingBar = function(){
+        originalShow.apply(this, arguments);
+        ensureMutationObserver();
+        markActivity();
+      };
+      window.showLoadingBar.__idleWrapped = true;
+
+      window.hideLoadingBar = function(){
+        clearTimeout(loadingBarIdleTimer);
+        originalHide.apply(this, arguments);
+      };
+
+      return;
+    }
+
+    if (attempts < maxAttempts) {
+      setTimeout(tryWrap, 120);
+    }
+  }
+
+  tryWrap();
+})();
 
 
 
