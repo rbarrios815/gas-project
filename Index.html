@@ -1,4 +1,4 @@
-<!-- Version 1.0.19 | 36abbe4 -->
+<!-- Version 1.0.20 | 5fca994 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -2947,6 +2947,8 @@ input#clientAutocomplete, select#clientSelect {
 .chip.QC { background: #FF8C00; color: #fff; }   /* orange */
 .chip.TEAM { background: #800080; color: #fff; }   /* orange */
 .chip.BDAY { background: #FF8C00; color: #fff; }   /* orange */
+
+.chip.chip--overdue { color: #D92D20 !important; }
 
 
 .chip.EMPTY { background: #f0f0f0; color: #333; }/* placeholder neutral */
@@ -11352,6 +11354,10 @@ function createChipElement(clientName, initials, mmddyy) {
   var chip = document.createElement('span');
   chip.className = 'chip ' + (safeInitials ? safeInitials : 'EMPTY');
 
+  if (isChipDateInPast(safeDate)) {
+    chip.classList.add('chip--overdue');
+  }
+
   // If both initials and date are empty, show a neutral placeholder
   if (!safeInitials && !safeDate) {
     var ph = document.createElement('span');
@@ -11395,6 +11401,10 @@ function createChipElementReadOnly(clientName, initials, mmddyy) {
 
   var chip = document.createElement('span');
   chip.className = 'chip ' + (safeInitials ? safeInitials : 'EMPTY');
+
+  if (isChipDateInPast(safeDate)) {
+    chip.classList.add('chip--overdue');
+  }
 
   if (!safeInitials && !safeDate) {
     var ph = document.createElement('span');
@@ -11580,6 +11590,15 @@ function chipDateToTime(raw) {
   // Fallback
   var d3 = new Date(s);
   return isNaN(d3.getTime()) ? Number.NEGATIVE_INFINITY : d3.getTime();
+}
+
+function isChipDateInPast(raw) {
+  var ts = chipDateToTime(raw);
+  if (ts === Number.NEGATIVE_INFINITY) return false;
+
+  var today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return ts < today.getTime();
 }
 
 function onToplistSuggestionBlur(clientName, newValue) {
