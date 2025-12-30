@@ -10469,11 +10469,10 @@ function displayClient(client, container) {
   clientDiv.appendChild(topRow);
 
   /* ── Notes highlight section (read-only in list) ── */
-  var allC = [];
+  var allLines = [];
   (client.pastWorks || []).forEach(function(pw){
     String(pw || '').split('\n').forEach(function(line){
-      var t = (line || '').trim();
-      if (t) allC.push(t);
+      allLines.push(String(line || ''));
     });
   });
 
