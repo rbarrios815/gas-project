@@ -1,4 +1,4 @@
-// Version 1.0.13 | 850b6b7
+// Version 1.0.14 | 850b6b7
 
 function doGet(e) {
 
@@ -2793,13 +2793,26 @@ function sendJbChipTasksEmail() {
     });
   }
 
+  var sanitizedBody = sanitizeDigestTaskPrefixes_(lines.join('\n'));
+
   MailApp.sendEmail({
     to: JB_CHIP_RECIPIENTS.join(','),
     subject: 'DASHBOARD CLIENT TASKS FOR TODAY (' + (summary.dateString || 'today') + '):',
-    body: lines.join('\n')
+    body: sanitizedBody
   });
 
   ensureJbChipDailyTrigger();
+}
+
+function sanitizeDigestTaskPrefixes_(body) {
+  if (!body) return body;
+
+  return String(body)
+    .split(/\n/)
+    .map(function(line) {
+      return line.replace(/^(\s*)(?:3RD LATEST: |2ND LATEST: |LATEST: )/, '$1');
+    })
+    .join('\n');
 }
 
 
