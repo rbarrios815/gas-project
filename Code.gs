@@ -1,18 +1,41 @@
-// Version 1.0.14 | 850b6b7
+// Version 1.0.15 | 591d629
+
+function normalizeEmail(email) {
+  return String(email || '').trim().toLowerCase();
+}
 
 function doGet(e) {
+  const activeUserEmail = Session.getActiveUser().getEmail();
+  const effectiveUserEmail = Session.getEffectiveUser().getEmail();
+  // Use both active and effective user values to handle consumer and Workspace accounts.
+  Logger.log('Detected Active User Email: ' + activeUserEmail);
+  Logger.log('Detected Effective User Email: ' + effectiveUserEmail);
 
-  var userEmail = Session.getActiveUser().getEmail(); // Ensure it gets the active user
-  Logger.log("Detected User Email: " + userEmail); // Debugging - logs detected email
+  const allowedUsers = [
+    'jbgreatfamily1@gmail.com',
+    'rbarrios815@gmail.com',
+    'domlozano7@gmail.com',
+    'rbarrio1nd@gmail.com',
+    'rbarrio1@alumni.nd.edu',
+    'barriosgreatfamily1@gmail.com'
+  ].map(normalizeEmail);
 
-  var allowedUsers = ['jbgreatfamily1@gmail.com', 'rbarrios815@gmail.com', 'domlozano7@gmail.com', 'rbarrio1nd@gmail.com', 'rbarrio1@alumni.nd.edu','barriosgreatfamily1@gmail.com'];
+  const normalizedActive = normalizeEmail(activeUserEmail);
+  const normalizedEffective = normalizeEmail(effectiveUserEmail);
+  const hasAccess = allowedUsers.includes(normalizedActive) || allowedUsers.includes(normalizedEffective);
 
-  if (allowedUsers.includes(userEmail)) {
+  if (hasAccess) {
     ensureJbChipDailyTrigger();
     return HtmlService.createHtmlOutputFromFile('Index');
-  } else {
-    return HtmlService.createHtmlOutput("Sorry, you do not have access to this app.<br>Your detected email: " + userEmail);
   }
+
+  const messageParts = [
+    'Sorry, you do not have access to this app.',
+    'Please sign in with an approved Google account and try again.',
+    'Active user: ' + (activeUserEmail || 'Not detected'),
+    'Effective user: ' + (effectiveUserEmail || 'Not detected')
+  ];
+  return HtmlService.createHtmlOutput(messageParts.join('<br>'));
 }
 
 
