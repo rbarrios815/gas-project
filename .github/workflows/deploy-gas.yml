@@ -21,7 +21,7 @@ jobs:
       - name: Install clasp
         run: npm i -g @google/clasp
 
-      - name: Guard: prevent duplicate GAS file titles
+      - name: Guard- prevent duplicate GAS file titles
         run: |
           set -euo pipefail
           dups="$(python3 -c "import glob,os,collections; files=glob.glob('*.gs')+glob.glob('*.js'); base=[os.path.splitext(os.path.basename(f))[0] for f in files]; c=collections.Counter(base); bad=[k for k,v in c.items() if v>1]; print('\n'.join(bad))")"
