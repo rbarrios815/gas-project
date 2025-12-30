@@ -1,4 +1,4 @@
-<!-- Version 1.0.17 | 3ee7041 -->
+<!-- Version 1.0.18 | 47a0268 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -6915,34 +6915,43 @@ document.getElementById('notesDisplay').style.display = 'block';
     // Start asynchronous operation to populate labels dropdown
     google.script.run
       .withSuccessHandler(function(labels) {
-        populateLabelsDropdown(labels);
-        markOpComplete();
+        try {
+          populateLabelsDropdown(labels);
+        } catch (err) {
+          console.error('populateLabelsDropdown failed', err);
+        } finally {
+          markOpComplete();
+        }
       })
       .withFailureHandler(function(err){ markOpFailed('Failed to load labels', err); })
       .getAllLabels();
 
     // Fetch client details and handle them with a success handler
     google.script.run.withSuccessHandler(function(data) {
-        // After successful fetch, set up the dropdowns and display data
-     // After successful fetch, set up the dropdowns and display data
-setupColumnDropdowns(data);
+        try {
+            // After successful fetch, set up the dropdowns and display data
+            setupColumnDropdowns(data);
 
-// ⭐ Set chip cache FIRST (so displayNotes sees it)
-window.__chipForCurrentClient = {
-  initials: (data.chipInitials || "").toUpperCase(),
-  date: data.chipDate || ""   // already MM/DD/YY per our server plan
-};
+            // ⭐ Set chip cache FIRST (so displayNotes sees it)
+            window.__chipForCurrentClient = {
+              initials: (data.chipInitials || "").toUpperCase(),
+              date: data.chipDate || ""   // already MM/DD/YY per our server plan
+            };
 
-displayClientDetails(data);
+            displayClientDetails(data);
 
-setTaskTypesForClient(clientName, data.taskTypes, data.taskTypeTemplate);
+            setTaskTypesForClient(clientName, data.taskTypes, data.taskTypeTemplate);
 
-// Update the category select value based on fetched client data
-updateCategorySelectValue(data.category);
-        setCategoryPlaceholderText(data.category || __currentCategory || '');
-        positionCategoryDropdownOverAutocomplete();
-
-        markOpComplete();
+            // Update the category select value based on fetched client data
+            updateCategorySelectValue(data.category);
+            setCategoryPlaceholderText(data.category || __currentCategory || '');
+            positionCategoryDropdownOverAutocomplete();
+        } catch (err) {
+            console.error('displayClientDetails pipeline failed', err);
+            showToast('Unable to load client');
+        } finally {
+            markOpComplete();
+        }
     })
     .withFailureHandler(function(err){
         markOpFailed('Failed to load client details', err);
