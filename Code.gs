@@ -1,4 +1,4 @@
-// Version 1.0.15 | 591d629
+// Version 1.0.16 | 298d612
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -2649,9 +2649,10 @@ function formatDateTaskLine_(line, tz) {
   return remainder ? (formattedDate + ': ' + remainder) : formattedDate;
 }
 
-// Limit JB MMS payload size by capping highlighted notes per client and using MMS gateways.
+// Limit JB/RB MMS payload size by capping highlighted notes per client and using MMS gateways.
 const MAX_JB_HIGHLIGHTS_PER_CLIENT = 3;
 const JB_CHIP_RECIPIENTS = ['8326215185@vzwpix.com', '2817146370@vzwpix.com'];
+const RB_CHIP_RECIPIENTS = ['8326215185@vzwpix.com'];
 
 function extractHighlightedLines_(lines, tz, cutoffDate, maxLines) {
   var withDates = [];
@@ -2713,9 +2714,14 @@ function isHighlightedCell_(bg) {
   return c !== '#ffffff' && c !== '#fff' && c !== 'white';
 }
 
-function collectJbChipClients_(targetDate) {
+function collectChipClients_(initials, targetDate, maxHighlights) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
   if (!sheet) {
+    return { dateString: '', clients: [] };
+  }
+
+  var owner = (initials || '').toString().trim().toUpperCase();
+  if (!owner) {
     return { dateString: '', clients: [] };
   }
 
@@ -2727,6 +2733,9 @@ function collectJbChipClients_(targetDate) {
   targetDay.setHours(0, 0, 0, 0);
   var targetStr = Utilities.formatDate(targetDay, tz, "MM/dd/yy");
   var clients = {};
+  var maxHighlightCount = (typeof maxHighlights === 'number' && maxHighlights > 0)
+    ? Math.floor(maxHighlights)
+    : MAX_JB_HIGHLIGHTS_PER_CLIENT;
 
   data.forEach(function(row, idx) {
     if (idx === 0) return; // header
@@ -2734,10 +2743,10 @@ function collectJbChipClients_(targetDate) {
     var rawName = row[0];
     if (!rawName) return;
 
-    var initials = row[15] ? row[15].toString().trim().toUpperCase() : '';
+    var initialsCell = row[15] ? row[15].toString().trim().toUpperCase() : '';
     var chipDate = normalizeChipDate_(row[16]);
 
-    if (initials !== 'JB' || !chipDate || chipDate.getTime() > targetDay.getTime()) {
+    if (initialsCell !== owner || !chipDate || chipDate.getTime() > targetDay.getTime()) {
       return;
     }
 
@@ -2766,65 +2775,94 @@ function collectJbChipClients_(targetDate) {
     var entry = clients[name];
     return {
       name: entry.name,
-      highlights: extractHighlightedLines_(entry.pastWorks, tz, targetDay, MAX_JB_HIGHLIGHTS_PER_CLIENT)
+      highlights: extractHighlightedLines_(entry.pastWorks, tz, targetDay, maxHighlightCount)
     };
   });
 
   return { dateString: targetStr, clients: resultClients };
 }
 
+function collectJbChipClients_(targetDate) {
+  return collectChipClients_('JB', targetDate, MAX_JB_HIGHLIGHTS_PER_CLIENT);
+}
 
-function sendJbChipTasksEmail() {
-  var summary = collectJbChipClients_(new Date());
+function collectRbChipClients_(targetDate) {
+  return collectChipClients_('RB', targetDate, MAX_JB_HIGHLIGHTS_PER_CLIENT);
+}
+
+function buildChipSummaryLines_(summary, ownerLabel) {
   var lines = [];
 
   // Blank line at the very top of the body (creates visual gap after subject)
   lines.push('');
 
   if (!summary.clients.length) {
-    lines.push('No clients matched the JB chip for ' + (summary.dateString || 'today') + '.');
-  } else {
-    summary.clients.forEach(function(client) {
-      var orderedHighlights = (client.highlights || []).slice().reverse(); // oldest of the selected first
-      var total = orderedHighlights.length;
-
-      function labelForIndex(idx) {
-        var rankFromLatest = total - idx;
-        if (rankFromLatest <= 3) return '';
-        return rankFromLatest + 'TH LATEST';
-      }
-
-      // Client name
-      lines.push(client.name);
-
-      // Blank line between client name and tasks
-      lines.push('');
-
-      // Indented tasks (5 spaces)
-      if (total === 0) {
-        lines.push('     No highlighted tasks available');
-      } else {
-        orderedHighlights.forEach(function(item, idx) {
-          var label = labelForIndex(idx);
-          var prefix = label ? (label + ': ') : '';
-          lines.push('     ' + prefix + item.formatted);
-        });
-      }
-
-      // Blank line between clients
-      lines.push('');
-    });
+    lines.push('No clients matched the ' + ownerLabel + ' chip for ' + (summary.dateString || 'today') + '.');
+    return lines;
   }
 
+  summary.clients.forEach(function(client) {
+    var orderedHighlights = (client.highlights || []).slice().reverse(); // oldest of the selected first
+    var total = orderedHighlights.length;
+
+    function labelForIndex(idx) {
+      var rankFromLatest = total - idx;
+      if (rankFromLatest <= 3) return '';
+      return rankFromLatest + 'TH LATEST';
+    }
+
+    // Client name
+    lines.push(client.name);
+
+    // Blank line between client name and tasks
+    lines.push('');
+
+    // Indented tasks (5 spaces)
+    if (total === 0) {
+      lines.push('     No highlighted tasks available');
+    } else {
+      orderedHighlights.forEach(function(item, idx) {
+        var label = labelForIndex(idx);
+        var prefix = label ? (label + ': ') : '';
+        lines.push('     ' + prefix + item.formatted);
+      });
+    }
+
+    // Blank line between clients
+    lines.push('');
+  });
+
+  return lines;
+}
+
+function sendChipTasksEmail_(ownerLabel, recipients) {
+  var summary = collectChipClients_(ownerLabel, new Date(), MAX_JB_HIGHLIGHTS_PER_CLIENT);
+  var lines = buildChipSummaryLines_(summary, ownerLabel);
+
   var sanitizedBody = sanitizeDigestTaskPrefixes_(lines.join('\n'));
+  var recipientList = Array.isArray(recipients) ? recipients.filter(Boolean) : [];
+  if (!recipientList.length) {
+    throw new Error('No recipients configured for ' + ownerLabel + ' chip summary');
+  }
 
   MailApp.sendEmail({
-    to: JB_CHIP_RECIPIENTS.join(','),
-    subject: 'DASHBOARD CLIENT TASKS FOR TODAY (' + (summary.dateString || 'today') + '):',
+    to: recipientList.join(','),
+    subject: ownerLabel + ' DASHBOARD CLIENT TASKS FOR TODAY (' + (summary.dateString || 'today') + '):',
     body: sanitizedBody
   });
 
+  return summary;
+}
+
+function sendJbChipTasksEmail() {
+  var summary = sendChipTasksEmail_('JB', JB_CHIP_RECIPIENTS);
+
   ensureJbChipDailyTrigger();
+  return summary;
+}
+
+function sendRbChipTasksEmail() {
+  return sendChipTasksEmail_('RB', RB_CHIP_RECIPIENTS);
 }
 
 function sanitizeDigestTaskPrefixes_(body) {
