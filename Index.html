@@ -1,4 +1,4 @@
-<!-- Version 1.0.23 | 7fb01a4 -->
+<!-- Version 1.0.22 | 36cd6ba -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -10476,12 +10476,10 @@ function displayClient(client, container) {
     });
   });
 
-  var hasNoteContent = allLines.some(function(line){ return String(line || '').trim() !== ''; });
-
-  if (hasNoteContent) {
+  if (allC.length > 0) {
     var blocks = (typeof groupLinesIntoBlocks === 'function')
-      ? groupLinesIntoBlocks(allLines)
-      : allLines.map(function(line) {
+      ? groupLinesIntoBlocks(allC)
+      : allC.map(function(line) {
           var parseDate = (typeof extractDateFromLine === 'function') ? extractDateFromLine(line) : null;
           return { date: parseDate, lines: [line] };
         });
