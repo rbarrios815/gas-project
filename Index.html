@@ -1,4 +1,4 @@
-<!-- Version 1.0.22 | c7d18fa -->
+<!-- Version 1.0.23 | d486fdc -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -8419,12 +8419,13 @@ document.getElementById('topClientsTitle').style.display = 'none';
     }).getTopClients(); // Your server-side function to fetch top clients
 }
 
-function clientHasBirthdayIndicator(client) {
+function clientHasBirthdayFields(client) {
   if (!client) return false;
+  return Boolean(client.birthdayActive || client.birthdayMonth || client.birthdayDay || client.birthday);
+}
 
-  if (client.birthdayActive || client.birthdayMonth || client.birthdayDay || client.birthday) {
-    return true;
-  }
+function clientHasBirthdayChipOrCake(client) {
+  if (!client) return false;
 
   var initials = (client.chipInitials || client.initials || '').toUpperCase();
   if (initials === 'BDAY') return true;
@@ -8453,6 +8454,10 @@ function clientHasBirthdayIndicator(client) {
 
     return label.indexOf('🎂') !== -1;
   });
+}
+
+function clientHasBirthdayIndicator(client) {
+  return clientHasBirthdayFields(client) || clientHasBirthdayChipOrCake(client);
 }
 
 var __birthdayMonthSelection = new Date().getMonth() + 1;
@@ -10516,7 +10521,8 @@ function displayClient(client, container) {
   var isBirthdayFilter = window.__currentTopClientsFilter === 'BDAY';
   var birthdayLabel = client.birthdayDisplay || client.birthday || client.birthdayRaw || '';
   var labelParts = brightLabels.slice();
-  var hasBirthdayIndicator = clientHasBirthdayIndicator(client);
+  var hasBirthdayFields = clientHasBirthdayFields(client);
+  var hasBirthdayChipOrCake = clientHasBirthdayChipOrCake(client);
 
   if (isBirthdayFilter && birthdayLabel) {
     var cakeIdx = labelParts.indexOf('🎂');
@@ -10537,7 +10543,9 @@ function displayClient(client, container) {
   clientButton.innerText = baseClientName + (clientCategory ? ' (' + clientCategory + ')' : '') + labelText;
   clientButton.style.cssText = "display:inline-flex; align-items:center;";
   if (isBirthdayFilter) {
-    clientButton.classList.add(hasBirthdayIndicator ? 'bday-eligible' : 'bday-ineligible');
+    var birthdayColorClass = hasBirthdayFields ? 'bday-eligible' : 'bday-ineligible';
+    if (!hasBirthdayChipOrCake) birthdayColorClass = 'bday-ineligible';
+    clientButton.classList.add(birthdayColorClass);
   }
   clientButton.addEventListener('click', function () {
     var btnClient = this.getAttribute('data-client') || baseClientName || this.innerText || '';
