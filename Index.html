@@ -1,4 +1,4 @@
-<!-- Version 1.0.21 | 298d612 -->
+<!-- Version 1.0.23 | d486fdc -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -2910,6 +2910,38 @@ input#clientAutocomplete, select#clientSelect {
   margin-right: 0;
 }
 
+.birthday-month-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  align-items: center;
+  margin: 6px 0 10px;
+}
+
+.birthday-month-button {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #ced4da;
+  background: #f8f9fa;
+  font-size: 12px;
+  font-weight: 700;
+  color: #212529;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.birthday-month-button:hover {
+  background: #e9ecef;
+}
+
+.birthday-month-button.birthday-month-selected {
+  background: linear-gradient(135deg, var(--green1), var(--green2));
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
 /* SNIPPET #2 (REPLACED): make filter dropdown look like a button and hide arrow */
 /* SNIPPET #2 (RESTORED): native select with arrow */
 #topClientsFilterDropdown {
@@ -4020,8 +4052,6 @@ input#clientAutocomplete, select#clientSelect {
     <div class="row" id="topClientsControlRow">
         <div id="dateTitle" class="title-text"></div>
 
-        <button id="birthdayScopeToggleBtn" class="secondary-button" type="button" style="display:none;" onclick="toggleBirthdayScope()">SHOW ALL BIRTHDAYS</button>
-
         <!-- FILTER DROPDOWN (unchanged) -->
         <select id="topClientsFilterDropdown">
             <option value="JB">JB</option>
@@ -4040,6 +4070,8 @@ input#clientAutocomplete, select#clientSelect {
             💡
         </button>
     </div>
+
+    <div id="birthdayMonthRow" class="birthday-month-row" style="display:none;"></div>
 
     <div id="labelFilterBarRow" class="task-type-bar-row label-filter-row" style="display:none;">
       <div id="labelFilterBar" class="task-type-bar" aria-label="Bright label filters"></div>
@@ -4908,7 +4940,7 @@ function syncClientsListToDropdown(){
   })();
 
   fitTopClientsHeaderControls();
-  updateBirthdayToggleButton();
+  updateBirthdayMonthRowVisibility();
 
 // Drive the render using a single, token-protected fetch
 fetchAndRenderTopClientsFromDropdown();
@@ -8387,12 +8419,13 @@ document.getElementById('topClientsTitle').style.display = 'none';
     }).getTopClients(); // Your server-side function to fetch top clients
 }
 
-function clientHasBirthdayIndicator(client) {
+function clientHasBirthdayFields(client) {
   if (!client) return false;
+  return Boolean(client.birthdayActive || client.birthdayMonth || client.birthdayDay || client.birthday);
+}
 
-  if (client.birthdayActive || client.birthdayMonth || client.birthdayDay || client.birthday) {
-    return true;
-  }
+function clientHasBirthdayChipOrCake(client) {
+  if (!client) return false;
 
   var initials = (client.chipInitials || client.initials || '').toUpperCase();
   if (initials === 'BDAY') return true;
@@ -8423,7 +8456,81 @@ function clientHasBirthdayIndicator(client) {
   });
 }
 
-var __showAllBirthdays = false;
+function clientHasBirthdayIndicator(client) {
+  return clientHasBirthdayFields(client) || clientHasBirthdayChipOrCake(client);
+}
+
+var __birthdayMonthSelection = new Date().getMonth() + 1;
+
+function getActiveBirthdayMonth() {
+  var month = Number(__birthdayMonthSelection);
+  if (!month || month < 1 || month > 12) {
+    month = new Date().getMonth() + 1;
+    __birthdayMonthSelection = month;
+  }
+  return month;
+}
+
+function resetBirthdayMonthSelection() {
+  __birthdayMonthSelection = new Date().getMonth() + 1;
+  syncBirthdayMonthButtons();
+}
+
+function buildBirthdayMonthButtons() {
+  var row = document.getElementById('birthdayMonthRow');
+  if (!row) return;
+
+  var months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  row.innerHTML = '';
+
+  months.forEach(function(label, idx) {
+    var month = idx + 1;
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'birthday-month-button';
+    btn.dataset.month = month;
+    btn.textContent = label;
+    btn.addEventListener('click', function() {
+      if (month === getActiveBirthdayMonth()) return;
+      __birthdayMonthSelection = month;
+      syncBirthdayMonthButtons();
+      retriggerTopClientsFilter();
+    });
+    row.appendChild(btn);
+  });
+
+  syncBirthdayMonthButtons();
+}
+
+function syncBirthdayMonthButtons() {
+  var row = document.getElementById('birthdayMonthRow');
+  if (!row) return;
+
+  var selected = getActiveBirthdayMonth();
+  row.querySelectorAll('button').forEach(function(btn) {
+    var isActive = Number(btn.dataset.month) === selected;
+    btn.classList.toggle('birthday-month-selected', isActive);
+    btn.setAttribute('aria-pressed', isActive);
+  });
+}
+
+function updateBirthdayMonthRowVisibility(currentFilter) {
+  var row = document.getElementById('birthdayMonthRow');
+  if (!row) return;
+
+  var isBirthdayFilter = (currentFilter || getCurrentTopClientsFilter()) === 'BDAY';
+  if (isBirthdayFilter) {
+    if (!row.dataset.built) {
+      buildBirthdayMonthButtons();
+      row.dataset.built = 'true';
+    } else {
+      syncBirthdayMonthButtons();
+    }
+    row.style.display = 'flex';
+  } else {
+    row.style.display = 'none';
+  }
+}
 
 function getClientBirthdayMonth(client) {
   if (!client) return null;
@@ -8442,29 +8549,10 @@ function getClientBirthdayMonth(client) {
 
 function birthdayFilterAllowsClient(client, currentMonth) {
   if (!clientHasBirthdayIndicator(client)) return false;
-  if (__showAllBirthdays) return true;
 
   var month = getClientBirthdayMonth(client);
-  return month === currentMonth;
-}
-
-function updateBirthdayToggleButton() {
-  var btn = document.getElementById('birthdayScopeToggleBtn');
-  var isBirthdayFilter = getCurrentTopClientsFilter() === 'BDAY';
-
-  if (!btn) return;
-
-  btn.style.display = isBirthdayFilter ? 'inline-flex' : 'none';
-
-  btn.textContent = __showAllBirthdays
-    ? "SHOW ONLY THIS MONTH'S BIRTHDAYS"
-    : 'SHOW ALL BIRTHDAYS';
-}
-
-function toggleBirthdayScope() {
-  __showAllBirthdays = !__showAllBirthdays;
-  updateBirthdayToggleButton();
-  retriggerTopClientsFilter();
+  var targetMonth = currentMonth || getActiveBirthdayMonth();
+  return month === targetMonth;
 }
 
 /**********************************************
@@ -8481,6 +8569,7 @@ function toggleBirthdayScope() {
   var filter = normalizeTopClientsFilter(filterKey || 'JB'); // you already have this helper
   var labelFilter = filter.startsWith('LABEL|') ? filter.slice(6) : '';
   window.__currentTopClientsFilter = filter;
+  updateBirthdayMonthRowVisibility(filter);
   var out = document.getElementById('topClientsDisplay');
   if (!out) return;
   out.innerHTML = '';
@@ -8503,14 +8592,14 @@ function toggleBirthdayScope() {
   // OWNER filters (JB/RB/QC/TEAM)
   var OWNER_KEYS = ['JB','RB','QC','TEAM','BDAY'];
   var isBirthdayFilter = filter === 'BDAY';
-  var currentMonth = new Date().getMonth() + 1;
+  var selectedBirthdayMonth = getActiveBirthdayMonth();
 
   var filtered = clients.filter(function(c){
     if (labelFilter) {
       return getBrightLabelsFromClient(c).some(function (label) { return label === labelFilter; });
     }
     if (isBirthdayFilter) {
-      return birthdayFilterAllowsClient(c, currentMonth);
+      return birthdayFilterAllowsClient(c, selectedBirthdayMonth);
     }
     if (OWNER_KEYS.includes(filter)) {
       var initials = (c.chipInitials || c.initials || '').toUpperCase();
@@ -8521,7 +8610,7 @@ function toggleBirthdayScope() {
     return emoji ? hasEmojiLabel(c, emoji) : true;
   });
 
-  var startMonthForBirthdays = currentMonth;
+  var startMonthForBirthdays = selectedBirthdayMonth;
 
   // Sort: for birthdays use DOB cadence, otherwise chipDate (valid earliest first), blanks LAST; then name
   filtered.sort(function(a, b){
@@ -8589,6 +8678,7 @@ function birthdaySortValue(client, startMonth){
   var filter = normalizeTopClientsFilter(chosen); // you already have this helper
   var labelFilter = filter.startsWith('LABEL|') ? filter.slice(6) : '';
   window.__currentTopClientsFilter = filter;
+  updateBirthdayMonthRowVisibility(filter);
 
   // Keep dropdown visually in sync with what we render
   if (dd && !labelFilter) dd.value = filter;
@@ -8605,7 +8695,7 @@ function birthdaySortValue(client, startMonth){
   var OWNER_KEYS = ['JB','RB','QC','TEAM','BDAY'];
   var emojiMap = { BRIEFCASE:'💼', STAR:'⭐', GRADCAP:'🎓', PHONE:'📞' };
   var isBirthdayFilter = filter === 'BDAY';
-  var currentMonth = new Date().getMonth() + 1;
+  var currentMonth = getActiveBirthdayMonth();
 
   function hasEmojiLabel(c, emoji) {
     if (!emoji) return false;
@@ -10431,7 +10521,8 @@ function displayClient(client, container) {
   var isBirthdayFilter = window.__currentTopClientsFilter === 'BDAY';
   var birthdayLabel = client.birthdayDisplay || client.birthday || client.birthdayRaw || '';
   var labelParts = brightLabels.slice();
-  var hasBirthdayIndicator = clientHasBirthdayIndicator(client);
+  var hasBirthdayFields = clientHasBirthdayFields(client);
+  var hasBirthdayChipOrCake = clientHasBirthdayChipOrCake(client);
 
   if (isBirthdayFilter && birthdayLabel) {
     var cakeIdx = labelParts.indexOf('🎂');
@@ -10452,7 +10543,9 @@ function displayClient(client, container) {
   clientButton.innerText = baseClientName + (clientCategory ? ' (' + clientCategory + ')' : '') + labelText;
   clientButton.style.cssText = "display:inline-flex; align-items:center;";
   if (isBirthdayFilter) {
-    clientButton.classList.add(hasBirthdayIndicator ? 'bday-eligible' : 'bday-ineligible');
+    var birthdayColorClass = hasBirthdayFields ? 'bday-eligible' : 'bday-ineligible';
+    if (!hasBirthdayChipOrCake) birthdayColorClass = 'bday-ineligible';
+    clientButton.classList.add(birthdayColorClass);
   }
   clientButton.addEventListener('click', function () {
     var btnClient = this.getAttribute('data-client') || baseClientName || this.innerText || '';
@@ -10867,10 +10960,10 @@ function handleTopClientsFilterChange(selectedFilter) {
   var previousFilter = window.__currentTopClientsFilter;
   window.__currentTopClientsFilter = val;
 
-  if (val !== 'BDAY' || previousFilter !== 'BDAY') {
-    __showAllBirthdays = false;
+  if (val === 'BDAY' && previousFilter !== 'BDAY') {
+    resetBirthdayMonthSelection();
   }
-  updateBirthdayToggleButton();
+  updateBirthdayMonthRowVisibility(val);
 
   if (labelFilter) {
     __activeLabelFilter = labelFilter;
