@@ -1,4 +1,4 @@
-<!-- Version 1.0.24 | c83fbb7 -->
+<!-- Version 1.0.25 | da1b461 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -9358,6 +9358,101 @@ function hideLoadingBar() {
         loadingBarContainer.style.display = 'none';
     }, 450);
 }
+
+// Ensure every server call automatically shows/hides the loading bar.
+(function installScriptRunLoadingProxy(){
+  var attempts = 0;
+  var maxAttempts = 60;
+
+  function createLoadingProxy(baseRun){
+    var state = {
+      successHandler: null,
+      failureHandler: null,
+      userObject: null
+    };
+
+    var proxy = new Proxy({}, {
+      get: function(_, prop){
+        if (prop === '__loadingProxy') return true;
+        if (prop === '__baseRun') return baseRun;
+
+        if (prop === 'withSuccessHandler') {
+          return function(handler){
+            state.successHandler = handler;
+            return proxy;
+          };
+        }
+
+        if (prop === 'withFailureHandler') {
+          return function(handler){
+            state.failureHandler = handler;
+            return proxy;
+          };
+        }
+
+        if (prop === 'withUserObject') {
+          return function(userObj){
+            state.userObject = userObj;
+            return proxy;
+          };
+        }
+
+        return function(){
+          showLoadingBar();
+
+          var successHandler = state.successHandler;
+          var failureHandler = state.failureHandler;
+          var userObject = state.userObject;
+
+          state.successHandler = null;
+          state.failureHandler = null;
+          state.userObject = null;
+
+          var runner = baseRun
+            .withSuccessHandler(function(){
+              try {
+                if (successHandler) successHandler.apply(this, arguments);
+              } finally {
+                hideLoadingBar();
+              }
+            })
+            .withFailureHandler(function(){
+              try {
+                if (failureHandler) failureHandler.apply(this, arguments);
+              } finally {
+                hideLoadingBar();
+              }
+            });
+
+          if (userObject !== null) {
+            runner = runner.withUserObject(userObject);
+          }
+
+          return runner[prop].apply(runner, arguments);
+        };
+      }
+    });
+
+    return proxy;
+  }
+
+  function tryInstall(){
+    attempts++;
+
+    if (!(window.google && google.script && google.script.run)) {
+      if (attempts < maxAttempts) setTimeout(tryInstall, 200);
+      return;
+    }
+
+    var baseRun = google.script.run;
+    if (baseRun.__loadingProxyInstalled) return;
+
+    baseRun.__loadingProxyInstalled = true;
+    google.script.run = createLoadingProxy(baseRun);
+  }
+
+  tryInstall();
+})();
 
 // When the UI stops changing (e.g., user stops typing or suggestions settle),
 // force the loading bar to disappear so it never stays stuck from autocomplete noise.
