@@ -1,4 +1,4 @@
-// Version 1.0.17 | 44c80e0
+// Version 1.0.18 | c83fbb7
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -242,6 +242,7 @@ function getClientDetails(clientName) {
   var columnD = "";
   var columnLValue = "";
   var columnOTaskTypes = [];
+  var tz = Session.getScriptTimeZone();
   var sharedTaskTemplate = getTaskTypeTemplateForSheet(sheet);
   var defaultTaskTemplate = sharedTaskTemplate.length ? sharedTaskTemplate : parseTaskTypeCell(DEFAULT_TASK_TYPE_TEXT);
 
@@ -255,8 +256,8 @@ function getClientDetails(clientName) {
       thisClientName = thisClientName.replace(/\d+$/, '').trim();
       if (thisClientName.toLowerCase() === clientName.toLowerCase()) {
         var thisCategory = row[5] ? row[5].toString().trim() : "N/A";
-        var thisNoteDate = row[1] ? Utilities.formatDate(new Date(row[1]), Session.getScriptTimeZone(), "MM/dd/yy") : "N/A";
-        var thisFollowUpDate = row[3] ? Utilities.formatDate(new Date(row[3]), Session.getScriptTimeZone(), "MM/dd/yy") : "N/A";
+        var thisNoteDate = row[1] ? Utilities.formatDate(new Date(row[1]), tz, "MM/dd/yy") : "N/A";
+        var thisFollowUpDate = row[3] ? Utilities.formatDate(new Date(row[3]), tz, "MM/dd/yy") : "N/A";
         var thisNote = row[2] ? row[2].toString().trim() : "N/A";
         var thisFollowUp = row[4] ? row[4].toString().trim() : "N/A";
 
@@ -293,6 +294,19 @@ if (clientLabels.length === 0) {
   for (var i = 7; i <= 10; i++) {
     if (row[i] && String(row[i]).trim() !== '') {
       clientLabels.push({ label: String(row[i]).trim(), isBlue: true });
+    }
+  }
+
+  // Column N (DOB, blue, read-only)
+  if (row[13] && String(row[13]).trim() !== '') {
+    var dobText = "";
+    if (row[13] instanceof Date) {
+      dobText = Utilities.formatDate(row[13], tz, "M/d/yyyy");
+    } else {
+      dobText = String(row[13]).trim();
+    }
+    if (dobText) {
+      clientLabels.push({ label: "DOB: " + dobText, isBlue: true });
     }
   }
 }
