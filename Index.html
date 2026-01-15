@@ -1,4 +1,4 @@
-<!-- Version 1.0.23 | d486fdc -->
+<!-- Version 1.0.24 | c83fbb7 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -2562,6 +2562,23 @@ input#clientAutocomplete, select#clientSelect {
 }
 
 #topClientsDisplay .client-button.bday-ineligible {
+  background: #fa5252;
+  color: #fff;
+}
+
+#topClientsDisplay .birthday-toggle-button {
+  margin-left: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.7em;
+}
+
+#topClientsDisplay .birthday-toggle-button.is-add {
+  background: #2f9e44;
+  color: #fff;
+}
+
+#topClientsDisplay .birthday-toggle-button.is-remove {
   background: #fa5252;
   color: #fff;
 }
@@ -7143,6 +7160,30 @@ function repaintTopClientsWithCurrentFilter(clients) {
   if (typeof applySuggestionsVisibility === 'function') applySuggestionsVisibility();
 }
 
+function toggleBirthdayCakeLabel(clientName, hasCakeLabel) {
+  if (!clientName) return;
+  var label = '🎂';
+  var onSuccess = function() {
+    showToast(hasCakeLabel ? 'Label removed successfully!' : 'Label added successfully!');
+    if (typeof refreshTopClientsPreservingScroll === 'function') {
+      refreshTopClientsPreservingScroll();
+    } else if (typeof retriggerTopClientsFilter === 'function') {
+      retriggerTopClientsFilter();
+    }
+  };
+  var onFailure = function(err) {
+    console.error('Failed to toggle birthday label', err);
+    showToast('Unable to update birthday label');
+  };
+
+  var runner = google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onFailure);
+  if (hasCakeLabel) {
+    runner.removeLabelFromClient(clientName, label);
+  } else {
+    runner.addLabelToClient(clientName, label);
+  }
+}
+
 
 function setupColumnBDropdown(data) {
   var columnBDropdown = document.getElementById('columnBDropdown');
@@ -7303,10 +7344,10 @@ function confirmAndRemoveLabel(label) {
     var clientName = document.getElementById('clientSelect').value;
     if (confirm('Are you sure you want to remove the label "' + label + '" from ' + clientName + '?')) {
         google.script.run.withSuccessHandler(function() {
-            alert('Label removed successfully!');
+            showToast('Label removed successfully!');
             showClientNotes(); // Assuming this function refreshes client details
         }).withFailureHandler(function(error) {
-            alert('Error removing label: ' + error.message);
+            showToast('Error removing label: ' + error.message);
         }).removeLabelFromClient(clientName, label);
     }
 }
@@ -10079,14 +10120,14 @@ function addLabelToClient(label) {
         if (newLabel) {
             // Call server-side function to add the new label to the client
             google.script.run.withSuccessHandler(function() {
-                alert("New label added successfully!");
+                showToast("New label added successfully!");
                 showClientNotes(); // Refresh to show the new label
             }).addLabelToClient(clientName, newLabel);
         }
     } else {
         // Existing logic to add existing label to client
         google.script.run.withSuccessHandler(function() {
-            alert("Label added successfully!");
+            showToast("Label added successfully!");
             showClientNotes(); // Refresh to show the added label
         }).addLabelToClient(clientName, label);
     }
@@ -10520,13 +10561,15 @@ function displayClient(client, container) {
   var brightLabels = getBrightLabelsFromClient(client);
   var isBirthdayFilter = window.__currentTopClientsFilter === 'BDAY';
   var birthdayLabel = client.birthdayDisplay || client.birthday || client.birthdayRaw || '';
+  var labelsText = String(client.labelsText || client.labelsRaw || '');
+  var hasCakeLabel = labelsText.indexOf('🎂') !== -1 || client.hasCakeLabel;
   var labelParts = brightLabels.slice();
   var hasBirthdayFields = clientHasBirthdayFields(client);
   var hasBirthdayChipOrCake = clientHasBirthdayChipOrCake(client);
 
-  if (isBirthdayFilter && birthdayLabel) {
+  if (isBirthdayFilter && hasCakeLabel) {
     var cakeIdx = labelParts.indexOf('🎂');
-    var decoratedCake = '🎂 (DOB: ' + birthdayLabel + ')';
+    var decoratedCake = birthdayLabel ? ('🎂 (DOB: ' + birthdayLabel + ')') : '🎂';
     if (cakeIdx !== -1) {
       labelParts[cakeIdx] = decoratedCake;
     } else {
@@ -10558,6 +10601,20 @@ function displayClient(client, container) {
     selectClientFromButton(btnClient);
   });
   topRow.appendChild(clientButton);
+
+  if (isBirthdayFilter) {
+    var cakeToggle = document.createElement('button');
+    cakeToggle.type = 'button';
+    cakeToggle.className = 'birthday-toggle-button ' + (hasCakeLabel ? 'is-remove' : 'is-add');
+    cakeToggle.textContent = '🎂';
+    cakeToggle.title = hasCakeLabel ? 'Remove cake label' : 'Add cake label';
+    cakeToggle.setAttribute('aria-label', cakeToggle.title);
+    cakeToggle.addEventListener('click', function(event) {
+      event.stopPropagation();
+      toggleBirthdayCakeLabel(baseClientName, hasCakeLabel);
+    });
+    topRow.appendChild(cakeToggle);
+  }
 
   clientDiv.appendChild(topRow);
 
