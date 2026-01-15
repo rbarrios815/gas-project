@@ -69,6 +69,9 @@ function importGoogleVoiceToSheet() {
     );
   }
 
+  // Cache existing notes in Column A to prevent duplicate entries.
+  const existingNotes = buildExistingNotesSet_(sheet);
+
   // Get or create labels
   let importLabel = GmailApp.getUserLabelByName(GV_IMPORT_LABEL_NAME);
   if (!importLabel) {
@@ -104,6 +107,11 @@ function importGoogleVoiceToSheet() {
       const extracted = extractVoiceContent(body);
       if (!extracted) return;
 
+      const normalized = normalizeVoiceNote_(extracted);
+      if (existingNotes.has(normalized)) {
+        return; // Skip duplicates already in Column A
+      }
+
       // Get the time the email was received
       const msgDate = message.getDate();
       const formattedDate = Utilities.formatDate(
@@ -117,6 +125,7 @@ function importGoogleVoiceToSheet() {
 
       // Column A: extracted text (e.g., "Test 1 2 3" or "Test")
       sheet.getRange(nextRow, 1).setValue(extracted);
+      existingNotes.add(normalized);
 
       // Column B: intentionally left blank
 
@@ -128,6 +137,24 @@ function importGoogleVoiceToSheet() {
     thread.addLabel(processedLabel);
     thread.removeLabel(importLabel);
   });
+}
+
+function buildExistingNotesSet_(sheet) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return new Set();
+
+  const values = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  const set = new Set();
+  values.forEach(function (row) {
+    const normalized = normalizeVoiceNote_(row[0]);
+    if (normalized) set.add(normalized);
+  });
+  return set;
+}
+
+function normalizeVoiceNote_(note) {
+  if (note === null || note === undefined) return '';
+  return String(note).trim().replace(/\s+/g, ' ');
 }
 
 /**
