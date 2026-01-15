@@ -1,4 +1,4 @@
-// Version 1.0.16 | 298d612
+// Version 1.0.17 | 44c80e0
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -25,7 +25,6 @@ function doGet(e) {
   const hasAccess = allowedUsers.includes(normalizedActive) || allowedUsers.includes(normalizedEffective);
 
   if (hasAccess) {
-    ensureJbChipDailyTrigger();
     return HtmlService.createHtmlOutputFromFile('Index');
   }
 
@@ -2600,24 +2599,6 @@ function findLineWithLargestDate(textArray) {
   return mostRecentLine;
 }
 
-/**
- * Ensure a time-based trigger exists to send the JB chip summary at 8 AM daily.
- */
-function ensureJbChipDailyTrigger() {
-  var handler = 'sendJbChipTasksEmail';
-  var hasTrigger = ScriptApp.getProjectTriggers().some(function(t) {
-    return t.getHandlerFunction() === handler;
-  });
-
-  if (!hasTrigger) {
-    ScriptApp.newTrigger(handler)
-      .timeBased()
-      .atHour(8)
-      .everyDays(1)
-      .create();
-  }
-}
-
 function parseDateFromLine_(line) {
   if (!line) return null;
   var match = String(line).match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/);
@@ -2855,10 +2836,7 @@ function sendChipTasksEmail_(ownerLabel, recipients) {
 }
 
 function sendJbChipTasksEmail() {
-  var summary = sendChipTasksEmail_('JB', JB_CHIP_RECIPIENTS);
-
-  ensureJbChipDailyTrigger();
-  return summary;
+  return sendChipTasksEmail_('JB', JB_CHIP_RECIPIENTS);
 }
 
 function sendRbChipTasksEmail() {
