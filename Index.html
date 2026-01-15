@@ -1,4 +1,4 @@
-<!-- Version 1.0.25 | da1b461 -->
+<!-- Version 1.0.26 | f961824 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -72,6 +72,26 @@
   font-weight: 800; letter-spacing: .3px;
   cursor: pointer; user-select: none;
   position: relative; z-index: 1;
+}
+
+/* Loading bar mirrored in the CHANGE VIEW handle */
+#dashHandleLoadingBar{
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  opacity: 0;
+  background: linear-gradient(90deg, #16a34a, #22c55e, #22d3ee, #2563eb);
+  background-size: 250% 100%;
+  transition: width 0.35s ease, opacity 0.25s ease, background-position 0.35s ease;
+  width: 0;
+  pointer-events: none;
+}
+
+#dashHandleLoadingBar.indeterminate{
+  opacity: 1;
+  animation: loadingSweep 1.05s ease-in-out infinite, loadingGradientShift 1.2s linear infinite;
 }
 
 /* Scrollable body area */
@@ -631,6 +651,7 @@ a:focus {
 <div id="dashSheet" class="dashboard-closed" aria-hidden="true">
   <div id="dashHandle" role="button" aria-controls="dashSheet" aria-expanded="false">
      CHANGE VIEW
+    <div id="dashHandleLoadingBar" aria-hidden="true"></div>
   </div>
 
   <div id="dashBody" role="region" aria-label="Dashboard content">
@@ -9320,6 +9341,7 @@ var LOADING_BAR_IDLE_MS = 400;
 function showLoadingBar() {
     var loadingBarContainer = document.getElementById('loadingBarContainer');
     var loadingBar = document.getElementById('loadingBar');
+    var dashHandleLoadingBar = document.getElementById('dashHandleLoadingBar');
     if (!loadingBarContainer || !loadingBar) return;
 
     clearTimeout(loadingBarHideTimer);
@@ -9333,6 +9355,11 @@ function showLoadingBar() {
         loadingBar.style.width = '100%';
     });
 
+    if (dashHandleLoadingBar) {
+        dashHandleLoadingBar.classList.add('indeterminate');
+        dashHandleLoadingBar.style.width = '100%';
+    }
+
     // Fallback auto-hide to prevent a stuck bar if a caller forgets to stop it
     clearTimeout(loadingBarWatchdog);
     loadingBarWatchdog = setTimeout(function(){
@@ -9344,6 +9371,7 @@ function showLoadingBar() {
 function hideLoadingBar() {
     var loadingBarContainer = document.getElementById('loadingBarContainer');
     var loadingBar = document.getElementById('loadingBar');
+    var dashHandleLoadingBar = document.getElementById('dashHandleLoadingBar');
     if (!loadingBarContainer || !loadingBar) return;
 
     if (loadingBarActiveCount > 0) loadingBarActiveCount--;
@@ -9357,6 +9385,11 @@ function hideLoadingBar() {
         loadingBar.style.opacity = '0';
         loadingBarContainer.style.display = 'none';
     }, 450);
+
+    if (dashHandleLoadingBar) {
+        dashHandleLoadingBar.classList.remove('indeterminate');
+        dashHandleLoadingBar.style.width = '0';
+    }
 }
 
 // Ensure every server call automatically shows/hides the loading bar.
