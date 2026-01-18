@@ -1,4 +1,4 @@
-<!-- Version 1.0.26 | f961824 -->
+<!-- Version 1.0.27 | cf26e95 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -621,6 +621,262 @@ a:focus {
   object-fit: cover !important;
   flex: 0 0 auto !important;
 }
+
+/* === Sunday Love Dashboard ============================================== */
+.sunday-love-overlay{
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(135deg, #fff0f6 0%, #ffe8f0 45%, #fde2ff 100%);
+  color: #2f1a2c;
+  display: none;
+  z-index: 300500;
+  overflow: auto;
+  padding: 24px 20px 48px;
+}
+
+body.sunday-love-active{
+  overflow: hidden;
+}
+
+.sunday-love-overlay.is-active{
+  display: block;
+}
+
+.sunday-love-shell{
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sunday-love-header{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(111, 25, 90, 0.12);
+}
+
+.sunday-love-title{
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.sunday-love-title h1{
+  margin: 0 0 6px 0;
+  font-size: 32px;
+  letter-spacing: 0.5px;
+}
+
+.sunday-love-title p{
+  margin: 0;
+  font-size: 16px;
+  color: #5f3b59;
+}
+
+.sunday-love-icon{
+  font-size: 44px;
+}
+
+.love-date-label{
+  font-weight: 700;
+  color: #a21caf;
+}
+
+.love-card{
+  background: #fff;
+  border-radius: 18px;
+  padding: 18px 20px;
+  box-shadow: 0 12px 28px rgba(128, 20, 90, 0.1);
+}
+
+.love-card h2{
+  margin-top: 0;
+  margin-bottom: 8px;
+  font-size: 24px;
+}
+
+.love-subtitle{
+  margin-top: 0;
+  color: #6b3f61;
+}
+
+.love-note-card{
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.love-field-row{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.love-field{
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 200px;
+  font-size: 14px;
+  color: #6b3f61;
+}
+
+.love-field select,
+.love-field input{
+  border-radius: 10px;
+  border: 1px solid #f0c3df;
+  padding: 8px 10px;
+  font-size: 14px;
+}
+
+.love-textarea{
+  width: 100%;
+  min-height: 160px;
+  border-radius: 14px;
+  border: 1px solid #f0c3df;
+  padding: 12px 14px;
+  font-size: 16px;
+  line-height: 1.4;
+  resize: vertical;
+  background: #fff7fb;
+}
+
+.love-button-row{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.love-btn{
+  border: none;
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  background: linear-gradient(135deg, #fb7185, #db2777);
+  color: #fff;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.love-btn-secondary{
+  background: #fff;
+  color: #b42377;
+  border: 1px solid #f4b4d8;
+}
+
+.love-btn-ghost{
+  background: transparent;
+  color: #9d174d;
+  border: 1px dashed #f0a6ca;
+}
+
+.love-btn:hover{
+  filter: brightness(0.98);
+}
+
+.love-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.love-mini-card{
+  border-radius: 16px;
+  border: 1px solid #f6c5dd;
+  padding: 14px;
+  background: #fff8fc;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.love-mini-card h3{
+  margin: 0;
+  font-size: 18px;
+}
+
+.love-mini-card p{
+  margin: 0;
+  color: #6b3f61;
+  font-size: 14px;
+}
+
+.love-mini-card .love-output{
+  font-weight: 600;
+  color: #4a2245;
+}
+
+.love-list{
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.love-list li{
+  padding: 10px 12px;
+  background: #fff0f7;
+  border-radius: 12px;
+  border: 1px solid #f7cfe5;
+  font-size: 14px;
+  color: #4a2245;
+}
+
+.love-meter{
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.love-meter input[type="range"]{
+  accent-color: #db2777;
+  width: 100%;
+}
+
+.love-restore-btn{
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 300600;
+  display: none;
+  border-radius: 999px;
+  padding: 8px 14px;
+  border: none;
+  font-weight: 700;
+  background: #fff;
+  color: #b42377;
+  box-shadow: 0 8px 18px rgba(120, 24, 80, 0.18);
+  cursor: pointer;
+}
+
+.love-restore-btn.is-active{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (max-width: 720px){
+  .sunday-love-overlay{
+    padding: 18px 14px 40px;
+  }
+
+  .sunday-love-title h1{
+    font-size: 26px;
+  }
+}
 </style>
 </head>
 
@@ -643,6 +899,121 @@ a:focus {
 
   <!-- Toast -->
   <div id="toast" role="status" aria-live="polite"></div>
+
+  <!-- Sunday Love Dashboard -->
+  <section id="sundayLoveDashboard" class="sunday-love-overlay" aria-hidden="true">
+    <div class="sunday-love-shell">
+      <header class="sunday-love-header">
+        <div class="sunday-love-title">
+          <span class="sunday-love-icon" aria-hidden="true">💘</span>
+          <div>
+            <h1>Sunday Love Dashboard</h1>
+            <p>Valentine’s Day-esque vibes for love notes, devotion, and sweet connection.</p>
+            <div class="love-date-label" id="loveDateLabel"></div>
+          </div>
+        </div>
+        <div class="sunday-love-actions">
+          <button id="loveDismissBtn" class="love-btn love-btn-secondary" type="button">Use regular dashboard</button>
+        </div>
+      </header>
+
+      <section class="love-card love-note-card">
+        <h2>Daily Love Note</h2>
+        <p class="love-subtitle">Write a heartfelt note (post-it, written, text, or email) so either of you can use it.</p>
+        <div class="love-field-row">
+          <label class="love-field">
+            <span>Writing as</span>
+            <select id="loveNoteVoice">
+              <option value="Me">Me</option>
+              <option value="Her">Her</option>
+              <option value="Us">Us together</option>
+            </select>
+          </label>
+          <label class="love-field">
+            <span>Delivery vibe</span>
+            <select id="loveNoteDelivery">
+              <option value="soft">Soft & warm</option>
+              <option value="playful">Playful & fun</option>
+              <option value="romantic">Romantic & poetic</option>
+              <option value="steady">Steady & committed</option>
+            </select>
+          </label>
+          <label class="love-field">
+            <span>Love meter</span>
+            <input id="loveMeterInput" type="range" min="1" max="10" value="8" />
+          </label>
+        </div>
+        <div class="love-meter">
+          <div id="loveMeterMessage">Love level: 8/10 — deep and devoted.</div>
+        </div>
+        <textarea id="loveNoteInput" class="love-textarea" placeholder="Start your love note here..."></textarea>
+        <div class="love-button-row">
+          <button id="loveInspireBtn" class="love-btn" type="button">Inspire me</button>
+          <button id="loveCopyBtn" class="love-btn love-btn-secondary" type="button">Copy note</button>
+          <a id="loveEmailBtn" class="love-btn love-btn-secondary" href="#" role="button">Email note</a>
+          <a id="loveTextBtn" class="love-btn love-btn-secondary" href="#" role="button">Text note</a>
+          <button id="loveSaveBtn" class="love-btn love-btn-secondary" type="button">Save to Sunday list</button>
+          <button id="loveClearBtn" class="love-btn love-btn-ghost" type="button">Clear</button>
+        </div>
+        <div>
+          <h3>Saved Sunday notes</h3>
+          <ul id="loveSavedList" class="love-list"></ul>
+        </div>
+      </section>
+
+      <section class="love-card love-grid">
+        <div class="love-mini-card">
+          <h3>Love note ideas</h3>
+          <p class="love-output" id="loveNoteIdeaOutput"></p>
+          <button class="love-btn love-btn-secondary" type="button" data-love-pick="noteIdeas">Shuffle idea</button>
+          <button class="love-btn love-btn-ghost" type="button" data-love-add="noteIdeas">Add to note</button>
+        </div>
+        <div class="love-mini-card">
+          <h3>Conversation starters</h3>
+          <p class="love-output" id="loveConversationOutput"></p>
+          <button class="love-btn love-btn-secondary" type="button" data-love-pick="conversationStarters">Shuffle starter</button>
+          <button class="love-btn love-btn-ghost" type="button" data-love-add="conversationStarters">Add to note</button>
+        </div>
+        <div class="love-mini-card">
+          <h3>Relationship therapy topics</h3>
+          <p class="love-output" id="loveTherapyOutput"></p>
+          <button class="love-btn love-btn-secondary" type="button" data-love-pick="therapyTopics">Shuffle topic</button>
+          <button class="love-btn love-btn-ghost" type="button" data-love-add="therapyTopics">Add to note</button>
+        </div>
+        <div class="love-mini-card">
+          <h3>100% in the relationship</h3>
+          <p class="love-output" id="loveCommitmentOutput"></p>
+          <button class="love-btn love-btn-secondary" type="button" data-love-pick="commitmentReminders">Shuffle reminder</button>
+          <button class="love-btn love-btn-ghost" type="button" data-love-add="commitmentReminders">Add to note</button>
+        </div>
+        <div class="love-mini-card">
+          <h3>Motivating encouragement</h3>
+          <p class="love-output" id="loveEncouragementOutput"></p>
+          <button class="love-btn love-btn-secondary" type="button" data-love-pick="encouragements">Shuffle boost</button>
+          <button class="love-btn love-btn-ghost" type="button" data-love-add="encouragements">Add to note</button>
+        </div>
+        <div class="love-mini-card">
+          <h3>Fun love challenge</h3>
+          <p class="love-output" id="loveChallengeOutput"></p>
+          <button class="love-btn love-btn-secondary" type="button" data-love-pick="loveChallenges">Shuffle challenge</button>
+          <button class="love-btn love-btn-ghost" type="button" data-love-add="loveChallenges">Add to note</button>
+        </div>
+        <div class="love-mini-card">
+          <h3>Ideas to improve the app</h3>
+          <p class="love-output" id="loveImprovementOutput"></p>
+          <button class="love-btn love-btn-secondary" type="button" data-love-pick="improvementIdeas">Shuffle idea</button>
+          <button class="love-btn love-btn-ghost" type="button" data-love-add="improvementIdeas">Add to note</button>
+        </div>
+        <div class="love-mini-card">
+          <h3>Sunday love rituals</h3>
+          <p class="love-output" id="loveRitualOutput"></p>
+          <button class="love-btn love-btn-secondary" type="button" data-love-pick="sundayRituals">Shuffle ritual</button>
+          <button class="love-btn love-btn-ghost" type="button" data-love-add="sundayRituals">Add to note</button>
+        </div>
+      </section>
+    </div>
+  </section>
+  <button id="loveRestoreBtn" class="love-restore-btn" type="button">💗 Love Sunday</button>
 
 
   <!-- Overlay that slides; tab moves with it -->
@@ -12336,6 +12707,350 @@ function suggestionsContainEmoji(client, emoji) {
 
   // OPTIONAL: If your autocomplete already has a “selection” handler,
   // just call window.onClientSelectedForBar(name, label) from there.
+})();
+
+/* === Sunday Love Dashboard ============================================ */
+(function initSundayLoveDashboard(){
+  const overlay = document.getElementById('sundayLoveDashboard');
+  const restoreBtn = document.getElementById('loveRestoreBtn');
+  const dismissBtn = document.getElementById('loveDismissBtn');
+  const noteInput = document.getElementById('loveNoteInput');
+  const noteVoice = document.getElementById('loveNoteVoice');
+  const noteDelivery = document.getElementById('loveNoteDelivery');
+  const meterInput = document.getElementById('loveMeterInput');
+  const meterMessage = document.getElementById('loveMeterMessage');
+  const dateLabel = document.getElementById('loveDateLabel');
+  const inspireBtn = document.getElementById('loveInspireBtn');
+  const copyBtn = document.getElementById('loveCopyBtn');
+  const emailBtn = document.getElementById('loveEmailBtn');
+  const textBtn = document.getElementById('loveTextBtn');
+  const saveBtn = document.getElementById('loveSaveBtn');
+  const clearBtn = document.getElementById('loveClearBtn');
+  const savedList = document.getElementById('loveSavedList');
+
+  if (!overlay) return;
+
+  const storageKey = 'sundayLove.dashboardDisabled';
+  const notesStorageKey = 'sundayLove.savedNotes';
+  const isSunday = () => new Date().getDay() === 0;
+
+  const lovePrompts = {
+    noteIdeas: [
+      'Write a “three tiny moments” note: three small things she did this week that made you love her more.',
+      'Create a “love playlist” note: explain why each song reminds you of her and one memory tied to it.',
+      'Offer a future memory: describe a date night you want to plan, with sensory details and a sweet promise.',
+      'List five ways she makes you feel safe, seen, and wanted—and why those are rare and precious.',
+      'Write a “thank you for choosing us” note that highlights her effort when things were hard.',
+      'Give a “sunrise to sunset” note: how your love shows up at each part of the day.',
+      'Draft a “love receipt”: the little things she gives that add up to a big, lasting love.',
+      'Write a “soft brag” note about her strengths and how they inspire you to be better.'
+    ],
+    conversationStarters: [
+      'What part of our story feels most sacred to you right now, and how can I honor it this week?',
+      'When do you feel most loved by me lately—and what can I do more of in that moment?',
+      'What’s one new ritual we could try to deepen our connection on busy weeks?',
+      'If our love was a color, what shade would it be today and why?',
+      'What’s a memory you want to relive together, and how can we recreate it?',
+      'How can we make conflict feel safer and more tender when it shows up?',
+      'What do you need from me to feel fully supported this month?',
+      'What’s a dream you want us to build toward together in the next year?'
+    ],
+    therapyTopics: [
+      'Attachment check-in: share what makes each of you feel secure, and design one small daily reassurance.',
+      'Conflict repair plan: pick one phrase that helps you de-escalate and practice it together.',
+      'Love languages audit: name one way you can give each language (words, time, touch, acts, gifts) this week.',
+      'Emotional bids: note the tiny moments you each reach for connection and agree to respond softly.',
+      'Values alignment: talk about the top 3 values guiding your relationship right now.',
+      'Boundaries with care: identify one boundary that protects the relationship and how you’ll honor it.',
+      'Appreciation ritual: commit to a nightly 60-second appreciation share.',
+      'Stress support map: list signs you’re overwhelmed and the specific support that helps.'
+    ],
+    commitmentReminders: [
+      'Show up even when it’s hard: pause, breathe, and respond with love before reacting.',
+      'Choose the relationship in the small moments—kind words, quick check-ins, and gentle touches.',
+      'We’re a team: no scorekeeping, just honest repair and genuine care.',
+      'Stay curious about each other; ask questions even after long days.',
+      'Hold the line on respect: calm tone, soft start, and sincere listening.',
+      'Protect the bond: speak about each other with pride and loyalty.',
+      'Make time sacred: even 15 minutes of “just us” counts.',
+      'Let love lead: prioritize empathy, not ego.'
+    ],
+    encouragements: [
+      'We are stronger than the tough moments because we keep choosing each other.',
+      'I believe in us, and I love how we keep growing together.',
+      'Even on messy days, our love is steady and safe.',
+      'You are my peace and my favorite person to come home to.',
+      'Every day with you makes me softer, stronger, and more grateful.',
+      'We’re building something lasting—and I’m proud of us.',
+      'You are loved loudly in my heart, even when the world is quiet.',
+      'We can do hard things and still stay kind.'
+    ],
+    loveChallenges: [
+      'Send a midday voice note sharing one thing you admire about her right now.',
+      'Plan a tiny surprise: her favorite snack, a sticky note, or a playlist.',
+      'Give her a “five-minute sanctuary” where you take over her chores.',
+      'Write a one-sentence vow and place it where she’ll see it.',
+      'Do a 10-minute slow dance in the living room—no phones.',
+      'Ask her to pick a song and say why it feels like your love.',
+      'Trade gratitude lists: each share three things you’re grateful for today.',
+      'Create a shared photo or memory folder for this month.'
+    ],
+    improvementIdeas: [
+      'Add a “weekly love recap” section that stores favorite moments or photos.',
+      'Let her choose a daily mood and auto-suggest matching note tones.',
+      'Create a shared “date jar” generator that picks low-effort, high-love ideas.',
+      'Include a “repair ritual” checklist for tough conversations.',
+      'Add reminders for love languages with mini prompts for each.',
+      'Build a gratitude streak tracker for daily love notes.',
+      'Add a “relationship goals” board with gentle progress check-ins.',
+      'Include an anniversary countdown with surprise planning prompts.'
+    ],
+    sundayRituals: [
+      'Sunday soft reset: share one thing you’re releasing and one thing you’re choosing together.',
+      'Weekly love check-in: highs, lows, and one ask for support.',
+      'Write a “next week love intention” and stick it on the fridge.',
+      'Create a 10-minute cuddle and talk window with phones away.',
+      'Swap “best part of you this week” compliments.',
+      'Plan one tiny date for the week, even if it’s just coffee together.',
+      'Share a favorite photo from the week and why it matters.',
+      'Map one shared goal and one personal goal you’ll cheer each other on for.'
+    ]
+  };
+
+  const outputMap = {
+    noteIdeas: 'loveNoteIdeaOutput',
+    conversationStarters: 'loveConversationOutput',
+    therapyTopics: 'loveTherapyOutput',
+    commitmentReminders: 'loveCommitmentOutput',
+    encouragements: 'loveEncouragementOutput',
+    loveChallenges: 'loveChallengeOutput',
+    improvementIdeas: 'loveImprovementOutput',
+    sundayRituals: 'loveRitualOutput'
+  };
+
+  function loveToast(message){
+    if (typeof showToast === 'function') {
+      showToast(message);
+      return;
+    }
+    alert(message);
+  }
+
+  function pickRandom(list){
+    return list[Math.floor(Math.random() * list.length)];
+  }
+
+  function setOutput(type){
+    const targetId = outputMap[type];
+    const el = document.getElementById(targetId);
+    if (!el) return;
+    el.textContent = pickRandom(lovePrompts[type]);
+  }
+
+  function refreshAllOutputs(){
+    Object.keys(outputMap).forEach(type => setOutput(type));
+  }
+
+  function getNoteText(){
+    return (noteInput && noteInput.value ? noteInput.value.trim() : '');
+  }
+
+  function appendToNote(text){
+    if (!noteInput) return;
+    const existing = noteInput.value.trim();
+    noteInput.value = existing ? `${existing}\n\n${text}` : text;
+    noteInput.focus();
+  }
+
+  function updateMeterMessage(){
+    if (!meterInput || !meterMessage) return;
+    const value = Number(meterInput.value || 0);
+    const label = value >= 9 ? 'absolutely head-over-heels'
+      : value >= 7 ? 'deep and devoted'
+        : value >= 5 ? 'steady and warm'
+          : value >= 3 ? 'gentle and growing'
+            : 'tender and rebuilding';
+    meterMessage.textContent = `Love level: ${value}/10 — ${label}.`;
+  }
+
+  function buildInspiration(){
+    const voice = noteVoice ? noteVoice.value : 'Me';
+    const delivery = noteDelivery ? noteDelivery.value : 'soft';
+    const idea = pickRandom(lovePrompts.noteIdeas);
+    const encouragement = pickRandom(lovePrompts.encouragements);
+    const commitment = pickRandom(lovePrompts.commitmentReminders);
+    const conversation = pickRandom(lovePrompts.conversationStarters);
+    const deliveryLine = delivery === 'playful'
+      ? 'Here’s a playful little love note from the heart:'
+      : delivery === 'romantic'
+        ? 'Here’s a romantic, poetic note just for you:'
+        : delivery === 'steady'
+          ? 'Here’s a steady, committed love note:'
+          : 'Here’s a soft, warm love note:';
+
+    return [
+      `${voice} →`,
+      deliveryLine,
+      idea,
+      encouragement,
+      `We stay 100% in this together: ${commitment}`,
+      `Conversation starter for us: ${conversation}`
+    ].join('\n\n');
+  }
+
+  function updateCommunicationLinks(){
+    const noteText = getNoteText();
+    if (!emailBtn || !textBtn) return;
+    const subject = encodeURIComponent('A love note for you');
+    const body = encodeURIComponent(noteText);
+    emailBtn.href = `mailto:?subject=${subject}&body=${body}`;
+    textBtn.href = `sms:?&body=${body}`;
+  }
+
+  function renderSavedNotes(){
+    if (!savedList) return;
+    const notes = JSON.parse(localStorage.getItem(notesStorageKey) || '[]');
+    savedList.innerHTML = '';
+    if (!notes.length) {
+      const empty = document.createElement('li');
+      empty.textContent = 'No saved Sunday notes yet. Save one to start your love archive.';
+      savedList.appendChild(empty);
+      return;
+    }
+    notes.slice(0, 6).forEach(entry => {
+      const li = document.createElement('li');
+      li.textContent = `${entry.date} — ${entry.text}`;
+      savedList.appendChild(li);
+    });
+  }
+
+  function saveNote(){
+    const text = getNoteText();
+    if (!text) {
+      loveToast('Write a love note first.');
+      return;
+    }
+    const notes = JSON.parse(localStorage.getItem(notesStorageKey) || '[]');
+    notes.unshift({
+      date: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+      text
+    });
+    localStorage.setItem(notesStorageKey, JSON.stringify(notes.slice(0, 12)));
+    renderSavedNotes();
+    loveToast('Saved to Sunday list.');
+  }
+
+  function setLoveVisibility(show){
+    overlay.classList.toggle('is-active', show);
+    overlay.setAttribute('aria-hidden', show ? 'false' : 'true');
+    if (restoreBtn) restoreBtn.classList.toggle('is-active', !show);
+    document.body.classList.toggle('sunday-love-active', show);
+  }
+
+  function updateDateLabel(){
+    if (!dateLabel) return;
+    dateLabel.textContent = new Date().toLocaleDateString(undefined, {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric'
+    });
+  }
+
+  function initializeSundayView(){
+    if (!isSunday()) {
+      setLoveVisibility(false);
+      if (restoreBtn) restoreBtn.classList.remove('is-active');
+      return;
+    }
+
+    const disabled = sessionStorage.getItem(storageKey) === 'true';
+    setLoveVisibility(!disabled);
+  }
+
+  inspireBtn?.addEventListener('click', () => {
+    const text = buildInspiration();
+    if (noteInput) {
+      noteInput.value = text;
+    }
+    updateCommunicationLinks();
+    loveToast('Inspired note ready.');
+  });
+
+  copyBtn?.addEventListener('click', async () => {
+    const text = getNoteText();
+    if (!text) {
+      loveToast('Nothing to copy yet.');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      loveToast('Copied love note.');
+    } catch (err) {
+      console.error(err);
+      loveToast('Copy failed. Try selecting the text manually.');
+    }
+  });
+
+  emailBtn?.addEventListener('click', () => {
+    updateCommunicationLinks();
+    if (!getNoteText()) {
+      loveToast('Write a note first so the email has content.');
+    }
+  });
+
+  textBtn?.addEventListener('click', () => {
+    updateCommunicationLinks();
+    if (!getNoteText()) {
+      loveToast('Write a note first so the text has content.');
+    }
+  });
+
+  saveBtn?.addEventListener('click', saveNote);
+
+  clearBtn?.addEventListener('click', () => {
+    if (noteInput) noteInput.value = '';
+    updateCommunicationLinks();
+  });
+
+  dismissBtn?.addEventListener('click', () => {
+    sessionStorage.setItem(storageKey, 'true');
+    setLoveVisibility(false);
+    loveToast('Sunday love view hidden for this session.');
+  });
+
+  restoreBtn?.addEventListener('click', () => {
+    sessionStorage.removeItem(storageKey);
+    setLoveVisibility(true);
+  });
+
+  meterInput?.addEventListener('input', updateMeterMessage);
+
+  document.querySelectorAll('[data-love-pick]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const type = btn.getAttribute('data-love-pick');
+      if (type && lovePrompts[type]) {
+        setOutput(type);
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-love-add]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const type = btn.getAttribute('data-love-add');
+      if (type && lovePrompts[type]) {
+        appendToNote(pickRandom(lovePrompts[type]));
+        updateCommunicationLinks();
+      }
+    });
+  });
+
+  noteInput?.addEventListener('input', updateCommunicationLinks);
+
+  updateDateLabel();
+  updateMeterMessage();
+  refreshAllOutputs();
+  renderSavedNotes();
+  initializeSundayView();
 })();
 
 </script>
