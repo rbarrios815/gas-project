@@ -1,4 +1,4 @@
-<!-- Version 1.0.27 | cf26e95 -->
+<!-- Version 1.0.28 | 88be543 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -12957,14 +12957,18 @@ function suggestionsContainEmoji(client, emoji) {
   }
 
   function initializeSundayView(){
-    if (!isSunday()) {
+    const sunday = isSunday();
+    if (!sunday) {
       setLoveVisibility(false);
       if (restoreBtn) restoreBtn.classList.remove('is-active');
+      if (dismissBtn) dismissBtn.hidden = false;
       return;
     }
 
-    const disabled = sessionStorage.getItem(storageKey) === 'true';
-    setLoveVisibility(!disabled);
+    sessionStorage.removeItem(storageKey);
+    setLoveVisibility(true);
+    if (dismissBtn) dismissBtn.hidden = true;
+    if (restoreBtn) restoreBtn.classList.remove('is-active');
   }
 
   inspireBtn?.addEventListener('click', () => {
