@@ -1,4 +1,4 @@
-<!-- Version 1.0.28 | 88be543 -->
+<!-- Version 1.0.29 | d6e8ebc -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -866,6 +866,13 @@ body.sunday-love-active{
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+body.love-only #dashSheet,
+body.love-only #dashOverlay,
+body.love-only .floatingUtilityBtn,
+body.love-only #loveRestoreBtn{
+  display: none !important;
 }
 
 @media (max-width: 720px){
@@ -12732,7 +12739,6 @@ function suggestionsContainEmoji(client, emoji) {
 
   const storageKey = 'sundayLove.dashboardDisabled';
   const notesStorageKey = 'sundayLove.savedNotes';
-  const isSunday = () => new Date().getDay() === 0;
 
   const lovePrompts = {
     noteIdeas: [
@@ -12945,6 +12951,7 @@ function suggestionsContainEmoji(client, emoji) {
     overlay.setAttribute('aria-hidden', show ? 'false' : 'true');
     if (restoreBtn) restoreBtn.classList.toggle('is-active', !show);
     document.body.classList.toggle('sunday-love-active', show);
+    document.body.classList.toggle('love-only', show);
   }
 
   function updateDateLabel(){
@@ -12957,14 +12964,6 @@ function suggestionsContainEmoji(client, emoji) {
   }
 
   function initializeSundayView(){
-    const sunday = isSunday();
-    if (!sunday) {
-      setLoveVisibility(false);
-      if (restoreBtn) restoreBtn.classList.remove('is-active');
-      if (dismissBtn) dismissBtn.hidden = false;
-      return;
-    }
-
     sessionStorage.removeItem(storageKey);
     setLoveVisibility(true);
     if (dismissBtn) dismissBtn.hidden = true;
