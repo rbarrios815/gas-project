@@ -1,4 +1,4 @@
-<!-- Version 1.0.30 | 3b1b59b -->
+<!-- Version 1.0.31 | 2ec06f5 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -4998,18 +4998,15 @@ function toggleSuggestions() {
 
 let __topClientsCache = [];
 
-const TOP_CLIENTS_BASE_FILTERS = [
-  { value: 'JB', label: 'JB' },
-  { value: 'RB', label: 'RB' },
-  { value: 'MB', label: 'MB' },
-  { value: 'QC', label: 'QC' },
-  { value: 'TEAM', label: 'TEAM' },
-  { value: 'BDAY', label: 'BDAY' },
+const OWNER_INITIALS = ['JB', 'RB', 'MB', 'QC', 'TEAM', 'BDAY'];
+const TOP_CLIENTS_BASE_FILTERS = OWNER_INITIALS.map(function(value) {
+  return { value: value, label: value };
+}).concat([
   { value: 'BRIEFCASE', label: '💼' },
   { value: 'STAR', label: '⭐' },
   { value: 'GRADCAP', label: '🎓' },
   { value: 'PHONE', label: '📞' }
-];
+]);
 
 function getBrightLabelsFromClient(client) {
   var taskTypes = (client && client.taskTypes) || [];
@@ -9032,8 +9029,8 @@ function birthdayFilterAllowsClient(client, currentMonth) {
     return L.includes(emoji);
   }
 
-  // OWNER filters (JB/RB/QC/TEAM)
-  var OWNER_KEYS = ['JB','RB','MB','QC','TEAM','BDAY'];
+  // OWNER filters (JB/RB/MB/QC/TEAM/BDAY)
+  var OWNER_KEYS = OWNER_INITIALS.slice();
   var isBirthdayFilter = filter === 'BDAY';
   var selectedBirthdayMonth = getActiveBirthdayMonth();
 
@@ -9135,7 +9132,7 @@ function birthdaySortValue(client, startMonth){
   out.innerHTML = '';
 
   // 3) Filtering: owners OR emoji labels only
-  var OWNER_KEYS = ['JB','RB','MB','QC','TEAM','BDAY'];
+  var OWNER_KEYS = OWNER_INITIALS.slice();
   var emojiMap = { BRIEFCASE:'💼', STAR:'⭐', GRADCAP:'🎓', PHONE:'📞' };
   var isBirthdayFilter = filter === 'BDAY';
   var currentMonth = getActiveBirthdayMonth();
@@ -11542,7 +11539,7 @@ function handleTopClientsFilterChange(selectedFilter) {
   syncLabelFilterButtons();
 
   // Title updates (owners & ALL only)
-  if (['JB','RB','MB','QC','TEAM','BDAY'].includes(val)) {
+  if (OWNER_INITIALS.includes(val)) {
     titleEl.innerText = val;
   } else if (val === 'ALL') {
     titleEl.innerText = 'TOP CLIENTS';
@@ -12146,7 +12143,7 @@ function openChipEditor(anchorEl, clientName, initials, mmddyy) {
 
   // initials dropdown
   var sel = document.createElement('select');
-  ['','RB','JB','MB','QC','TEAM','BDAY'].forEach(function(opt){
+  [''].concat(OWNER_INITIALS).forEach(function(opt){
     var o = document.createElement('option');
     o.value = opt; o.textContent = opt || '(none)';
     if (opt === (initials || '')) o.selected = true;
@@ -12473,7 +12470,7 @@ function retriggerTopClientsFilter() {
 
 // --- helpers for the unified dropdown behavior ---
 function isOwnerKey(v) {
-  return ['JB','RB','MB','QC','TEAM','BDAY'].includes(String(v || '').toUpperCase());
+  return OWNER_INITIALS.includes(String(v || '').toUpperCase());
 }
 
 function normalizeFilterValue(v) {
