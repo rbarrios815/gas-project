@@ -1,4 +1,4 @@
-// Version 1.0.20 | 5d23886
+// Version 1.0.22 | c99ca48
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -2796,6 +2796,10 @@ function buildChipSummaryLines_(summary, ownerLabel) {
     lines.push('No clients matched the ' + ownerLabel + ' chip for ' + (summary.dateString || 'today') + '.');
     return lines;
   }
+
+  summary.clients.forEach(function(client) {
+    lines.push(client.name);
+  });
 
   summary.clients.forEach(function(client) {
     var orderedHighlights = (client.highlights || []).slice().reverse(); // oldest of the selected first
