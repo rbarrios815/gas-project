@@ -1,4 +1,4 @@
-// Version 1.0.18 | c83fbb7
+// Version 1.0.19 | 3b1b59b
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -3071,21 +3071,21 @@ function levenshteinDistance(a, b) {
 
 /**
  * Updates Columns P (initials) and Q (date) for the LAST occurrence row of a client.
- * initials must be one of: RB, JB, QC.
+ * initials must be one of: RB, JB, MB, QC.
  * dateInput can be "YYYY-MM-DD" (from <input type="date">) or "MM/DD/YY" or a Date.
  */
 /**
  * Updates Columns P (initials) and Q (date) for the LAST occurrence row of a client.
- * initials must be one of: RB, JB, QC, or blank.
+ * initials must be one of: RB, JB, MB, QC, or blank.
  * dateInput can be "YYYY-MM-DD" (from <input type="date">), "MM/DD/YY(YY)", a Date, or blank.
  */
 function updateClientChip(clientName, initials, dateInput) {
   var allowed = Object.create(null);
-  ['RB','JB','TEAM','QC','BDAY',''].forEach(function(k){ allowed[k] = true; });
+  ['RB','JB','MB','TEAM','QC','BDAY',''].forEach(function(k){ allowed[k] = true; });
 
   var initialsTrim = (initials || '').toUpperCase().trim();
   if (!allowed[initialsTrim]) {
-    throw new Error('Initials must be RB, JB, TEAM, QC, BDAY, or blank.');
+    throw new Error('Initials must be RB, JB, MB, TEAM, QC, BDAY, or blank.');
   }
 
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');

@@ -1,4 +1,4 @@
-<!-- Version 1.0.29 | d6e8ebc -->
+<!-- Version 1.0.30 | 3b1b59b -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -3408,6 +3408,7 @@ input#clientAutocomplete, select#clientSelect {
 /* Colors: on top of yellow highlight */
 .chip.JB { background: #1E90FF; color: #fff; }   /* blue */
 .chip.RB { background: #28A745; color: #fff; }   /* green */
+.chip.MB { background: #17A2B8; color: #fff; }   /* teal */
 .chip.QC { background: #FF8C00; color: #fff; }   /* orange */
 .chip.TEAM { background: #800080; color: #fff; }   /* orange */
 .chip.BDAY { background: #FF8C00; color: #fff; }   /* orange */
@@ -4472,6 +4473,7 @@ input#clientAutocomplete, select#clientSelect {
         <select id="topClientsFilterDropdown">
             <option value="JB">JB</option>
             <option value="RB">RB</option>
+            <option value="MB">MB</option>
             <option value="QC">QC</option>
             <option value="TEAM">TEAM</option>
             <option value="BDAY">BDAY</option>
@@ -4999,6 +5001,7 @@ let __topClientsCache = [];
 const TOP_CLIENTS_BASE_FILTERS = [
   { value: 'JB', label: 'JB' },
   { value: 'RB', label: 'RB' },
+  { value: 'MB', label: 'MB' },
   { value: 'QC', label: 'QC' },
   { value: 'TEAM', label: 'TEAM' },
   { value: 'BDAY', label: 'BDAY' },
@@ -7447,7 +7450,7 @@ function normalizeTopClientsFilter(val) {
   const upper = raw.toUpperCase();
   // Map emojis/aliases to canonical keys your renderer understands
   const map = {
-    'JB':'JB', 'RB':'RB', 'QC':'QC', 'TEAM':'TEAM', 'BDAY':'BDAY',
+    'JB':'JB', 'RB':'RB', 'MB':'MB', 'QC':'QC', 'TEAM':'TEAM', 'BDAY':'BDAY',
     '💼':'BRIEFCASE', '⭐':'STAR', '🎓':'GRADCAP', '📞':'PHONE'
   };
   return map.hasOwnProperty(upper) ? map[upper] : upper;
@@ -9030,7 +9033,7 @@ function birthdayFilterAllowsClient(client, currentMonth) {
   }
 
   // OWNER filters (JB/RB/QC/TEAM)
-  var OWNER_KEYS = ['JB','RB','QC','TEAM','BDAY'];
+  var OWNER_KEYS = ['JB','RB','MB','QC','TEAM','BDAY'];
   var isBirthdayFilter = filter === 'BDAY';
   var selectedBirthdayMonth = getActiveBirthdayMonth();
 
@@ -9132,7 +9135,7 @@ function birthdaySortValue(client, startMonth){
   out.innerHTML = '';
 
   // 3) Filtering: owners OR emoji labels only
-  var OWNER_KEYS = ['JB','RB','QC','TEAM','BDAY'];
+  var OWNER_KEYS = ['JB','RB','MB','QC','TEAM','BDAY'];
   var emojiMap = { BRIEFCASE:'💼', STAR:'⭐', GRADCAP:'🎓', PHONE:'📞' };
   var isBirthdayFilter = filter === 'BDAY';
   var currentMonth = getActiveBirthdayMonth();
@@ -11539,7 +11542,7 @@ function handleTopClientsFilterChange(selectedFilter) {
   syncLabelFilterButtons();
 
   // Title updates (owners & ALL only)
-  if (['JB','RB','QC','TEAM','BDAY'].includes(val)) {
+  if (['JB','RB','MB','QC','TEAM','BDAY'].includes(val)) {
     titleEl.innerText = val;
   } else if (val === 'ALL') {
     titleEl.innerText = 'TOP CLIENTS';
@@ -12143,7 +12146,7 @@ function openChipEditor(anchorEl, clientName, initials, mmddyy) {
 
   // initials dropdown
   var sel = document.createElement('select');
-  ['','RB','JB','QC','TEAM','BDAY'].forEach(function(opt){
+  ['','RB','JB','MB','QC','TEAM','BDAY'].forEach(function(opt){
     var o = document.createElement('option');
     o.value = opt; o.textContent = opt || '(none)';
     if (opt === (initials || '')) o.selected = true;
@@ -12470,7 +12473,7 @@ function retriggerTopClientsFilter() {
 
 // --- helpers for the unified dropdown behavior ---
 function isOwnerKey(v) {
-  return ['JB','RB','QC','TEAM','BDAY'].includes(String(v || '').toUpperCase());
+  return ['JB','RB','MB','QC','TEAM','BDAY'].includes(String(v || '').toUpperCase());
 }
 
 function normalizeFilterValue(v) {
