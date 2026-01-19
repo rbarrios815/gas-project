@@ -1,4 +1,4 @@
-<!-- Version 1.0.31 | 2ec06f5 -->
+<!-- Version 1.0.32 | 55ceae1 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -8371,12 +8371,22 @@ function reloadPreservingState() {
 
 // REPLACE EVERYTHING in editCombinedNotes(...) with this version
 function editCombinedNotes(contentElement, existingText) {
+  var editorWrap = document.createElement('div');
+  editorWrap.style.display = 'flex';
+  editorWrap.style.flexDirection = 'column';
+  editorWrap.style.gap = '10px';
+
   // Create a textarea with the existing text (all Column C lines)
   var textarea = document.createElement('textarea');
   textarea.value = existingText;
   textarea.style.width = '100%';
   textarea.style.boxSizing = 'border-box';
   textarea.style.resize = 'vertical';
+  // Keep the editor height stable to avoid page jumps while typing.
+  textarea.style.minHeight = '240px';
+  textarea.style.height = '40vh';
+  textarea.style.maxHeight = '65vh';
+  textarea.style.overflow = 'auto';
 
   // === Mirror the client notes font exactly ===
   // Try to read computed styles from a rendered .note-line (the same look as client notes).
@@ -8400,44 +8410,87 @@ function editCombinedNotes(contentElement, existingText) {
     }
   })();
 
-  // Replace the contentElement with the textarea
+  var actions = document.createElement('div');
+  actions.style.display = 'flex';
+  actions.style.gap = '8px';
+  actions.style.flexWrap = 'wrap';
+
+  var saveBtn = document.createElement('button');
+  saveBtn.className = 'secondary-button inline-button';
+  saveBtn.type = 'button';
+  saveBtn.textContent = 'Save';
+
+  var cancelBtn = document.createElement('button');
+  cancelBtn.className = 'secondary-button inline-button';
+  cancelBtn.type = 'button';
+  cancelBtn.textContent = 'Cancel';
+
+  actions.appendChild(saveBtn);
+  actions.appendChild(cancelBtn);
+  editorWrap.appendChild(textarea);
+  editorWrap.appendChild(actions);
+
+  // Replace the contentElement with the editor wrapper
   var parent = contentElement.parentNode;
-  parent.replaceChild(textarea, contentElement);
+  parent.replaceChild(editorWrap, contentElement);
 
-  // Ensure proper height
-  setTimeout(function(){ adjustTextareaHeight(textarea); }, 0);
-  textarea.addEventListener('input', function(){ adjustTextareaHeight(this); });
+  function exitEditor() {
+    showClientNotes();
+  }
 
-  textarea.addEventListener('blur', function() {
+  function saveEdits() {
     var newText = textarea.value;
-    if (newText !== existingText) {
-      if (confirm('Save changes to NOTES (Column C)?')) {
-        var clientName = document.getElementById('clientSelect').value;
-        showLoadingBar();
-        google.script.run
-          .withSuccessHandler(function() {
-            hideLoadingBar();
-            alert('Notes updated successfully.');
-            // Refresh the client view + top clients
-            showClientNotes();
-retriggerTopClientsFilter();
+    if (newText === existingText) {
+      exitEditor();
+      return;
+    }
 
-            google.script.run.sendEditSummaryEmail(clientName, 'pastWork', existingText, newText);
-          })
-          .withFailureHandler(function(error) {
-            hideLoadingBar();
-            alert('Error saving edits: ' + error.message);
-            // Rebuild the UI (without changes)
-            showClientNotes();
-          })
-          .updateNotes(clientName, 'pastWork', newText, existingText); // <-- COLUMN C ONLY
-      } else {
-        // Rebuild the UI (no changes)
+    if (!confirm('Save changes to NOTES (Column C)?')) {
+      exitEditor();
+      return;
+    }
+
+    var clientName = document.getElementById('clientSelect').value;
+    showLoadingBar();
+    google.script.run
+      .withSuccessHandler(function() {
+        hideLoadingBar();
+        alert('Notes updated successfully.');
+        // Refresh the client view + top clients
         showClientNotes();
-      }
-    } else {
-      // No changes; rebuild
-      showClientNotes();
+        retriggerTopClientsFilter();
+
+        google.script.run.sendEditSummaryEmail(clientName, 'pastWork', existingText, newText);
+      })
+      .withFailureHandler(function(error) {
+        hideLoadingBar();
+        alert('Error saving edits: ' + error.message);
+        // Rebuild the UI (without changes)
+        showClientNotes();
+      })
+      .updateNotes(clientName, 'pastWork', newText, existingText); // <-- COLUMN C ONLY
+  }
+
+  saveBtn.addEventListener('click', function(event) {
+    event.preventDefault();
+    saveEdits();
+  });
+
+  cancelBtn.addEventListener('click', function(event) {
+    event.preventDefault();
+    exitEditor();
+  });
+
+  textarea.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      exitEditor();
+      return;
+    }
+
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+      event.preventDefault();
+      saveEdits();
     }
   });
 
@@ -8445,11 +8498,6 @@ retriggerTopClientsFilter();
   textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
 }
 
-
-function adjustTextareaHeight(textarea) {
-    textarea.style.height = 'auto'; // Reset height
-    textarea.style.height = textarea.scrollHeight + 'px'; // Set new height
-}
 
 /**
  * highlightLatestDate(lines, element, style, chipInfo)
