@@ -1,4 +1,4 @@
-// Version 1.0.22 | c99ca48
+// Version 1.0.24 | 22c42c3
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -2648,6 +2648,7 @@ function formatDateTaskLine_(line, tz) {
 // Limit JB/RB MMS payload size by capping highlighted notes per client and using MMS gateways.
 const MAX_JB_HIGHLIGHTS_PER_CLIENT = 3;
 const JB_CHIP_RECIPIENTS = ['8326215185@vzwpix.com', '2817146370@vzwpix.com'];
+const JB_BUTTON_RECIPIENTS = ['8326215185@vzwpix.com'];
 const RB_CHIP_RECIPIENTS = ['8326215185@vzwpix.com'];
 
 function extractHighlightedLines_(lines, tz, cutoffDate, maxLines) {
@@ -2860,6 +2861,10 @@ function sendChipTasksEmail_(ownerLabel, recipients) {
 
 function sendJbChipTasksEmail() {
   return sendChipTasksEmail_('JB', JB_CHIP_RECIPIENTS);
+}
+
+function sendJbChipTasksEmailToButton() {
+  return sendChipTasksEmail_('JB', JB_BUTTON_RECIPIENTS);
 }
 
 function sendRbChipTasksEmail() {
