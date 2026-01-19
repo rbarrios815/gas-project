@@ -17,7 +17,8 @@ function doGet(e) {
     'domlozano7@gmail.com',
     'rbarrio1nd@gmail.com',
     'rbarrio1@alumni.nd.edu',
-    'barriosgreatfamily1@gmail.com'
+    'barriosgreatfamily1@gmail.com',
+    'mbarrios94@gmail.com'
   ].map(normalizeEmail);
 
   const normalizedActive = normalizeEmail(activeUserEmail);
