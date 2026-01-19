@@ -1,4 +1,4 @@
-// Version 1.0.19 | 3b1b59b
+// Version 1.0.20 | 5d23886
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -2820,7 +2820,11 @@ function buildChipSummaryLines_(summary, ownerLabel) {
       orderedHighlights.forEach(function(item, idx) {
         var label = labelForIndex(idx);
         var prefix = label ? (label + ': ') : '';
-        lines.push('     ' + prefix + item.formatted);
+        var formatted = item.formatted;
+        if (idx === total - 1) {
+          formatted = '**' + formatted + '**';
+        }
+        lines.push('     ' + prefix + formatted);
       });
     }
 
