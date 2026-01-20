@@ -1,4 +1,4 @@
-// Version 1.0.26 | 77d52ed
+// Version 1.0.27 | 3ef3e63
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -1857,11 +1857,17 @@ function deriveNoteChanges_(oldText, newText) {
   var changes = [];
 
   for (var i = 0; i < max; i++) {
-    var oldNote = oldLines[i] ? oldLines[i].noteText : '';
-    var newNote = newLines[i] ? newLines[i].noteText : '';
+    var oldLine = oldLines[i] || {};
+    var newLine = newLines[i] || {};
+    var oldNote = oldLine.noteText || '';
+    var newNote = newLine.noteText || '';
     if (!oldNote || !newNote) continue;
     if (oldNote !== newNote) {
-      changes.push({ oldNote: oldNote, newNote: newNote });
+      changes.push({
+        oldNote: oldNote,
+        newNote: newNote,
+        dateText: oldLine.dateText || newLine.dateText || ''
+      });
     }
   }
   return changes;
@@ -1871,22 +1877,43 @@ function parsePastWorkLines_(text) {
   return String(text || '')
     .split('\n')
     .map(function(line) {
+      var match = String(line || '').match(/^\s*(\d{1,2}\/\d{1,2}\/\d{2,4})\s*:\s*/);
       return {
         raw: line,
-        noteText: line.replace(/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\s*:\s*/, '').trim()
+        dateText: match ? match[1] : '',
+        datePrefix: match ? match[0] : '',
+        noteText: String(line || '').replace(/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\s*:\s*/, '').trim()
       };
     });
+}
+
+function parseDateTextToDate_(dateText) {
+  var cleaned = String(dateText || '').trim();
+  if (!cleaned) return null;
+  var parts = cleaned.split('/');
+  if (parts.length < 3) return null;
+  var month = parseInt(parts[0], 10);
+  var day = parseInt(parts[1], 10);
+  var year = parseInt(parts[2], 10);
+  if (year < 100) year += 2000;
+  if (!month || !day || !year) return null;
+  return new Date(year, month - 1, day);
 }
 
 function syncDashboardChangesToInbox_(clientName, changes) {
   var sh = ensureNotesInbox_();
   var last = sh.getLastRow();
-  if (last < 2) return changes.length === 0;
+  if (last < 2 && changes.length === 0) return true;
 
-  var data = sh.getRange(2, 1, last - 1, 2).getValues();
+  var data = last >= 2 ? sh.getRange(2, 1, last - 1, 2).getValues() : [];
   var target = normalizeClientName_(clientName);
   var pending = changes.map(function(c) {
-    return { old: String(c.oldNote || '').trim(), updated: String(c.newNote || '').trim(), matched: false };
+    return {
+      old: String(c.oldNote || '').trim(),
+      updated: String(c.newNote || '').trim(),
+      dateText: String(c.dateText || '').trim(),
+      matched: false
+    };
   });
 
   for (var i = 0; i < data.length; i++) {
@@ -1903,6 +1930,14 @@ function syncDashboardChangesToInbox_(clientName, changes) {
       }
     }
   }
+
+  pending.forEach(function(change) {
+    if (change.matched || !change.updated) return;
+    var stamp = parseDateTextToDate_(change.dateText) || new Date();
+    var nextRow = sh.getLastRow() + 1;
+    sh.getRange(nextRow, 1, 1, 3).setValues([[change.updated, clientName, stamp]]);
+    change.matched = true;
+  });
 
   return pending.every(function(p) { return p.matched; });
 }
@@ -3454,10 +3489,16 @@ function syncInboxNoteToDashboard_(clientName, oldNote, newNote, timestamp) {
     const pastWork = data[i][2];
     const lines = String(pastWork || '').split('\n');
     const idx = findNoteLineIndex_(lines, oldNote, dateStr);
-    if (idx === -1) continue;
+    if (idx !== -1) {
+      const prefix = extractDatePrefix_(lines[idx]);
+      lines[idx] = (prefix ? prefix : '') + newNote;
+      sheet.getRange(i + 1, 3).setValue(lines.join('\n'));
+      return true;
+    }
 
-    const prefix = extractDatePrefix_(lines[idx]);
-    lines[idx] = (prefix ? prefix : '') + newNote;
+    var prefix = dateStr ? (dateStr + ': ') : '';
+    var appended = prefix + newNote;
+    lines.push(appended);
     sheet.getRange(i + 1, 3).setValue(lines.join('\n'));
     return true;
   }

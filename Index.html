@@ -1,4 +1,4 @@
-<!-- Version 1.0.35 | f20239b -->
+<!-- Version 1.0.36 | 3ef3e63 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -1542,6 +1542,7 @@ function saveEditedNote(row, text, noteEl){
       if(noteEl){
         noteEl.dataset.originalText = text;
       }
+      refreshNoteViewsAfterEdit();
       showToast('Note updated');
     })
     .withFailureHandler(err=>{
@@ -1820,6 +1821,18 @@ function loadRecent(done){
       if (typeof done === 'function') done(e);
     })
     .inboxGetRecent(100);
+}
+
+function refreshNoteViewsAfterEdit() {
+  if (typeof loadRecent === 'function') {
+    loadRecent();
+  }
+  if (typeof showClientNotes === 'function') {
+    showClientNotes();
+  }
+  if (typeof retriggerTopClientsFilter === 'function') {
+    retriggerTopClientsFilter();
+  }
 }
 
 
@@ -8494,9 +8507,8 @@ function editCombinedNotes(contentElement, existingText) {
       .withSuccessHandler(function() {
         hideLoadingBar();
         alert('Notes updated successfully.');
-        // Refresh the client view + top clients
-        showClientNotes();
-        retriggerTopClientsFilter();
+        // Refresh both the dashboard view + notes inbox.
+        refreshNoteViewsAfterEdit();
 
         google.script.run.sendEditSummaryEmail(clientName, 'pastWork', existingText, newText);
       })
