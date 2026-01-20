@@ -1,4 +1,4 @@
-<!-- Version 1.0.40 | 91400ff -->
+<!-- Version 1.0.41 | fd6c5a5 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -24,8 +24,14 @@
  /* === DASHBOARD SHEET (Notes-style) ======================================== */
 :root{
   --dash-handle-h: 88px;
-  /* Full screen height using dynamic viewport units */
-  --dash-open-h: 100dvh;
+  /* Full screen height with legacy fallback */
+  --dash-open-h: 100vh;
+}
+
+@supports (height: 100dvh) {
+  :root {
+    --dash-open-h: 100dvh;
+  }
 }
 
 
@@ -186,10 +192,10 @@
   /* Make the textarea consume a quarter of the screen height */
   #dashBody #noteInput{
     width: 100%;
-    /* Use small-viewport units to avoid iOS URL bar issues */
-    height: 25svh;
-    min-height: 25svh;
-    max-height: 25svh;
+    /* Use small-viewport units when supported, fallback to vh */
+    height: 25vh;
+    min-height: 25vh;
+    max-height: 25vh;
   }
 
   /* Keep action row from overflowing; stack buttons full-width */
@@ -288,12 +294,32 @@
 /* === Mobile textarea height (leave room for buttons) ===================== */
 @media (max-width: 640px) {
   #dashBody textarea#noteInput {
-    height: 25dvh !important;
-    min-height: 25dvh !important;
-    max-height: 25dvh !important;
+    height: 25vh !important;
+    min-height: 25vh !important;
+    max-height: 25vh !important;
     width: 100% !important;
     box-sizing: border-box;
     resize: vertical;
+  }
+}
+
+@supports (height: 25svh) {
+  @media (max-width: 640px) {
+    #dashBody #noteInput {
+      height: 25svh;
+      min-height: 25svh;
+      max-height: 25svh;
+    }
+  }
+}
+
+@supports (height: 25dvh) {
+  @media (max-width: 640px) {
+    #dashBody textarea#noteInput {
+      height: 25dvh !important;
+      min-height: 25dvh !important;
+      max-height: 25dvh !important;
+    }
   }
 }
 
@@ -894,6 +920,20 @@ body.love-only #loveRestoreBtn{
   }
 }
 </style>
+<script>
+  // Normalize viewport height on older mobile browsers that misreport vh units.
+  (function () {
+    var root = document.documentElement;
+    function updateViewportVars() {
+      var height = window.innerHeight || 0;
+      if (!height) return;
+      root.style.setProperty('--dash-open-h', height + 'px');
+    }
+    updateViewportVars();
+    window.addEventListener('resize', updateViewportVars);
+    window.addEventListener('orientationchange', updateViewportVars);
+  })();
+</script>
 </head>
 
 <body onload="loadAllHeatmaps()">
