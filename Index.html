@@ -1,4 +1,4 @@
-<!-- Version 1.0.37 | c0aee42 -->
+<!-- Version 1.0.38 | bf02f92 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -13050,10 +13050,10 @@ function suggestionsContainEmoji(client, emoji) {
   }
 
   function initializeSundayView(){
-    sessionStorage.removeItem(storageKey);
-    setLoveVisibility(true);
-    if (dismissBtn) dismissBtn.hidden = true;
-    if (restoreBtn) restoreBtn.classList.remove('is-active');
+    const isDisabled = sessionStorage.getItem(storageKey) === 'true';
+    setLoveVisibility(!isDisabled);
+    if (dismissBtn) dismissBtn.hidden = false;
+    if (restoreBtn && !isDisabled) restoreBtn.classList.remove('is-active');
   }
 
   inspireBtn?.addEventListener('click', () => {
