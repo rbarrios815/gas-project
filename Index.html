@@ -1,10 +1,12 @@
-<!-- Version 1.0.38 | bf02f92 -->
+<!-- Version 1.0.39 | 64aa9d4 -->
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Dashboard</title>
+<base target="_top" />
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 <style>
   :root{
     --green1:#12b886;
@@ -894,9 +896,7 @@ body.love-only #loveRestoreBtn{
 </style>
 </head>
 
-
-
-<body>
+<body onload="loadAllHeatmaps()">
   <!-- your dashboard stays under this -->
 <!-- Keep these elements once in your HTML -->
 
@@ -1937,27 +1937,7 @@ function refreshNoteViewsAfterEdit() {
 
 
 
-</body>
-</html>
-
-
-
-
-
-
-
-
-
-
-
-
-<!DOCTYPE html>
-<html>
-<head>
-    <base target="_top">
-    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-
-   <style>
+<style>
   :root {
     --background-color: #E6F0FF; /* Default background color */
     --text-color: #000000; /* Default text color - black */
@@ -4318,8 +4298,6 @@ input#clientAutocomplete, select#clientSelect {
   </style>
 
 
-</head>
-<body onload="loadAllHeatmaps()">
     <!-- Loading Bar -->
 
   <div id="loadingBarContainer" style="display: none;">
