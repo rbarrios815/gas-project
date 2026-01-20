@@ -1,4 +1,4 @@
-// Version 1.0.27 | 3ef3e63
+// Version 1.0.28 | c19e97f
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -117,6 +117,21 @@ const DEFAULT_TASK_TYPE_TEXT = [
   'Faded White: 🎓',
   'Faded Grey: ✍️'
 ].join('\n');
+const TASK_TYPE_LABEL_FALLBACK = {
+  red: '🗣️',
+  orange: '🎯',
+  yellow: '📞',
+  green: '🔍',
+  blue: '💼',
+  purple: '✉️',
+  violet: '',
+  brown: '📊',
+  pink: '🎂',
+  black: '',
+  blackwhitefont: '',
+  white: '🎓',
+  grey: '✍️'
+};
 
 function normalizeTaskBaseColor(name) {
   var key = (name || '').toString().trim().toLowerCase().replace(/[^a-z]/g, '');
@@ -193,6 +208,26 @@ function formatTaskTypeCell(taskTypes) {
     var label = t.label ? ' ' + t.label : '';
     return prefix + ' ' + t.baseColor + ':' + label;
   }).join('\n');
+}
+
+function getBrightLabelsFromTaskTypes(taskTypes) {
+  var labels = [];
+
+  (taskTypes || []).forEach(function (t) {
+    var brightness = (t.brightness || 'bright').toString().toLowerCase();
+    if (brightness === 'faded') return;
+
+    var label = (t.label || '').toString().trim();
+    if (!label) {
+      var key = normalizeTaskBaseColor(t.baseColor);
+      var fallback = TASK_TYPE_LABEL_FALLBACK[key];
+      if (fallback) label = fallback;
+    }
+
+    if (label) labels.push(label);
+  });
+
+  return labels;
 }
 
 function toTemplateOnly(taskTypes) {
@@ -2839,7 +2874,9 @@ function buildChipSummaryLines_(summary, ownerLabel) {
 
   summary.clients.forEach(function(client) {
     var categoryLabel = client.category ? ' (' + client.category + ')' : '';
-    lines.push(client.name + categoryLabel);
+    var brightLabels = getBrightLabelsFromTaskTypes(client.taskTypes);
+    var labelText = brightLabels.length ? ' ' + brightLabels.join(' ') : '';
+    lines.push(client.name + categoryLabel + labelText);
   });
 
   lines.push('');
