@@ -1,4 +1,4 @@
-<!-- Version 1.0.41 | fd6c5a5 -->
+<!-- Version 1.0.42 | 5d271fd -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -4703,6 +4703,16 @@ input#clientAutocomplete, select#clientSelect {
 <script>
 
 /* === FIT-TO-ONE-LINE ENGINE (input + suggestions) === */
+function runWhenIdle(task, timeoutMs) {
+  if (typeof task !== 'function') return;
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(function() {
+      task();
+    }, { timeout: timeoutMs || 1500 });
+  } else {
+    setTimeout(task, 0);
+  }
+}
 
 /* Shared, hidden measurer for input text (so we can accurately measure "Name (Category)" in an <input>) */
 (function initFitMeasurer(){
@@ -6454,10 +6464,12 @@ document.getElementById('scrollBottomBtn').style.display = 'inline-block';
     google.script.run.withSuccessHandler(populateLabelsDropdown).getAllLabels();
     handleUserSelectionChange();
     updateCategoryLabel(); // Initialize the category label
-    displayTable(); // Call displayTable here instead of using window.onload
-        google.script.run.withSuccessHandler(function(categories) {
+    runWhenIdle(displayTable); // Call displayTable here instead of using window.onload
+    runWhenIdle(function() {
+      google.script.run.withSuccessHandler(function(categories) {
         populateCategoryDropdown(categories);
-    }).getUniqueCategories();
+      }).getUniqueCategories();
+    });
 
 
   if (typeof fitRecentRowOneLine === 'function') fitRecentRowOneLine();
@@ -7231,8 +7243,12 @@ function initTopClientsFilterAfterList(){
     google.charts.load('current', {packages: ['corechart']});
 
     // Set a callback to run when the Google Visualization API is loaded.
-    google.charts.setOnLoadCallback(getAndDrawHeatmapData);
-        google.charts.setOnLoadCallback(drawScatterPlot);
+    google.charts.setOnLoadCallback(function() {
+        runWhenIdle(getAndDrawHeatmapData);
+    });
+        google.charts.setOnLoadCallback(function() {
+        runWhenIdle(drawScatterPlot);
+    });
 
 
     // ... rest of your JavaScript functions ...
@@ -10160,7 +10176,9 @@ function toggleDateInput() {
 
 
   google.charts.load('current', {'packages':['corechart']});
-  google.charts.setOnLoadCallback(drawChart);
+  google.charts.setOnLoadCallback(function() {
+    runWhenIdle(drawChart);
+  });
   
 function drawChart() {
   google.script.run.withSuccessHandler(function(chartData) {
@@ -10268,8 +10286,10 @@ function drawFutureHeatmap(weekdayCounts) {
 }
 
 function loadAllHeatmaps() {
-    getAndDrawHeatmapData();
-    getAndDrawFutureHeatmapData();
+    runWhenIdle(function() {
+      getAndDrawHeatmapData();
+      getAndDrawFutureHeatmapData();
+    });
 }
 
 
@@ -10360,7 +10380,9 @@ function displayTable() {
 
 
 
-  window.onload = displayData;
+  window.onload = function() {
+    runWhenIdle(displayData);
+  };
 
 function displayBirthdays() {
   var topClientsTitle = document.getElementById('topClientsTitle');
