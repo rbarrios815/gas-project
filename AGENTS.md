@@ -14,6 +14,7 @@ These instructions apply to the entire repository.
 - Add or update short comments for non-obvious logic, especially around Google Sheets ranges or advanced services.
 - Keep README or inline usage notes in sync if behavior changes.
 - For every `Index.html` and `Code.gs`, prepend a short comment containing a version name/number and the current git commit hash (e.g., `<!-- Version 1.0.0 | abc1234 -->` for HTML, `// Version 1.0.0 | abc1234` for `.gs`). Update this header whenever the file changes.
+- When updating these headers, set the hash to the short ID of the current `HEAD` **before** you make changes; this avoids a self-referential hash update cycle and keeps traceability to the prior commit.
 
 ## Testing & validation
 - Prefer lightweight verification (running scripts locally via clasp or dry-run functions) when feasible; note any manual steps in the PR.

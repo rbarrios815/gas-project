@@ -1,4 +1,4 @@
-// Version 1.0.26 | e3fbe93
+// Version 1.0.26 | 77d52ed
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
