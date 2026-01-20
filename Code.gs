@@ -1,4 +1,4 @@
-// Version 1.0.24 | 22c42c3
+// Version 1.0.26 | e3fbe93
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -2742,6 +2742,7 @@ function collectChipClients_(initials, targetDate, maxHighlights) {
 
     var initialsCell = row[15] ? row[15].toString().trim().toUpperCase() : '';
     var chipDate = normalizeChipDate_(row[16]);
+    var category = row[5] ? String(row[5]).trim() : '';
 
     if (initialsCell !== owner || !chipDate || chipDate.getTime() > targetDay.getTime()) {
       return;
@@ -2749,7 +2750,9 @@ function collectChipClients_(initials, targetDate, maxHighlights) {
 
     var name = rawName.toString().replace(/\d+$/, '').trim();
     if (!clients[name]) {
-      clients[name] = { name: name, pastWorks: [] };
+      clients[name] = { name: name, category: category, pastWorks: [] };
+    } else if (!clients[name].category && category) {
+      clients[name].category = category;
     }
 
     var noteBg = backgrounds[idx][2];
@@ -2772,6 +2775,7 @@ function collectChipClients_(initials, targetDate, maxHighlights) {
     var entry = clients[name];
     return {
       name: entry.name,
+      category: entry.category,
       highlights: extractHighlightedLines_(entry.pastWorks, tz, targetDay, maxHighlightCount)
     };
   });
@@ -2799,8 +2803,12 @@ function buildChipSummaryLines_(summary, ownerLabel) {
   }
 
   summary.clients.forEach(function(client) {
-    lines.push(client.name);
+    var categoryLabel = client.category ? ' (' + client.category + ')' : '';
+    lines.push(client.name + categoryLabel);
   });
+
+  lines.push('');
+  lines.push('');
 
   summary.clients.forEach(function(client) {
     var orderedHighlights = (client.highlights || []).slice().reverse(); // oldest of the selected first
