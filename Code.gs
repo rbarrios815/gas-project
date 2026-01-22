@@ -1,4 +1,4 @@
-// Version 1.0.28 | c19e97f
+// Version 1.0.30 | c2d709e
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -214,9 +214,6 @@ function getBrightLabelsFromTaskTypes(taskTypes) {
   var labels = [];
 
   (taskTypes || []).forEach(function (t) {
-    var brightness = (t.brightness || 'bright').toString().toLowerCase();
-    if (brightness === 'faded') return;
-
     var label = (t.label || '').toString().trim();
     if (!label) {
       var key = normalizeTaskBaseColor(t.baseColor);
@@ -2796,6 +2793,8 @@ function collectChipClients_(initials, targetDate, maxHighlights) {
   var data = dataRange.getValues();
   var backgrounds = dataRange.getBackgrounds();
   var tz = Session.getScriptTimeZone();
+  var sharedTaskTemplate = getTaskTypeTemplateForSheet(sheet);
+  var defaultTaskTemplate = sharedTaskTemplate.length ? sharedTaskTemplate : parseTaskTypeCell(DEFAULT_TASK_TYPE_TEXT);
   var targetDay = new Date(targetDate);
   targetDay.setHours(0, 0, 0, 0);
   var targetStr = Utilities.formatDate(targetDay, tz, "MM/dd/yy");
@@ -2820,9 +2819,20 @@ function collectChipClients_(initials, targetDate, maxHighlights) {
 
     var name = rawName.toString().replace(/\d+$/, '').trim();
     if (!clients[name]) {
-      clients[name] = { name: name, category: category, pastWorks: [] };
+      var rowTaskTypes = row[14] ? parseTaskTypeCell(row[14]) : defaultTaskTemplate;
+      clients[name] = {
+        name: name,
+        category: category,
+        pastWorks: [],
+        taskTypes: ensureTaskTypeDefaults(rowTaskTypes)
+      };
     } else if (!clients[name].category && category) {
       clients[name].category = category;
+    }
+
+    if (!clients[name].taskTypes || clients[name].taskTypes.length === 0) {
+      var fallbackTaskTypes = row[14] ? parseTaskTypeCell(row[14]) : defaultTaskTemplate;
+      clients[name].taskTypes = ensureTaskTypeDefaults(fallbackTaskTypes);
     }
 
     var noteBg = backgrounds[idx][2];
@@ -2846,6 +2856,7 @@ function collectChipClients_(initials, targetDate, maxHighlights) {
     return {
       name: entry.name,
       category: entry.category,
+      taskTypes: entry.taskTypes || [],
       highlights: extractHighlightedLines_(entry.pastWorks, tz, targetDay, maxHighlightCount)
     };
   });
