@@ -1,4 +1,4 @@
-<!-- Version 1.0.46 | ba83325 -->
+<!-- Version 1.0.47 | c99a8ba -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -5803,6 +5803,32 @@ function mergeTemplateWithBrightnessLocal(template, clientTaskTypes){
   });
 }
 
+function updateTopClientsCacheTaskTypes(clientName, taskTypes) {
+  if (!clientName || !Array.isArray(__topClientsCache)) return false;
+
+  var matched = false;
+  __topClientsCache.forEach(function(client) {
+    var name = String(client.clientName || client.name || '').trim();
+    if (name && name.toLowerCase() === String(clientName).trim().toLowerCase()) {
+      client.taskTypes = Array.isArray(taskTypes) ? taskTypes : [];
+      matched = true;
+    }
+  });
+
+  return matched;
+}
+
+function repaintTopClientsPreservingScroll() {
+  var display = document.getElementById('topClientsDisplay');
+  var scrollTop = display ? display.scrollTop : 0;
+
+  if (typeof repaintTopClientsWithCurrentFilter === 'function') {
+    repaintTopClientsWithCurrentFilter(__topClientsCache);
+  }
+
+  if (display) display.scrollTop = scrollTop;
+}
+
 function getTaskTypeButtonStyle(entry){
   var key = normalizeTaskColorKey(entry.baseColor);
   var palette = TASK_TYPE_COLOR_MAP[key] || TASK_TYPE_COLOR_MAP.default;
@@ -5837,6 +5863,10 @@ function toggleTaskTypeBrightness(baseColor){
       taskTypeTemplate = template;
       currentClientTaskTypes = mergeTemplateWithBrightnessLocal(template, (res && res.taskTypes) || currentClientTaskTypes);
       renderTaskTypeBar(currentClientTaskTypes);
+      // Keep the Top Clients button text in sync with emoji highlights.
+      if (updateTopClientsCacheTaskTypes(currentTaskTypeClientName, currentClientTaskTypes)) {
+        repaintTopClientsPreservingScroll();
+      }
       hideLoadingBar();
     })
     .withFailureHandler(function(err){
