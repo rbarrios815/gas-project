@@ -1,4 +1,4 @@
-// Version 1.0.35 | ba83325
+// Version 1.0.36 | e7bdf6c
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -2848,7 +2848,9 @@ function isHighlightedCell_(bg) {
 }
 
 function collectEmojiListFromRow_(rowDisplay) {
-  var values = Array.isArray(rowDisplay) ? rowDisplay.slice(3, 28) : [];
+  var startIndex = TASK_STATUS_COLUMN_START - 1; // Column R -> index 17
+  var endIndex = startIndex + TASK_STATUS_COLUMN_COUNT; // Through column AB
+  var values = Array.isArray(rowDisplay) ? rowDisplay.slice(startIndex, endIndex) : [];
   return values
     .map(function(value) { return String(value || '').trim(); })
     .filter(function(value) { return value !== ''; });
