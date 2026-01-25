@@ -2640,28 +2640,6 @@ input#clientAutocomplete, select#clientSelect {
 .task-type-button.is-faded:hover { box-shadow: none; }
 .task-type-button.is-faded:active { transform: none; }
 
-.task-type-controls {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.task-type-controls button {
-  border: 1px solid #ced4da;
-  background: #fff;
-  border-radius: 8px;
-  padding: 4px 10px;
-  font-weight: 800;
-  font-size: 0.85em;
-  line-height: 1.1;
-  min-height: 28px;
-  cursor: pointer;
-  position: relative;
-  z-index: 2;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
-}
-
 .label-filter-row {
   background: linear-gradient(180deg, #f4f7fb, #eef2f7);
 }
@@ -2676,35 +2654,6 @@ input#clientAutocomplete, select#clientSelect {
   opacity: 1;
   box-shadow: 0 8px 18px rgba(0,0,0,0.16);
   filter: brightness(1.08) saturate(1.1);
-}
-
-.task-type-popover {
-  position: absolute;
-  top: calc(100% - 6px); /* slight overlap for steadier mouse travel */
-  right: auto;
-  left: 50%;
-  background: #fff;
-  border: 1px solid #e0e4ea;
-  border-radius: 10px;
-  box-shadow: 0 10px 24px rgba(0,0,0,0.12);
-  padding: 6px 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  z-index: 2005;
-  min-width: 132px;
-  transform: translate(-50%, 0);
-}
-
-.task-type-popover button {
-  border: 0;
-  border-radius: 6px;
-  padding: 4px 8px;
-  cursor: pointer;
-  background: #f5f7fb;
-  font-weight: 700;
-  font-size: 12px;
-  line-height: 1.2;
 }
 
   .labels-notes-left {
@@ -4396,10 +4345,6 @@ input#clientAutocomplete, select#clientSelect {
 
   <div id="taskTypeBarRow" class="task-type-bar-row" style="display:none;">
     <div id="taskTypeBar" class="task-type-bar" aria-label="Task type buttons"></div>
-    <div class="task-type-controls">
-      <button type="button" id="taskTypeAddBtn" aria-label="Add task type">+</button>
-      <button type="button" id="taskTypeRemoveBtn" aria-label="Remove task type">-</button>
-    </div>
   </div>
   </div>
 
@@ -5065,10 +5010,6 @@ function getBrightLabelsFromClient(client) {
     if ((t.brightness || 'bright') !== 'bright') return;
 
     var label = (t.label || '').trim();
-    if (!label) {
-      var fallback = TASK_TYPE_LABEL_FALLBACK[normalizeTaskColorKey(t.baseColor)];
-      if (fallback) label = fallback;
-    }
 
     if (label) labels.push(label);
   });
@@ -5790,26 +5731,9 @@ const DEFAULT_TASK_COLOR_ORDER = ['Red','Orange','Yellow','Green','Blue','Purple
   default: { bright: '#adb5bd', faded: '#e9ecef', text: '#212529' }
 };
 
-const TASK_TYPE_LABEL_FALLBACK = {
-  red: '🗣️',
-  orange: '🎯',
-  yellow: '📞',
-  green: '🔍',
-  blue: '💼',
-  purple: '✉️',
-  violet: '',
-  brown: '📊',
-  pink: '🎂',
-  black: '',
-  blackwhitefont: '',
-  white: '🎓',
-  grey: '✍️'
-};
-
 var taskTypeTemplate = [];
 var currentClientTaskTypes = [];
 var currentTaskTypeClientName = '';
-var taskTypePopoverTimer = null;
 
 function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -5895,35 +5819,6 @@ function getTaskTypeButtonStyle(entry){
   };
 }
 
-function hideTaskTypePopover(){
-  document.querySelectorAll('.task-type-popover').forEach(function(pop){ pop.remove(); });
-}
-
-function hideTaskTypePopoverSoon(){
-  clearTimeout(taskTypePopoverTimer);
-  taskTypePopoverTimer = setTimeout(hideTaskTypePopover, 160);
-}
-
-function handleTaskTypeEdit(baseColor, currentLabel){
-  var updated = prompt('Edit the label for ' + baseColor + ' (applies to ALL clients):', currentLabel || '');
-  if (updated === null) return;
-  if (!confirm('Every client\'s ' + baseColor + ' button label will change to "' + updated + '". Continue?')) return;
-
-  showLoadingBar();
-  google.script.run
-    .withSuccessHandler(function(template){
-      taskTypeTemplate = ensureTaskTemplateLocal(template || taskTypeTemplate);
-      currentClientTaskTypes = mergeTemplateWithBrightnessLocal(taskTypeTemplate, currentClientTaskTypes);
-      renderTaskTypeBar(currentClientTaskTypes);
-      hideLoadingBar();
-    })
-    .withFailureHandler(function(err){
-      console.error('Failed to update task type label', err);
-      hideLoadingBar();
-      showToast('Could not update task type label');
-    })
-    .updateTaskTypeLabelForAll(baseColor, updated.trim());
-}
 
 function toggleTaskTypeBrightness(baseColor){
   if (!currentTaskTypeClientName) return;
@@ -5945,25 +5840,6 @@ function toggleTaskTypeBrightness(baseColor){
       showToast('Could not update task button');
     })
     .setTaskTypeBrightnessForClient(currentTaskTypeClientName, baseColor, !willBeBright);
-}
-
-function showTaskTypePopover(button, entry){
-  hideTaskTypePopover();
-  var pop = document.createElement('div');
-  pop.className = 'task-type-popover';
-
-  pop.style.pointerEvents = 'auto';
-
-  var edit = document.createElement('button');
-  edit.textContent = 'Edit text';
-  edit.addEventListener('click', function(e){
-    e.stopPropagation();
-    handleTaskTypeEdit(entry.baseColor, entry.label);
-    hideTaskTypePopover();
-  });
-  pop.appendChild(edit);
-
-  button.appendChild(pop);
 }
 
 // Keep the task type bar aligned with the autocomplete + category width
@@ -6031,8 +5907,6 @@ function renderTaskTypeBar(taskTypes){
     Object.keys(styles).forEach(function(k){ btn.style[k] = styles[k]; });
     btn.classList.toggle('is-faded', entry.brightness === 'faded');
     btn.addEventListener('click', function(e){ e.stopPropagation(); toggleTaskTypeBrightness(entry.baseColor); });
-    btn.addEventListener('mouseenter', function(){ showTaskTypePopover(btn, entry); });
-    btn.addEventListener('mouseleave', hideTaskTypePopoverSoon);
     bar.appendChild(btn);
   });
 
@@ -6046,75 +5920,6 @@ function setTaskTypesForClient(clientName, taskTypes, template){
   currentClientTaskTypes = mergeTemplateWithBrightnessLocal(baseTemplate, taskTypes || currentClientTaskTypes);
   renderTaskTypeBar(currentClientTaskTypes);
 }
-
-function addTaskTypeForAll(){
-  var available = ensureTaskTemplateLocal(taskTypeTemplate);
-  if (!available.length) return;
-
-  var colorList = available.map(function(t){ return t.baseColor; }).join(', ');
-  var selectedColor = prompt(
-    'Select one of the existing colors to update (applies to ALL clients):\n' + colorList,
-    ''
-  );
-  if (!selectedColor) return;
-
-  var target = available.find(function(t){
-    return normalizeTaskColorKey(t.baseColor) === normalizeTaskColorKey(selectedColor);
-  });
-
-  if (!target) {
-    showToast('Please choose an existing color name.');
-    return;
-  }
-
-  var label = prompt('Enter the label text for ' + target.baseColor + ' (visible on the button):', target.label || '');
-  if (label === null) return;
-  label = label.trim();
-  if (!confirm('This will update the text for "' + target.baseColor + '" across ALL clients. Continue?')) return;
-  showLoadingBar();
-  google.script.run
-    .withSuccessHandler(function(template){
-      taskTypeTemplate = ensureTaskTemplateLocal(template || taskTypeTemplate);
-      currentClientTaskTypes = mergeTemplateWithBrightnessLocal(taskTypeTemplate, currentClientTaskTypes);
-      renderTaskTypeBar(currentClientTaskTypes);
-      hideLoadingBar();
-    })
-    .withFailureHandler(function(err){
-      console.error('Failed to update task type label', err);
-      hideLoadingBar();
-      showToast('Could not update task type');
-    })
-    .updateTaskTypeLabelForAll(target.baseColor, label);
-}
-
-function removeTaskTypeForAll(){
-  var color = prompt('Which color/task type should be removed for ALL clients?');
-  if (!color) return;
-  if (!confirm('"' + color + '" will be removed for ALL clients. Continue?')) return;
-  showLoadingBar();
-  google.script.run
-    .withSuccessHandler(function(template){
-      taskTypeTemplate = ensureTaskTemplateLocal(template || taskTypeTemplate);
-      currentClientTaskTypes = mergeTemplateWithBrightnessLocal(taskTypeTemplate, currentClientTaskTypes);
-      renderTaskTypeBar(currentClientTaskTypes);
-      hideLoadingBar();
-    })
-    .withFailureHandler(function(err){
-      console.error('Failed to remove task type', err);
-      hideLoadingBar();
-      showToast('Could not remove task type');
-    })
-    .removeTaskTypeColorForAll(color);
-}
-
-function wireTaskTypeControls(){
-  var addBtn = document.getElementById('taskTypeAddBtn');
-  var removeBtn = document.getElementById('taskTypeRemoveBtn');
-  if (addBtn && !addBtn._wired){ addBtn.addEventListener('click', addTaskTypeForAll); addBtn._wired = true; }
-  if (removeBtn && !removeBtn._wired){ removeBtn.addEventListener('click', removeTaskTypeForAll); removeBtn._wired = true; }
-}
-
-document.addEventListener('DOMContentLoaded', wireTaskTypeControls);
 
 
 /** Build the master arrays + union regex from clientsData (Column A). */
@@ -9003,12 +8808,7 @@ function clientHasBirthdayChipOrCake(client) {
     var brightness = (t.brightness || 'bright').toLowerCase();
     if (brightness !== 'bright') return false;
 
-    var key = normalizeTaskColorKey(t.baseColor || t.color || '');
     var label = (t.label || '').trim();
-    if (!label) {
-      var fallback = TASK_TYPE_LABEL_FALLBACK[key];
-      if (fallback) label = fallback;
-    }
 
     return label.indexOf('🎂') !== -1;
   });
