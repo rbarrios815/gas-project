@@ -1,4 +1,4 @@
-// Version 1.0.31 | 226db60
+// Version 1.0.32 | 6d9e104
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -263,6 +263,7 @@ function getBrightLabelsFromTaskTypes(taskTypes) {
   var labels = [];
 
   (taskTypes || []).forEach(function (t) {
+    if (t.brightness !== 'bright') return;
     var label = (t.label || '').toString().trim();
     if (!label) {
       var key = normalizeTaskBaseColor(t.baseColor);
