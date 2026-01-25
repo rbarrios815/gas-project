@@ -1,4 +1,4 @@
-// Version 1.0.37 | 96cf653
+// Version 1.0.38 | 3933b1d
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -2847,12 +2847,20 @@ function isHighlightedCell_(bg) {
   return c !== '#ffffff' && c !== '#fff' && c !== 'white';
 }
 
-function collectEmojiListFromRow_(rowDisplay) {
+function collectEmojiListFromRow_(rowDisplay, headers) {
   var startIndex = TASK_STATUS_COLUMN_START - 1; // Column R -> index 17
   var endIndex = startIndex + TASK_STATUS_COLUMN_COUNT; // Through column AB
   var values = Array.isArray(rowDisplay) ? rowDisplay.slice(startIndex, endIndex) : [];
+  var headerValues = Array.isArray(headers) ? headers : [];
   return values
-    .map(function(value) { return String(value || '').trim(); })
+    .map(function(value, idx) {
+      var cellValue = String(value || '').trim();
+      if (!cellValue) return '';
+      if (cellValue.toLowerCase() === 'x') {
+        return String(headerValues[idx] || '').trim();
+      }
+      return cellValue;
+    })
     .filter(function(value) { return value !== ''; });
 }
 
@@ -2876,6 +2884,7 @@ function collectChipClients_(initials, targetDate, maxHighlights) {
   var taskTypeTemplate = sharedTaskTemplate.length ? sharedTaskTemplate : toTemplateOnly(parseTaskTypeCell(DEFAULT_TASK_TYPE_TEXT));
   var headerMap = getTaskStatusHeaderMap_(sheet);
   var targetDay = new Date(targetDate);
+  var taskStatusHeaders = getTaskStatusHeaders_(sheet);
   targetDay.setHours(0, 0, 0, 0);
   var targetStr = Utilities.formatDate(targetDay, tz, "MM/dd/yy");
   var clients = {};
@@ -2899,7 +2908,7 @@ function collectChipClients_(initials, targetDate, maxHighlights) {
 
     var name = rawName.toString().replace(/\d+$/, '').trim();
     var rowDisplay = displayValues[idx] || [];
-    var rowEmojis = collectEmojiListFromRow_(rowDisplay);
+    var rowEmojis = collectEmojiListFromRow_(rowDisplay, taskStatusHeaders);
 
     if (!clients[name]) {
       var rowTaskTypes = buildTaskTypesFromRow_(row, taskTypeTemplate, headerMap);
