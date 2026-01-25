@@ -1,4 +1,4 @@
-// Version 1.0.40 | b277c31
+// Version 1.0.41 | 296e783
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -3018,7 +3018,10 @@ function sendChipTasksEmail_(ownerLabel, recipients) {
   var summary = collectChipClients_(ownerLabel, new Date(), MAX_JB_HIGHLIGHTS_PER_CLIENT);
   var lines = buildChipSummaryLines_(summary);
 
-  var sanitizedBody = sanitizeDigestTaskPrefixes_(lines.join('\n'));
+  // Add a timestamp footer so carrier gateways don't de-duplicate identical bodies.
+  var sentAt = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'MM/dd/yyyy HH:mm:ss');
+  var bodyLines = lines.concat(['', 'Sent at: ' + sentAt]);
+  var sanitizedBody = sanitizeDigestTaskPrefixes_(bodyLines.join('\n'));
   var recipientList = Array.isArray(recipients) ? recipients.filter(Boolean) : [];
   if (!recipientList.length) {
     throw new Error('No recipients configured for ' + ownerLabel + ' chip summary');
