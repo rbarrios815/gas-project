@@ -1,4 +1,4 @@
-// Version 1.0.33 | 30a99a5
+// Version 1.0.34 | a110ddb
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -2825,6 +2825,13 @@ function isHighlightedCell_(bg) {
   return c !== '#ffffff' && c !== '#fff' && c !== 'white';
 }
 
+function collectEmojiListFromRow_(rowDisplay) {
+  var values = Array.isArray(rowDisplay) ? rowDisplay.slice(3, 28) : [];
+  return values
+    .map(function(value) { return String(value || '').trim(); })
+    .filter(function(value) { return value !== ''; });
+}
+
 function collectChipClients_(initials, targetDate, maxHighlights) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
   if (!sheet) {
@@ -2838,6 +2845,7 @@ function collectChipClients_(initials, targetDate, maxHighlights) {
 
   var dataRange = sheet.getDataRange();
   var data = dataRange.getValues();
+  var displayValues = dataRange.getDisplayValues();
   var backgrounds = dataRange.getBackgrounds();
   var tz = Session.getScriptTimeZone();
   var sharedTaskTemplate = getTaskTypeTemplateForSheet(sheet);
@@ -2866,13 +2874,17 @@ function collectChipClients_(initials, targetDate, maxHighlights) {
     }
 
     var name = rawName.toString().replace(/\d+$/, '').trim();
+    var rowDisplay = displayValues[idx] || [];
+    var rowEmojis = collectEmojiListFromRow_(rowDisplay);
+
     if (!clients[name]) {
       var rowTaskTypes = buildTaskTypesFromRow_(row, taskTypeTemplate, headerMap);
       clients[name] = {
         name: name,
         category: category,
         pastWorks: [],
-        taskTypes: rowTaskTypes
+        taskTypes: rowTaskTypes,
+        emojis: rowEmojis
       };
     } else if (!clients[name].category && category) {
       clients[name].category = category;
@@ -2880,6 +2892,10 @@ function collectChipClients_(initials, targetDate, maxHighlights) {
 
     if (!clients[name].taskTypes || clients[name].taskTypes.length === 0) {
       clients[name].taskTypes = buildTaskTypesFromRow_(row, taskTypeTemplate, headerMap);
+    }
+
+    if (rowEmojis.length) {
+      clients[name].emojis = (clients[name].emojis || []).concat(rowEmojis);
     }
 
     var noteBg = backgrounds[idx][2];
@@ -2900,10 +2916,15 @@ function collectChipClients_(initials, targetDate, maxHighlights) {
 
   var resultClients = sortedNames.map(function(name) {
     var entry = clients[name];
+    var emojiSet = {};
+    (entry.emojis || []).forEach(function(emoji) {
+      emojiSet[emoji] = true;
+    });
     return {
       name: entry.name,
       category: entry.category,
       taskTypes: entry.taskTypes || [],
+      emojis: Object.keys(emojiSet),
       highlights: extractHighlightedLines_(entry.pastWorks, tz, targetDay, maxHighlightCount)
     };
   });
@@ -2919,68 +2940,18 @@ function collectRbChipClients_(targetDate) {
   return collectChipClients_('RB', targetDate, MAX_JB_HIGHLIGHTS_PER_CLIENT);
 }
 
-function buildChipSummaryLines_(summary, ownerLabel) {
-  var lines = [];
-
-  // Blank line at the very top of the body (creates visual gap after subject)
-  lines.push('');
-
-  if (!summary.clients.length) {
-    lines.push('No clients matched the ' + ownerLabel + ' chip for ' + (summary.dateString || 'today') + '.');
-    return lines;
-  }
-
-  summary.clients.forEach(function(client) {
-    var categoryLabel = client.category ? ' (' + client.category + ')' : '';
-    var brightLabels = getBrightLabelsFromTaskTypes(client.taskTypes);
-    var labelText = brightLabels.length ? ' ' + brightLabels.join(' ') : '';
-    lines.push(client.name + categoryLabel + labelText);
+function buildChipSummaryLines_(summary) {
+  return summary.clients.map(function(client) {
+    var categoryLabel = client.category ? (' - ' + client.category) : '';
+    var emojis = (client.emojis || []).filter(Boolean);
+    var emojiText = emojis.length ? (' ' + emojis.join(' ')) : '';
+    return client.name + categoryLabel + emojiText;
   });
-
-  lines.push('');
-  lines.push('');
-
-  summary.clients.forEach(function(client) {
-    var orderedHighlights = (client.highlights || []).slice().reverse(); // oldest of the selected first
-    var total = orderedHighlights.length;
-
-    function labelForIndex(idx) {
-      var rankFromLatest = total - idx;
-      if (rankFromLatest <= 3) return '';
-      return rankFromLatest + 'TH LATEST';
-    }
-
-    // Client name
-    lines.push(client.name);
-
-    // Blank line between client name and tasks
-    lines.push('');
-
-    // Indented tasks (5 spaces)
-    if (total === 0) {
-      lines.push('     No highlighted tasks available');
-    } else {
-      orderedHighlights.forEach(function(item, idx) {
-        var label = labelForIndex(idx);
-        var prefix = label ? (label + ': ') : '';
-        var formatted = item.formatted;
-        if (idx === total - 1) {
-          formatted = '**' + formatted + '**';
-        }
-        lines.push('     ' + prefix + formatted);
-      });
-    }
-
-    // Blank line between clients
-    lines.push('');
-  });
-
-  return lines;
 }
 
 function sendChipTasksEmail_(ownerLabel, recipients) {
   var summary = collectChipClients_(ownerLabel, new Date(), MAX_JB_HIGHLIGHTS_PER_CLIENT);
-  var lines = buildChipSummaryLines_(summary, ownerLabel);
+  var lines = buildChipSummaryLines_(summary);
 
   var sanitizedBody = sanitizeDigestTaskPrefixes_(lines.join('\n'));
   var recipientList = Array.isArray(recipients) ? recipients.filter(Boolean) : [];
