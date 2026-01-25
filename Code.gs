@@ -1,4 +1,4 @@
-// Version 1.0.38 | 3933b1d
+// Version 1.0.40 | b277c31
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -3006,7 +3006,7 @@ function buildChipSummaryLines_(summary) {
   }
 
   return summary.clients.map(function(client) {
-    var categoryLabel = client.category ? (' - ' + client.category) : '';
+    var categoryLabel = client.category ? (' (' + client.category + ')') : '';
     var emojis = (client.emojis || []).filter(Boolean);
     var emojiText = emojis.length ? (' ' + emojis.join(' ')) : '';
     return client.name + categoryLabel + emojiText;
@@ -3014,6 +3014,7 @@ function buildChipSummaryLines_(summary) {
 }
 
 function sendChipTasksEmail_(ownerLabel, recipients) {
+  // If an old "CLIENT TASKS" subject appears, check for other deployments/copies still running legacy code.
   var summary = collectChipClients_(ownerLabel, new Date(), MAX_JB_HIGHLIGHTS_PER_CLIENT);
   var lines = buildChipSummaryLines_(summary);
 
@@ -3025,7 +3026,7 @@ function sendChipTasksEmail_(ownerLabel, recipients) {
 
   MailApp.sendEmail({
     to: recipientList.join(','),
-    subject: ownerLabel + ' DASHBOARD CLIENT TASKS FOR TODAY (' + (summary.dateString || 'today') + '):',
+    subject: ownerLabel + ' DASHBOARD TOP CLIENTS FOR TODAY (' + (summary.dateString || 'today') + '):',
     body: sanitizedBody
   });
 
