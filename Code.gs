@@ -1,4 +1,4 @@
-// Version 1.0.30 | c2d709e
+// Version 1.0.31 | 226db60
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -132,11 +132,60 @@ const TASK_TYPE_LABEL_FALLBACK = {
   white: '🎓',
   grey: '✍️'
 };
+const TASK_STATUS_COLUMN_START = 18; // Column R
+const TASK_STATUS_COLUMN_COUNT = 11; // Columns R-AB
 
 function normalizeTaskBaseColor(name) {
   var key = (name || '').toString().trim().toLowerCase().replace(/[^a-z]/g, '');
   if (key === 'blackwhitefont') return 'black';
   return key;
+}
+
+function getTaskStatusHeaderMap_(sheet) {
+  var headers = sheet.getRange(1, TASK_STATUS_COLUMN_START, 1, TASK_STATUS_COLUMN_COUNT).getDisplayValues()[0];
+  var map = {};
+  headers.forEach(function (label, idx) {
+    var key = String(label || '').trim();
+    if (key) {
+      map[key] = TASK_STATUS_COLUMN_START + idx;
+    }
+  });
+  return map;
+}
+
+function resolveTaskTypeLabel_(taskType) {
+  var label = (taskType && taskType.label) ? String(taskType.label).trim() : '';
+  if (!label) {
+    var key = normalizeTaskBaseColor(taskType && taskType.baseColor);
+    var fallback = TASK_TYPE_LABEL_FALLBACK[key];
+    if (fallback) label = fallback;
+  }
+  return label;
+}
+
+function buildTaskTypesFromRow_(row, template, headerMap) {
+  return ensureTaskTypeDefaults(template).map(function (t) {
+    var label = t.label || '';
+    var lookupLabel = resolveTaskTypeLabel_(t);
+    var columnIndex = lookupLabel ? headerMap[lookupLabel] : null;
+    var cellValue = (columnIndex && row) ? row[columnIndex - 1] : '';
+    var isBright = String(cellValue || '').trim().toLowerCase() === 'x';
+    return {
+      baseColor: t.baseColor,
+      label: label,
+      brightness: isBright ? 'bright' : 'faded'
+    };
+  });
+}
+
+function getTaskStatusColumnForBaseColor_(template, headerMap, baseColor) {
+  var target = normalizeTaskBaseColor(baseColor);
+  var entry = ensureTaskTypeDefaults(template).find(function (t) {
+    return normalizeTaskBaseColor(t.baseColor) === target;
+  });
+  if (!entry) return null;
+  var label = resolveTaskTypeLabel_(entry);
+  return label ? headerMap[label] : null;
 }
 
 function stripBrightnessPrefix(colorText) {
@@ -274,10 +323,11 @@ function getClientDetails(clientName) {
   var columnB = "";
   var columnD = "";
   var columnLValue = "";
-  var columnOTaskTypes = [];
   var tz = Session.getScriptTimeZone();
   var sharedTaskTemplate = getTaskTypeTemplateForSheet(sheet);
-  var defaultTaskTemplate = sharedTaskTemplate.length ? sharedTaskTemplate : parseTaskTypeCell(DEFAULT_TASK_TYPE_TEXT);
+  var taskTypeTemplate = sharedTaskTemplate.length ? sharedTaskTemplate : toTemplateOnly(parseTaskTypeCell(DEFAULT_TASK_TYPE_TEXT));
+  var headerMap = getTaskStatusHeaderMap_(sheet);
+  var clientTaskTypes = [];
 
   // NEW: chip fields (P/Q)
   var chipInitials = ""; // Column P (index 15)
@@ -297,7 +347,7 @@ function getClientDetails(clientName) {
         columnB = row[1];
         columnD = row[3];
         columnLValue = row[11];
-        columnOTaskTypes = parseTaskTypeCell(row[14]);
+        clientTaskTypes = buildTaskTypesFromRow_(row, taskTypeTemplate, headerMap);
 
         // Capture P/Q (may be blank)
         chipInitials = row[15] ? row[15].toString().trim() : "";
@@ -371,8 +421,8 @@ if (clientLabels.length === 0) {
     columnB: columnB,
     columnD: columnD,
     columnL: columnLValue,
-    taskTypes: ensureTaskTypeDefaults(columnOTaskTypes.length ? columnOTaskTypes : defaultTaskTemplate),
-    taskTypeTemplate: toTemplateOnly(columnOTaskTypes.length ? columnOTaskTypes : defaultTaskTemplate),
+    taskTypes: clientTaskTypes.length ? clientTaskTypes : buildTaskTypesFromRow_([], taskTypeTemplate, headerMap),
+    taskTypeTemplate: toTemplateOnly(taskTypeTemplate),
     chipInitials: chipInitials, // Column P
     chipDate: chipDate          // Column Q -> "MM/dd/yy" or ""
   };
@@ -775,6 +825,9 @@ function addAppointmentToCalendar(clientName, appointmentDate, appointmentTime) 
 function getTopClients() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
   var data = sheet.getDataRange().getValues();
+  var sharedTaskTemplate = getTaskTypeTemplateForSheet(sheet);
+  var taskTypeTemplate = sharedTaskTemplate.length ? sharedTaskTemplate : toTemplateOnly(parseTaskTypeCell(DEFAULT_TASK_TYPE_TEXT));
+  var headerMap = getTaskStatusHeaderMap_(sheet);
 
   var clientMap = {};
   var categorySortOrder = {
@@ -801,7 +854,7 @@ function getTopClients() {
     var columnGLabels = row[6] ? row[6].toString() : ""; // Column G (labels with emojis)
     var birthdayRaw   = row[13];  // Column N (birthday)
     var columnLRaw    = row[11];  // Column L (In Progress)
-    var columnOTasks  = ensureTaskTypeDefaults(parseTaskTypeCell(row[14]));
+    var columnOTasks = buildTaskTypesFromRow_(row, taskTypeTemplate, headerMap);
     var chipInitials  = row[15] ? row[15].toString().trim() : ""; // Column P
     var chipDateRaw   = row[16];                                 // Column Q
 
@@ -938,27 +991,30 @@ function setTaskTypeBrightnessForClient(clientName, baseColor, isBright) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
   var data = sheet.getDataRange().getValues();
   var normName = (clientName || '').toString().replace(/\d+$/, '').trim().toLowerCase();
-  var normColor = normalizeTaskBaseColor(baseColor);
   var updatedTaskTypes = null;
+  var template = getTaskTypeTemplateForSheet(sheet);
+  var headerMap = getTaskStatusHeaderMap_(sheet);
+  var statusColumn = getTaskStatusColumnForBaseColor_(template, headerMap, baseColor);
+
+  if (!statusColumn) {
+    return {
+      taskTypes: buildTaskTypesFromRow_([], template, headerMap),
+      template: template
+    };
+  }
 
   data.forEach(function (row, idx) {
     if (idx === 0) return;
     var candidate = (row[0] || '').toString().replace(/\d+$/, '').trim().toLowerCase();
     if (candidate === normName && updatedTaskTypes === null) {
-      var parsed = parseTaskTypeCell(row[14]);
-      updatedTaskTypes = ensureTaskTypeDefaults(parsed).map(function (t) {
-        if (normalizeTaskBaseColor(t.baseColor) === normColor) {
-          return { baseColor: t.baseColor, brightness: isBright ? 'bright' : 'faded', label: t.label };
-        }
-        return t;
-      });
-      sheet.getRange(idx + 1, 15).setValue(formatTaskTypeCell(updatedTaskTypes));
+      sheet.getRange(idx + 1, statusColumn).setValue(isBright ? 'x' : '');
+      row[statusColumn - 1] = isBright ? 'x' : '';
+      updatedTaskTypes = buildTaskTypesFromRow_(row, template, headerMap);
     }
   });
 
-  var template = getTaskTypeTemplateForSheet(sheet);
   return {
-    taskTypes: updatedTaskTypes ? updatedTaskTypes : mergeTemplateWithClientBrightness(template, []),
+    taskTypes: updatedTaskTypes ? updatedTaskTypes : buildTaskTypesFromRow_([], template, headerMap),
     template: template
   };
 }
@@ -2794,7 +2850,8 @@ function collectChipClients_(initials, targetDate, maxHighlights) {
   var backgrounds = dataRange.getBackgrounds();
   var tz = Session.getScriptTimeZone();
   var sharedTaskTemplate = getTaskTypeTemplateForSheet(sheet);
-  var defaultTaskTemplate = sharedTaskTemplate.length ? sharedTaskTemplate : parseTaskTypeCell(DEFAULT_TASK_TYPE_TEXT);
+  var taskTypeTemplate = sharedTaskTemplate.length ? sharedTaskTemplate : toTemplateOnly(parseTaskTypeCell(DEFAULT_TASK_TYPE_TEXT));
+  var headerMap = getTaskStatusHeaderMap_(sheet);
   var targetDay = new Date(targetDate);
   targetDay.setHours(0, 0, 0, 0);
   var targetStr = Utilities.formatDate(targetDay, tz, "MM/dd/yy");
@@ -2819,20 +2876,19 @@ function collectChipClients_(initials, targetDate, maxHighlights) {
 
     var name = rawName.toString().replace(/\d+$/, '').trim();
     if (!clients[name]) {
-      var rowTaskTypes = row[14] ? parseTaskTypeCell(row[14]) : defaultTaskTemplate;
+      var rowTaskTypes = buildTaskTypesFromRow_(row, taskTypeTemplate, headerMap);
       clients[name] = {
         name: name,
         category: category,
         pastWorks: [],
-        taskTypes: ensureTaskTypeDefaults(rowTaskTypes)
+        taskTypes: rowTaskTypes
       };
     } else if (!clients[name].category && category) {
       clients[name].category = category;
     }
 
     if (!clients[name].taskTypes || clients[name].taskTypes.length === 0) {
-      var fallbackTaskTypes = row[14] ? parseTaskTypeCell(row[14]) : defaultTaskTemplate;
-      clients[name].taskTypes = ensureTaskTypeDefaults(fallbackTaskTypes);
+      clients[name].taskTypes = buildTaskTypesFromRow_(row, taskTypeTemplate, headerMap);
     }
 
     var noteBg = backgrounds[idx][2];
