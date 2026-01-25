@@ -1,4 +1,4 @@
-// Version 1.0.35 | ba83325
+// Version 1.0.36 | e7bdf6c
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -2963,6 +2963,10 @@ function collectRbChipClients_(targetDate) {
 }
 
 function buildChipSummaryLines_(summary) {
+  if (!summary.clients.length) {
+    return ['No clients for today!'];
+  }
+
   return summary.clients.map(function(client) {
     var categoryLabel = client.category ? (' - ' + client.category) : '';
     var emojis = (client.emojis || []).filter(Boolean);
