@@ -1,4 +1,4 @@
-// Version 1.0.36 | e7bdf6c
+// Version 1.0.37 | 96cf653
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -2906,12 +2906,23 @@ function collectChipClients_(initials, targetDate, maxHighlights) {
       clients[name] = {
         name: name,
         category: category,
+        firstChipDate: chipDate,
+        firstRowIndex: idx,
         pastWorks: [],
         taskTypes: rowTaskTypes,
         emojis: rowEmojis
       };
     } else if (!clients[name].category && category) {
       clients[name].category = category;
+    }
+    if (chipDate) {
+      var entryDate = clients[name].firstChipDate;
+      if (!entryDate || chipDate.getTime() < entryDate.getTime()) {
+        clients[name].firstChipDate = chipDate;
+        clients[name].firstRowIndex = idx;
+      } else if (chipDate.getTime() === entryDate.getTime() && idx < clients[name].firstRowIndex) {
+        clients[name].firstRowIndex = idx;
+      }
     }
 
     if (!clients[name].taskTypes || clients[name].taskTypes.length === 0) {
@@ -2935,6 +2946,22 @@ function collectChipClients_(initials, targetDate, maxHighlights) {
   });
 
   var sortedNames = Object.keys(clients).sort(function(a, b) {
+    var aEntry = clients[a];
+    var bEntry = clients[b];
+    var aDate = aEntry.firstChipDate;
+    var bDate = bEntry.firstChipDate;
+    if (aDate && bDate) {
+      if (aDate.getTime() !== bDate.getTime()) {
+        return aDate.getTime() - bDate.getTime();
+      }
+    } else if (aDate && !bDate) {
+      return -1;
+    } else if (!aDate && bDate) {
+      return 1;
+    }
+    if (aEntry.firstRowIndex !== bEntry.firstRowIndex) {
+      return aEntry.firstRowIndex - bEntry.firstRowIndex;
+    }
     return a.localeCompare(b);
   });
 
