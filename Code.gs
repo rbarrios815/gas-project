@@ -1,4 +1,4 @@
-// Version 1.0.43 | 3a74e30
+// Version 1.0.44 | ee41297
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -2783,8 +2783,8 @@ function formatDateTaskLine_(line, tz) {
 
 // Limit JB/RB MMS payload size by capping highlighted notes per client and using MMS gateways.
 const MAX_JB_HIGHLIGHTS_PER_CLIENT = 3;
-// Automated JB chip texts go to both JB numbers; button-triggered texts go only to 5185.
-const JB_CHIP_RECIPIENTS = ['8326215185@vzwpix.com', '2817146370@vzwpix.com'];
+// Automated JB chip texts go to the 2817 number; button-triggered texts go only to 5185.
+const JB_CHIP_RECIPIENTS = ['2817146370@vzwpix.com'];
 const JB_BUTTON_RECIPIENTS = ['8326215185@vzwpix.com'];
 const RB_CHIP_RECIPIENTS = ['8326215185@vzwpix.com'];
 
