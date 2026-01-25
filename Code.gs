@@ -1,4 +1,4 @@
-// Version 1.0.34 | a110ddb
+// Version 1.0.35 | ba83325
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -819,6 +819,12 @@ function getTopClients() {
   var sharedTaskTemplate = getTaskTypeTemplateForSheet(sheet);
   var taskTypeTemplate = sharedTaskTemplate.length ? sharedTaskTemplate : toTemplateOnly(parseTaskTypeCell(DEFAULT_TASK_TYPE_TEXT));
   var headerMap = getTaskStatusHeaderMap_(sheet);
+  var headerRow = data[0] || [];
+  var topFilterStartIndex = 17; // Column R (0-based index)
+  var topFilterEndIndex = 28; // Column AB (end, exclusive)
+  var topFilterLabels = headerRow.slice(topFilterStartIndex, topFilterEndIndex).map(function (label) {
+    return label ? label.toString().trim() : '';
+  });
 
   var clientMap = {};
   var categorySortOrder = {
@@ -848,6 +854,14 @@ function getTopClients() {
     var columnOTasks = buildTaskTypesFromRow_(row, taskTypeTemplate, headerMap);
     var chipInitials  = row[15] ? row[15].toString().trim() : ""; // Column P
     var chipDateRaw   = row[16];                                 // Column Q
+    var rowTopFilters = topFilterLabels.reduce(function (acc, label, idx) {
+      if (!label) return acc;
+      var cellValue = row[topFilterStartIndex + idx];
+      if (String(cellValue || '').trim().toLowerCase() === 'x') {
+        acc.push(label);
+      }
+      return acc;
+    }, []);
 
     // 🔒 Normalize Column L to a safe string (front-end filters on this!)
     var colL = (columnLRaw == null) ? '' : columnLRaw.toString();
@@ -903,6 +917,7 @@ function getTopClients() {
         columnLContent: colL,
 
         taskTypes: columnOTasks,
+        topFilters: rowTopFilters.slice(),
 
         labelsText: columnGLabels,
         hasCakeLabel: columnGLabels.indexOf('🎂') !== -1,
@@ -943,6 +958,13 @@ function getTopClients() {
 
       if (!clientMap[key].labelsText && columnGLabels) clientMap[key].labelsText = columnGLabels;
       if (columnGLabels && columnGLabels.indexOf('🎂') !== -1) clientMap[key].hasCakeLabel = true;
+      if (rowTopFilters.length) {
+        var existingFilters = clientMap[key].topFilters || [];
+        var nextFilters = existingFilters.concat(rowTopFilters).filter(function (item, idx, arr) {
+          return arr.indexOf(item) === idx;
+        });
+        clientMap[key].topFilters = nextFilters;
+      }
     }
   });
 

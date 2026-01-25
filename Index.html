@@ -1,4 +1,4 @@
-<!-- Version 1.0.45 | a110ddb -->
+<!-- Version 1.0.46 | ba83325 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -4458,10 +4458,6 @@ input#clientAutocomplete, select#clientSelect {
             <option value="QC">QC</option>
             <option value="TEAM">TEAM</option>
             <option value="BDAY">BDAY</option>
-            <option value="BRIEFCASE">💼</option>
-            <option value="STAR">⭐</option>
-            <option value="GRADCAP">🎓</option>
-            <option value="PHONE">📞</option>
         </select>
 
         <!-- NEW: SUGGESTIONS button inline with the dropdown -->
@@ -4992,12 +4988,17 @@ let __topClientsCache = [];
 const OWNER_INITIALS = ['JB', 'RB', 'MB', 'QC', 'TEAM', 'BDAY'];
 const TOP_CLIENTS_BASE_FILTERS = OWNER_INITIALS.map(function(value) {
   return { value: value, label: value };
-}).concat([
-  { value: 'BRIEFCASE', label: '💼' },
-  { value: 'STAR', label: '⭐' },
-  { value: 'GRADCAP', label: '🎓' },
-  { value: 'PHONE', label: '📞' }
-]);
+});
+
+function getTopClientFilterLabels(clients) {
+  var labelSet = new Set();
+  (clients || []).forEach(function (client) {
+    (client.topFilters || []).forEach(function (label) {
+      if (label) labelSet.add(label);
+    });
+  });
+  return Array.from(labelSet).sort(function (a, b) { return a.localeCompare(b); });
+}
 
 function getBrightLabelsFromClient(client) {
   var taskTypes = (client && client.taskTypes) || [];
@@ -5173,6 +5174,13 @@ function buildTopClientsFilterDropdown(clients) {
     var node = document.createElement('option');
     node.value = opt.value;
     node.textContent = opt.label;
+    frag.appendChild(node);
+  });
+
+  getTopClientFilterLabels(clients).forEach(function (label) {
+    var node = document.createElement('option');
+    node.value = label;
+    node.textContent = label;
     frag.appendChild(node);
   });
 
@@ -7303,12 +7311,10 @@ function normalizeTopClientsFilter(val) {
     return 'LABEL|' + raw.slice(6);
   }
   const upper = raw.toUpperCase();
-  // Map emojis/aliases to canonical keys your renderer understands
   const map = {
-    'JB':'JB', 'RB':'RB', 'MB':'MB', 'QC':'QC', 'TEAM':'TEAM', 'BDAY':'BDAY',
-    '💼':'BRIEFCASE', '⭐':'STAR', '🎓':'GRADCAP', '📞':'PHONE'
+    'JB':'JB', 'RB':'RB', 'MB':'MB', 'QC':'QC', 'TEAM':'TEAM', 'BDAY':'BDAY'
   };
-  return map.hasOwnProperty(upper) ? map[upper] : upper;
+  return map.hasOwnProperty(upper) ? map[upper] : raw;
 }
 
 // === CATEGORY CHANGE GUARDS ===
@@ -8910,6 +8916,11 @@ function birthdayFilterAllowsClient(client, currentMonth) {
   return month === targetMonth;
 }
 
+function clientMatchesTopFilter(client, filter) {
+  var tags = (client && client.topFilters) || [];
+  return tags.some(function (tag) { return tag === filter; });
+}
+
 /**********************************************
   (A) The "OLD" function (for updates/reloading)
 **********************************************/function showTopClients(clients, filterKey) {
@@ -8929,21 +8940,6 @@ function birthdayFilterAllowsClient(client, currentMonth) {
   if (!out) return;
   out.innerHTML = '';
 
-  // Map emojis → actual emoji to look for
-  var emojiMap = {
-    BRIEFCASE: '💼',
-    STAR: '⭐',
-    GRADCAP: '🎓',
-    PHONE: '📞'
-  };
-
-  // Robust emoji checker for various label shapes
-  function hasEmojiLabel(c, emoji) {
-    if (!emoji) return false;
-    const L = String(c.columnLContent || c.suggestion || '');
-    return L.includes(emoji);
-  }
-
   // OWNER filters (JB/RB/MB/QC/TEAM/BDAY)
   var OWNER_KEYS = OWNER_INITIALS.slice();
   var isBirthdayFilter = filter === 'BDAY';
@@ -8960,9 +8956,7 @@ function birthdayFilterAllowsClient(client, currentMonth) {
       var initials = (c.chipInitials || c.initials || '').toUpperCase();
       return initials === filter;
     }
-    // ICON filters
-    var emoji = emojiMap[filter];
-    return emoji ? hasEmojiLabel(c, emoji) : true;
+    return clientMatchesTopFilter(c, filter);
   });
 
   var startMonthForBirthdays = selectedBirthdayMonth;
@@ -9046,17 +9040,10 @@ function birthdaySortValue(client, startMonth){
   if (!out) return;
   out.innerHTML = '';
 
-  // 3) Filtering: owners OR emoji labels only
+  // 3) Filtering: owners OR column R-AB filters
   var OWNER_KEYS = OWNER_INITIALS.slice();
-  var emojiMap = { BRIEFCASE:'💼', STAR:'⭐', GRADCAP:'🎓', PHONE:'📞' };
   var isBirthdayFilter = filter === 'BDAY';
   var currentMonth = getActiveBirthdayMonth();
-
-  function hasEmojiLabel(c, emoji) {
-    if (!emoji) return false;
-    const L = String(c.columnLContent || c.suggestion || '');
-    return L.includes(emoji);
-  }
 
   var filtered = (clients || []).filter(function(c){
     if (labelFilter) {
@@ -9069,8 +9056,7 @@ function birthdaySortValue(client, startMonth){
       var initials = (c.chipInitials || c.initials || '').toUpperCase();
       return initials === filter;
     }
-    var emoji = emojiMap[filter];
-    return emoji ? hasEmojiLabel(c, emoji) : true;
+    return clientMatchesTopFilter(c, filter);
   });
 
   var startMonthForBirthdays = currentMonth;
@@ -11465,7 +11451,7 @@ function handleTopClientsFilterChange(selectedFilter) {
   } else if (val === 'ALL') {
     titleEl.innerText = 'TOP CLIENTS';
   } else if (titleEl) {
-    // For text or emoji filters we keep the date-only header per your current UI
+    // For text filters we keep the date-only header per your current UI
     titleEl.innerText = '';
     titleEl.style.display = 'none';
   }
@@ -12394,20 +12380,6 @@ function isOwnerKey(v) {
   return OWNER_INITIALS.includes(String(v || '').toUpperCase());
 }
 
-function normalizeFilterValue(v) {
-  return String(v || '').trim();
-}
-
-// Accept both tokens (BRIEFCASE/STAR/GRADCAP/PHONE) and the actual emoji
-function asEmojiOrNull(v) {
-  const s = normalizeFilterValue(v).toUpperCase();
-  const map = { BRIEFCASE:'💼', STAR:'⭐', GRADCAP:'🎓', PHONE:'📞' };
-  if (map[s]) return map[s];
-  // if they actually chose an emoji, pass it through
-  const isEmoji = /[\u{1F300}-\u{1FAFF}]/u.test(v || '');
-  return isEmoji ? v : null;
-}
-
 // Build a safe chip "search string" from Column P (free text or initials)
 // Works even if your data only has initials; extend if you add fields later.
 function chipSearchString(client) {
@@ -12415,12 +12387,6 @@ function chipSearchString(client) {
   const pText = client.chipText || client.chipLabel || '';
   const initials = client.chipInitials || client.initials || '';
   return (pText + ' ' + initials).trim().toLowerCase();
-}
-
-// True if Column L (lightbulb/suggestions) contains the emoji
-function suggestionsContainEmoji(client, emoji) {
-  const L = client.columnLContent || client.suggestion || '';
-  return String(L).includes(emoji);
 }
 
 
