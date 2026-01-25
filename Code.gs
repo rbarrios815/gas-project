@@ -1,4 +1,4 @@
-// Version 1.0.32 | 6d9e104
+// Version 1.0.33 | 30a99a5
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -117,21 +117,6 @@ const DEFAULT_TASK_TYPE_TEXT = [
   'Faded White: 🎓',
   'Faded Grey: ✍️'
 ].join('\n');
-const TASK_TYPE_LABEL_FALLBACK = {
-  red: '🗣️',
-  orange: '🎯',
-  yellow: '📞',
-  green: '🔍',
-  blue: '💼',
-  purple: '✉️',
-  violet: '',
-  brown: '📊',
-  pink: '🎂',
-  black: '',
-  blackwhitefont: '',
-  white: '🎓',
-  grey: '✍️'
-};
 const TASK_STATUS_COLUMN_START = 18; // Column R
 const TASK_STATUS_COLUMN_COUNT = 11; // Columns R-AB
 
@@ -141,8 +126,15 @@ function normalizeTaskBaseColor(name) {
   return key;
 }
 
+function getTaskStatusHeaders_(sheet) {
+  return sheet
+    .getRange(1, TASK_STATUS_COLUMN_START, 1, TASK_STATUS_COLUMN_COUNT)
+    .getDisplayValues()[0]
+    .map(function (label) { return String(label || '').trim(); });
+}
+
 function getTaskStatusHeaderMap_(sheet) {
-  var headers = sheet.getRange(1, TASK_STATUS_COLUMN_START, 1, TASK_STATUS_COLUMN_COUNT).getDisplayValues()[0];
+  var headers = getTaskStatusHeaders_(sheet);
   var map = {};
   headers.forEach(function (label, idx) {
     var key = String(label || '').trim();
@@ -153,13 +145,15 @@ function getTaskStatusHeaderMap_(sheet) {
   return map;
 }
 
+function applyTaskStatusHeadersToTemplate_(template, headers) {
+  return (template || []).map(function (t, idx) {
+    var label = (headers && headers[idx]) ? String(headers[idx]).trim() : '';
+    return { baseColor: t.baseColor, label: label };
+  });
+}
+
 function resolveTaskTypeLabel_(taskType) {
   var label = (taskType && taskType.label) ? String(taskType.label).trim() : '';
-  if (!label) {
-    var key = normalizeTaskBaseColor(taskType && taskType.baseColor);
-    var fallback = TASK_TYPE_LABEL_FALLBACK[key];
-    if (fallback) label = fallback;
-  }
   return label;
 }
 
@@ -265,11 +259,6 @@ function getBrightLabelsFromTaskTypes(taskTypes) {
   (taskTypes || []).forEach(function (t) {
     if (t.brightness !== 'bright') return;
     var label = (t.label || '').toString().trim();
-    if (!label) {
-      var key = normalizeTaskBaseColor(t.baseColor);
-      var fallback = TASK_TYPE_LABEL_FALLBACK[key];
-      if (fallback) label = fallback;
-    }
 
     if (label) labels.push(label);
   });
@@ -302,13 +291,14 @@ function mergeTemplateWithClientBrightness(template, clientTaskTypes) {
 function getTaskTypeTemplateForSheet(sheet) {
   var lastRow = sheet.getLastRow();
   var values = sheet.getRange(1, 15, Math.max(lastRow, 1), 1).getValues();
+  var headers = getTaskStatusHeaders_(sheet);
   for (var i = 0; i < values.length; i++) {
     var raw = values[i][0];
     if (raw !== '' && raw != null) {
-      return toTemplateOnly(parseTaskTypeCell(raw));
+      return applyTaskStatusHeadersToTemplate_(toTemplateOnly(parseTaskTypeCell(raw)), headers);
     }
   }
-  return toTemplateOnly(parseTaskTypeCell(DEFAULT_TASK_TYPE_TEXT));
+  return applyTaskStatusHeadersToTemplate_(toTemplateOnly(parseTaskTypeCell(DEFAULT_TASK_TYPE_TEXT)), headers);
 }
 
 
