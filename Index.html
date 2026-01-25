@@ -1,4 +1,4 @@
-<!-- Version 1.0.43 | 9f4e52b -->
+<!-- Version 1.0.44 | 30a99a5 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -7403,7 +7403,8 @@ var appointmentBtn = document.getElementById('addAppointmentBtn');
 if (appointmentBtn) {
   appointmentBtn.style.display = displayStyle;
 }
-document.getElementById('labelsAdditionSection').style.display = displayStyle;
+// Emoji labels are now managed in the spreadsheet only.
+document.getElementById('labelsAdditionSection').style.display = 'none';
 var hideClientNotesBtn = document.getElementById('hideClientNotesBtn');
 if (hideClientNotesBtn) {
   hideClientNotesBtn.style.display = 'none';
@@ -7770,6 +7771,7 @@ function displayLabels(labelsArray) {
         var labelDiv = document.createElement('div');
         labelDiv.className = 'label-box';
         labelDiv.textContent = labelObj.label;
+        labelDiv.style.cursor = 'default';
 
         // Apply light blue background and black text to labels from columns H-K
         if (labelObj.isBlue) {
@@ -7778,11 +7780,6 @@ function displayLabels(labelsArray) {
         } else {
             // Set the background to light green for labels that are not light blue
             labelDiv.style.backgroundColor = 'lightgreen';
-
-            // Only add onclick event if the background is not blue
-            labelDiv.onclick = function() {
-                confirmAndRemoveLabel(labelObj.label);
-            };
         }
 
         labelsDisplay.appendChild(labelDiv);
