@@ -1,4 +1,4 @@
-// Version 1.0.46 | 7a3da40
+// Version 1.0.47 | 7fcca9f
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -119,6 +119,15 @@ const DEFAULT_TASK_TYPE_TEXT = [
 ].join('\n');
 const TASK_STATUS_COLUMN_START = 18; // Column R
 const TASK_STATUS_COLUMN_COUNT = 11; // Columns R-AB
+
+function isClientActiveFromTaskStatus_(row) {
+  var startIndex = TASK_STATUS_COLUMN_START - 1;
+  var endIndex = startIndex + TASK_STATUS_COLUMN_COUNT;
+  var taskValues = Array.isArray(row) ? row.slice(startIndex, endIndex) : [];
+  return taskValues.some(function (value) {
+    return String(value || '').trim().toLowerCase() === 'x';
+  });
+}
 
 function normalizeTaskBaseColor(name) {
   var key = (name || '').toString().trim().toLowerCase().replace(/[^a-z]/g, '');
@@ -1500,10 +1509,10 @@ function getBirthdayClients() {
     var birthdays = {};
 
     data.forEach(function(row) {
-        var clientStatus = row[14]; // Column O for client status
+        var clientStatus = isClientActiveFromTaskStatus_(row); // Column R-AB task status replaces column O
         var birthdayStr = row[13]; // Column N for birthday string
         var clientName = row[0]; // Column A for client names
-        if (clientStatus === 'YES' && birthdayStr) {
+        if (clientStatus && birthdayStr) {
             var birthday = new Date(birthdayStr);
             var birthdayMonth = birthday.getMonth();
             if (isInRelevantMonth(birthdayMonth, currentMonth)) {
