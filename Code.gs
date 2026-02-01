@@ -1,4 +1,4 @@
-// Version 1.0.44 | ee41297
+// Version 1.0.46 | 7a3da40
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -2984,6 +2984,7 @@ function collectChipClients_(initials, targetDate, maxHighlights) {
     return {
       name: entry.name,
       category: entry.category,
+      chipDate: entry.firstChipDate,
       taskTypes: entry.taskTypes || [],
       emojis: Object.keys(emojiSet),
       highlights: extractHighlightedLines_(entry.pastWorks, tz, targetDay, maxHighlightCount)
@@ -3014,9 +3015,74 @@ function buildChipSummaryLines_(summary) {
   });
 }
 
+function selectJbOverdueClients_(clients, referenceDate) {
+  var list = Array.isArray(clients) ? clients : [];
+  if (list.length <= 4) {
+    return list;
+  }
+
+  var ref = new Date(referenceDate || new Date());
+  ref.setHours(0, 0, 0, 0);
+
+  var withDates = list
+    .map(function(client, idx) {
+      var chipDate = client && client.chipDate instanceof Date ? new Date(client.chipDate) : null;
+      if (!chipDate || isNaN(chipDate.getTime())) return null;
+      chipDate.setHours(0, 0, 0, 0);
+      return { idx: idx, diff: Math.abs(ref.getTime() - chipDate.getTime()) };
+    })
+    .filter(function(entry) { return !!entry; });
+
+  if (withDates.length >= 2) {
+    withDates.sort(function(a, b) {
+      if (a.diff !== b.diff) return a.diff - b.diff;
+      return a.idx - b.idx;
+    });
+
+    var selected = {};
+    withDates.slice(0, 2).forEach(function(entry) {
+      selected[entry.idx] = true;
+    });
+    withDates.slice(-2).forEach(function(entry) {
+      selected[entry.idx] = true;
+    });
+
+    var picked = list.filter(function(client, idx) {
+      return selected[idx];
+    });
+
+    if (picked.length) {
+      if (picked.length >= 4) {
+        return picked;
+      }
+
+      var filled = picked.slice();
+      list.forEach(function(client, idx) {
+        if (filled.length >= 4) return;
+        if (!selected[idx]) {
+          selected[idx] = true;
+          filled.push(client);
+        }
+      });
+      return filled;
+    }
+  }
+
+  // Fallback: keep the 2 oldest and 2 most recent in the current order.
+  var fallback = {};
+  fallback[0] = true;
+  fallback[1] = true;
+  fallback[list.length - 2] = true;
+  fallback[list.length - 1] = true;
+  return list.filter(function(client, idx) { return fallback[idx]; });
+}
+
 function sendChipTasksEmail_(ownerLabel, recipients) {
   // If an old "CLIENT TASKS" subject appears, check for other deployments/copies still running legacy code.
   var summary = collectChipClients_(ownerLabel, new Date(), MAX_JB_HIGHLIGHTS_PER_CLIENT);
+  if (ownerLabel === 'JB') {
+    summary.clients = selectJbOverdueClients_(summary.clients, new Date());
+  }
   var lines = buildChipSummaryLines_(summary);
 
   // Add a timestamp footer so carrier gateways don't de-duplicate identical bodies.
