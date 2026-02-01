@@ -1,4 +1,4 @@
-// Version 1.0.44 | ee41297
+// Version 1.0.45 | 97ecae1
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -3014,9 +3014,24 @@ function buildChipSummaryLines_(summary) {
   });
 }
 
+function selectJbOverdueClients_(clients) {
+  var total = clients ? clients.length : 0;
+  if (total <= 4) {
+    return clients || [];
+  }
+
+  // Keep the 2 oldest overdue entries and the 2 most recent overdue entries.
+  var oldest = clients.slice(0, 2);
+  var newest = clients.slice(-2);
+  return oldest.concat(newest);
+}
+
 function sendChipTasksEmail_(ownerLabel, recipients) {
   // If an old "CLIENT TASKS" subject appears, check for other deployments/copies still running legacy code.
   var summary = collectChipClients_(ownerLabel, new Date(), MAX_JB_HIGHLIGHTS_PER_CLIENT);
+  if (ownerLabel === 'JB') {
+    summary.clients = selectJbOverdueClients_(summary.clients);
+  }
   var lines = buildChipSummaryLines_(summary);
 
   // Add a timestamp footer so carrier gateways don't de-duplicate identical bodies.
