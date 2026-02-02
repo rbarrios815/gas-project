@@ -1,4 +1,4 @@
-<!-- Version 1.0.51 | 5749c96 -->
+<!-- Version 1.0.53 | 19e8f6d -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -2656,6 +2656,10 @@ input#clientAutocomplete, select#clientSelect {
   background: linear-gradient(180deg, #f4f7fb, #eef2f7);
 }
 
+.top-filter-row {
+  background: linear-gradient(180deg, #f6fff9, #edfdf3);
+}
+
 .label-filter-button {
   background: linear-gradient(135deg, #9fb8ff, #4f7bff);
   opacity: 0.35;
@@ -2663,6 +2667,18 @@ input#clientAutocomplete, select#clientSelect {
 }
 
 .label-filter-button.is-active {
+  opacity: 1;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.16);
+  filter: brightness(1.08) saturate(1.1);
+}
+
+.top-filter-button {
+  background: linear-gradient(135deg, #10b981, #22c55e);
+  opacity: 0.45;
+  box-shadow: none;
+}
+
+.top-filter-button.is-active {
   opacity: 1;
   box-shadow: 0 8px 18px rgba(0,0,0,0.16);
   filter: brightness(1.08) saturate(1.1);
@@ -4489,6 +4505,10 @@ input#clientAutocomplete, select#clientSelect {
 
     <div id="birthdayMonthRow" class="birthday-month-row" style="display:none;"></div>
 
+    <div id="topFilterBarRow" class="task-type-bar-row top-filter-row" style="display:none;">
+      <div id="topFilterBar" class="task-type-bar" aria-label="Top client filters"></div>
+    </div>
+
     <div id="labelFilterBarRow" class="task-type-bar-row label-filter-row" style="display:none;">
       <div id="labelFilterBar" class="task-type-bar" aria-label="Bright label filters"></div>
     </div>
@@ -5185,6 +5205,57 @@ function renderTopClientsLabelFilters(clients) {
   syncLabelFilterButtons();
 }
 
+function syncTopFilterButtons(activeFilter) {
+  var bar = document.getElementById('topFilterBar');
+  if (!bar) return;
+
+  var normalized = normalizeTopClientsFilter(activeFilter || getCurrentTopClientsFilter());
+  bar.querySelectorAll('.top-filter-button').forEach(function (btn) {
+    var isActive = normalizeTopClientsFilter(btn.dataset.filter || '') === normalized;
+    btn.classList.toggle('is-active', isActive);
+  });
+}
+
+function renderTopClientsTopFilterBar(clients) {
+  var row = document.getElementById('topFilterBarRow');
+  var bar = document.getElementById('topFilterBar');
+  if (!row || !bar) return;
+
+  if (Array.isArray(clients)) {
+    __topClientsCache = clients;
+  }
+
+  var labels = getTopClientFilterLabels(clients || __topClientsCache);
+  bar.innerHTML = '';
+
+  if (!labels.length) {
+    row.style.display = 'none';
+    return;
+  }
+
+  row.style.display = 'flex';
+  labels.forEach(function (label) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'task-type-button top-filter-button';
+    btn.dataset.filter = label;
+    btn.textContent = label;
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      clearLabelFilter(true);
+      var dd = document.getElementById('topClientsFilterDropdown');
+      if (dd) dd.value = label;
+      if (typeof handleTopClientsFilterChange === 'function') {
+        handleTopClientsFilterChange(label);
+      }
+      retriggerTopClientsFilter();
+    });
+    bar.appendChild(btn);
+  });
+
+  syncTopFilterButtons();
+}
+
 function getCurrentTopClientsFilter() {
   var dd = document.getElementById('topClientsFilterDropdown');
   var selected = dd && dd.options ? dd.options[dd.selectedIndex] : null;
@@ -5268,6 +5339,7 @@ function fetchAndRenderTopClientsFromDropdown() {
       __topClientsCache = Array.isArray(clients) ? clients : [];
       buildTopClientsFilterDropdown(clients);
       renderTopClientsLabelFilters(clients);
+      renderTopClientsTopFilterBar(clients);
 
       // Read again then NORMALIZE before render
       const dd2 = document.getElementById('topClientsFilterDropdown');
@@ -5612,6 +5684,7 @@ function refreshTopClientsPreservingScroll() {
       .withSuccessHandler(function (clients) {
         buildTopClientsFilterDropdown(clients);
         renderTopClientsLabelFilters(clients);
+        renderTopClientsTopFilterBar(clients);
         showTopClients(clients, normalizeTopClientsFilter(currentFilter));
 
 // sanitize bulbs right after re-render
@@ -7236,10 +7309,16 @@ function setClientDropdownVisibility(hasClient) {
 }
 
 function showClientNotes() {
-      var clientName = document.getElementById('clientSelect').value;
-      // NOTE: recent chips no longer update here (only on hide).
       var clientSelect = document.getElementById('clientSelect');
       var clientAutocomplete = document.getElementById('clientAutocomplete');
+      var clientName = clientSelect ? clientSelect.value : '';
+
+      // Ensure the task status bar (columns R+) is restored for clients loaded via autocomplete.
+      if (!clientName && clientAutocomplete && clientAutocomplete.value) {
+        clientName = clientAutocomplete.value.trim();
+        if (clientName && clientSelect) clientSelect.value = clientName;
+      }
+      // NOTE: recent chips no longer update here (only on hide).
       // SNIPPET: CLEAR LOADED IN-PROGRESS AREA
 
       // So we don't see old text while the new client data is loading
@@ -7503,6 +7582,7 @@ function repaintTopClientsWithCurrentFilter(clients) {
 
   buildTopClientsFilterDropdown(clients);
   renderTopClientsLabelFilters(clients);
+  renderTopClientsTopFilterBar(clients);
 
   // Use your standard renderer, passing the filter explicitly
   if (typeof showTopClients === 'function') {
@@ -9028,6 +9108,7 @@ function clientMatchesTopFilter(client, filter) {
 
   buildTopClientsFilterDropdown(clients);
   renderTopClientsLabelFilters(clients);
+  renderTopClientsTopFilterBar(clients);
   if (/^LABEL\|/.test(filterKey || '')) syncLabelFilterButtons();
 
   var filter = normalizeTopClientsFilter(filterKey || getDefaultTopClientsFilter()); // you already have this helper
@@ -9132,6 +9213,7 @@ function birthdaySortValue(client, startMonth){
 
   buildTopClientsFilterDropdown(clients);
   renderTopClientsLabelFilters(clients);
+  renderTopClientsTopFilterBar(clients);
   if (labelFilter) syncLabelFilterButtons();
 
   var out = document.getElementById('topClientsDisplay');
@@ -11542,6 +11624,7 @@ function handleTopClientsFilterChange(selectedFilter) {
     if (dd) dd.value = val;
   }
   syncLabelFilterButtons();
+  syncTopFilterButtons(val);
 
   // Title updates (owners & ALL only)
   if (OWNER_INITIALS.includes(val)) {
