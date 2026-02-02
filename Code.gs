@@ -1,7 +1,22 @@
-// Version 1.0.48 | 90b66ec
+// Version 1.0.50 | 5eb7a71
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
+}
+
+function getUserDefaultTopClientsFilter() {
+  var activeUserEmail = normalizeEmail(Session.getActiveUser().getEmail());
+  var effectiveUserEmail = normalizeEmail(Session.getEffectiveUser().getEmail());
+  var emailToFilter = {
+    'rbarrios815@gmail.com': 'RB',
+    'rbarrio1@alumni.nd.edu': 'QC',
+    'jbgreatfamily1@gmail.com': 'JB',
+    'mbarrios94@gmail.com': 'MB'
+  };
+
+  return emailToFilter[activeUserEmail] ||
+    emailToFilter[effectiveUserEmail] ||
+    'JB';
 }
 
 function doGet(e) {
