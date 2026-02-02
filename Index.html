@@ -1,4 +1,4 @@
-<!-- Version 1.0.50 | 5eb7a71 -->
+<!-- Version 1.0.51 | 5749c96 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -8082,72 +8082,7 @@ function updateDashHandleChip(clientId, chipInfo) {
 
 
 
-function displayNotes(notes) {
-  var notesDisplay = document.getElementById('notesDisplay');
-  notesDisplay.innerHTML = '';
-
-  // Toggle note action visibility based on whether a client is selected
-  var hasClient = !!((document.getElementById('clientSelect') || {}).value);
-  var displayStyle = hasClient ? 'flex' : 'none';
-  var currentClientId = document.getElementById('clientSelect').value || "";
-  var chipInfo = window.__chipForCurrentClient || { initials: "", date: "" };
-
-  // Keep the CHANGE VIEW handle chip in sync with current client chip data.
-  updateDashHandleChip(currentClientId, chipInfo);
-
-  if (!notes || notes.length === 0) {
-    notesDisplay.innerHTML = '<p>No notes to display.</p>';
-    return;
-  }
-
-  // Collect lines from Column C only (ignore Column E)
-  var allLines = [];
-  notes.forEach(function(n) {
-    if (n.note && n.note !== 'N/A') {
-      n.note.split('\n').forEach(function(line) {
-        // Keep all lines (including blank) — groupLinesIntoBlocks will collapse 2+ blanks.
-        allLines.push(String(line || ""));
-      });
-    }
-  });
-
-  if (allLines.length === 0) {
-    notesDisplay.innerHTML = '<p>No notes to display.</p>';
-    return;
-  }
-
-  // Build dated blocks with inheritance + blank-line collapsing
-  var blocks = groupLinesIntoBlocks(allLines);
-
-  // Container
-  var container = document.createElement('div');
-  container.style.display = 'flex';
-  container.style.flexDirection = 'column';
-  container.style.alignItems = 'stretch';
-  container.style.width = '100%';
-  container.style.position = 'relative';
-
-  // === UNHIGHLIGHTED (older blocks, hidden by default) ===
-  var unhighlightedWrap = document.createElement('div');
-  unhighlightedWrap.id = 'unhighlightedNotes';
-  unhighlightedWrap.style.display = 'flex';
-  unhighlightedWrap.style.flexDirection = 'column';
-  unhighlightedWrap.style.gap = '5px';
-  container.appendChild(unhighlightedWrap);
-
-  var toggleBtn = document.createElement('button');
-  toggleBtn.id = 'toggleNotesButton';
-  toggleBtn.onclick = toggleNotesVisibility;
-  toggleBtn.innerText = '+';
-
-  var toggleRow = document.createElement('div');
-  toggleRow.style.display = 'flex';
-  toggleRow.style.justifyContent = 'center';
-  toggleRow.style.margin = '0';
-  toggleRow.appendChild(toggleBtn);
-  container.appendChild(toggleRow);
-
-  // === BUTTON ROW (moved beside the label dropdown) ===
+function renderNotesActionButtons(container, editText, displayStyle) {
   var buttonRow = document.createElement('div');
   buttonRow.className = 'labels-buttons-row';
   buttonRow.style.flexDirection = 'column';
@@ -8164,15 +8099,7 @@ function displayNotes(notes) {
   editBtn.innerHTML = '✏️';
   editBtn.onclick = function (e) {
     e.stopPropagation();
-    // Flatten blocks back to the user's raw lines (join with \n)
-    var flattened = [];
-    blocks.forEach(function(b){
-      b.lines.forEach(function(line){
-        // Turn the collapsed "" back into a blank line on edit
-        flattened.push(line === "" ? "" : line);
-      });
-    });
-    editCombinedNotes(container, flattened.join('\n'));
+    editCombinedNotes(container, editText || '');
   };
 
   var apptBtn = document.getElementById('addAppointmentBtn');
@@ -8201,6 +8128,84 @@ function displayNotes(notes) {
   } else {
     container.appendChild(buttonRow);
   }
+}
+
+function displayNotes(notes) {
+  var notesDisplay = document.getElementById('notesDisplay');
+  notesDisplay.innerHTML = '';
+
+  // Toggle note action visibility based on whether a client is selected
+  var hasClient = !!((document.getElementById('clientSelect') || {}).value);
+  var displayStyle = hasClient ? 'flex' : 'none';
+  var currentClientId = document.getElementById('clientSelect').value || "";
+  var chipInfo = window.__chipForCurrentClient || { initials: "", date: "" };
+
+  // Keep the CHANGE VIEW handle chip in sync with current client chip data.
+  updateDashHandleChip(currentClientId, chipInfo);
+
+  // Container
+  var container = document.createElement('div');
+  container.style.display = 'flex';
+  container.style.flexDirection = 'column';
+  container.style.alignItems = 'stretch';
+  container.style.width = '100%';
+  container.style.position = 'relative';
+  notesDisplay.appendChild(container);
+
+  if (!notes || notes.length === 0) {
+    container.innerHTML = '<p>No notes to display.</p>';
+    renderNotesActionButtons(container, '', displayStyle);
+    return;
+  }
+
+  // Collect lines from Column C only (ignore Column E)
+  var allLines = [];
+  notes.forEach(function(n) {
+    if (n.note && n.note !== 'N/A') {
+      n.note.split('\n').forEach(function(line) {
+        // Keep all lines (including blank) — groupLinesIntoBlocks will collapse 2+ blanks.
+        allLines.push(String(line || ""));
+      });
+    }
+  });
+
+  if (allLines.length === 0) {
+    container.innerHTML = '<p>No notes to display.</p>';
+    renderNotesActionButtons(container, '', displayStyle);
+    return;
+  }
+
+  // Build dated blocks with inheritance + blank-line collapsing
+  var blocks = groupLinesIntoBlocks(allLines);
+
+  // === UNHIGHLIGHTED (older blocks, hidden by default) ===
+  var unhighlightedWrap = document.createElement('div');
+  unhighlightedWrap.id = 'unhighlightedNotes';
+  unhighlightedWrap.style.display = 'flex';
+  unhighlightedWrap.style.flexDirection = 'column';
+  unhighlightedWrap.style.gap = '5px';
+  container.appendChild(unhighlightedWrap);
+
+  var toggleBtn = document.createElement('button');
+  toggleBtn.id = 'toggleNotesButton';
+  toggleBtn.onclick = toggleNotesVisibility;
+  toggleBtn.innerText = '+';
+
+  var toggleRow = document.createElement('div');
+  toggleRow.style.display = 'flex';
+  toggleRow.style.justifyContent = 'center';
+  toggleRow.style.margin = '0';
+  toggleRow.appendChild(toggleBtn);
+  container.appendChild(toggleRow);
+
+  var flattened = [];
+  blocks.forEach(function(b){
+    b.lines.forEach(function(line){
+      // Turn the collapsed "" back into a blank line on edit
+      flattened.push(line === "" ? "" : line);
+    });
+  });
+  renderNotesActionButtons(container, flattened.join('\n'), displayStyle);
 
   var chipSlot = document.getElementById('labelsChipSlot');
   if (chipSlot) {
