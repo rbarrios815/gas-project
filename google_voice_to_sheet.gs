@@ -127,7 +127,10 @@ function importGoogleVoiceToSheet() {
       sheet.getRange(nextRow, 1).setValue(extracted);
       existingNotes.add(normalized);
 
-      // Column B: intentionally left blank
+      // Column B: auto-assign voicemail transcripts to MB
+      if (isVoicemailSubject(subject)) {
+        sheet.getRange(nextRow, 2).setValue('MB');
+      }
 
       // Column C: email received time in desired format
       sheet.getRange(nextRow, 3).setValue(formattedDate);
@@ -166,6 +169,10 @@ function isAllowedVoiceSubject(subject) {
   return GV_ALLOWED_SUBJECTS.some(function (allowed) {
     return normalized === allowed;
   });
+}
+
+function isVoicemailSubject(subject) {
+  return String(subject || '').toLowerCase().indexOf('voicemail') !== -1;
 }
 
 /**

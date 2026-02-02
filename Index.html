@@ -1,4 +1,4 @@
-<!-- Version 1.0.49 | ee41297 -->
+<!-- Version 1.0.50 | 5eb7a71 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -1711,6 +1711,17 @@ function saveEditedNote(row, text, noteEl){
       .toLowerCase();
   }
 
+  function shouldHighlightRecentItem(noteText, assignedName, chipInfo) {
+    var trimmedNote = String(noteText || '').trim();
+    if (trimmedNote.toUpperCase() === 'DUPLICATE') return false;
+
+    var assigned = String(assignedName || '').trim();
+    if (!assigned) return true;
+
+    var chipDate = chipInfo && String(chipInfo.dateMMDDYY || '').trim();
+    return !chipDate;
+  }
+
   function renderRecent(payload){
     recentList.innerHTML='';
     const items=(payload&&payload.recent)?payload.recent:[];
@@ -1720,6 +1731,11 @@ function saveEditedNote(row, text, noteEl){
     items.forEach(it=>{
       const row=document.createElement('div');
       row.className='item';
+
+      const chipInfo = recentChipMap[normalizeClientKeyForChip(it.assigned)];
+      if (shouldHighlightRecentItem(it.note, it.assigned, chipInfo)) {
+        row.classList.add('inbox-highlight');
+      }
 
       // LEFT: note text
       const note=document.createElement('div');
@@ -1812,7 +1828,6 @@ function saveEditedNote(row, text, noteEl){
 
       const chipSlot = document.createElement('div');
       chipSlot.className = 'assigned-chip-slot';
-      const chipInfo = recentChipMap[normalizeClientKeyForChip(it.assigned)];
       if (it.assigned && chipInfo) {
         const chipEl = createChipElement(it.assigned, chipInfo.initials, chipInfo.dateMMDDYY);
         chipEl.classList.add('chip--xs');
@@ -1862,7 +1877,7 @@ function refreshNoteViewsAfterEdit() {
 
 
 
-  window.addEventListener('load', ()=>{ loadClientNames(); loadRecent(); });
+  window.addEventListener('load', ()=>{ loadClientNames(); loadRecent(); initUserDefaultTopClientsFilter(); });
 
 // Mobile textarea height fallback (enforce 50vh on load/resize)
 (function(){
@@ -2763,6 +2778,12 @@ input#clientAutocomplete, select#clientSelect {
 
 .highlighted {
     background-color: yellow;
+}
+
+.inbox-highlight {
+  background-color: #fff59d;
+  border-radius: 10px;
+  padding: 6px;
 }
 
 /* ===== NAME LINKIFY + HOVER BUBBLE ===== */
@@ -5024,6 +5045,41 @@ function gatherBrightLabelFilters(clients) {
 }
 
 let __activeLabelFilter = '';
+let __userDefaultTopClientsFilter = 'JB';
+let __userDefaultTopClientsFilterApplied = false;
+
+function getDefaultTopClientsFilter() {
+  return __userDefaultTopClientsFilter || 'JB';
+}
+
+function applyUserDefaultTopClientsFilter(filterKey) {
+  var normalized = normalizeTopClientsFilter(filterKey || 'JB');
+  __userDefaultTopClientsFilter = normalized;
+  if (__userDefaultTopClientsFilterApplied) return;
+  __userDefaultTopClientsFilterApplied = true;
+
+  var dd = document.getElementById('topClientsFilterDropdown');
+  if (!dd) return;
+
+  clearLabelFilter();
+  dd.value = normalized;
+  syncClientsListToDropdown();
+  updateDropdownWidthToFit(dd);
+  fitTopClientsHeaderControls();
+}
+
+function initUserDefaultTopClientsFilter() {
+  if (!(window.google && google.script && google.script.run)) return;
+  google.script.run
+    .withSuccessHandler(function (filterKey) {
+      if (!filterKey) return;
+      applyUserDefaultTopClientsFilter(filterKey);
+    })
+    .withFailureHandler(function (err) {
+      console.warn('Failed to load user default filter', err);
+    })
+    .getUserDefaultTopClientsFilter();
+}
 
 function syncLabelFilterButtons() {
   var bar = document.getElementById('labelFilterBar');
@@ -5068,7 +5124,7 @@ function clearLabelFilter(preserveDropdownValue) {
   __activeLabelFilter = '';
   if (dd) {
     removeLabelPlaceholderOption(dd);
-    if (!preserveDropdownValue) dd.value = 'JB';
+    if (!preserveDropdownValue) dd.value = getDefaultTopClientsFilter();
   }
   syncLabelFilterButtons();
 }
@@ -5141,7 +5197,7 @@ function getCurrentTopClientsFilter() {
     clearLabelFilter(true);
   }
 
-  var raw = dd && dd.value ? dd.value.trim() : 'JB';
+  var raw = dd && dd.value ? dd.value.trim() : getDefaultTopClientsFilter();
   return normalizeTopClientsFilter(raw);
 }
 
@@ -5149,7 +5205,7 @@ function buildTopClientsFilterDropdown(clients) {
   var dd = document.getElementById('topClientsFilterDropdown');
   if (!dd) return;
 
-  var current = dd.value || 'JB';
+  var current = dd.value || getDefaultTopClientsFilter();
   var labelPlaceholderValue = '';
   if (__activeLabelFilter) {
     labelPlaceholderValue = 'LABEL|' + __activeLabelFilter;
@@ -5373,11 +5429,11 @@ function setFilterAndSync(value) {
   syncClientsListToDropdown();
 }
 
-// On boot, if nothing is chosen yet, default to JB and immediately sync the list.
+// On boot, if nothing is chosen yet, default to the user owner and immediately sync the list.
 (function setInitialTopClientsFilter(){
   var dd = document.getElementById('topClientsFilterDropdown');
   if (!dd) return;
-  if (!dd.value) dd.value = 'JB';
+  if (!dd.value) dd.value = getDefaultTopClientsFilter();
   syncClientsListToDropdown();
 })();
 
@@ -5524,8 +5580,8 @@ function applyDefaultJBFilter() {
 
   clearLabelFilter();
 
-  // Select JB in the dropdown (this makes the visible label "JB")
-  dd.value = 'JB';
+  // Select the default owner in the dropdown
+  dd.value = getDefaultTopClientsFilter();
 
   // Seed the date header and title immediately
   (function seedHeaders(){
@@ -5540,7 +5596,7 @@ function applyDefaultJBFilter() {
 
   fitTopClientsHeaderControls();
 
-setFilterAndSync('JB'); // uses the canonical path
+setFilterAndSync(getDefaultTopClientsFilter()); // uses the canonical path
 
 }
 
@@ -6974,7 +7030,7 @@ function selectButton(buttonId, selectedColor, clientFilter) {
 document.addEventListener('DOMContentLoaded', function fastFirstPaint() {
   // Ensure a default in the dropdown, then reuse the canonical fetch+render
   var dd = document.getElementById('topClientsFilterDropdown');
-  if (dd && !dd.value) dd.value = 'JB';
+  if (dd && !dd.value) dd.value = getDefaultTopClientsFilter();
 
   // Wire the change handler immediately so user changes take effect
   initTopClientsFilterAfterList();
@@ -7244,7 +7300,14 @@ if (appointmentBtn) {
   appointmentBtn.style.display = displayStyle;
 }
 // Emoji labels are now managed in the spreadsheet only.
-document.getElementById('labelsAdditionSection').style.display = 'none';
+var labelsAdditionSection = document.getElementById('labelsAdditionSection');
+if (labelsAdditionSection) {
+  labelsAdditionSection.style.display = displayStyle;
+}
+var labelsDropdown = document.getElementById('labelsDropdown');
+if (labelsDropdown) {
+  labelsDropdown.style.display = 'none';
+}
 var hideClientNotesBtn = document.getElementById('hideClientNotesBtn');
 if (hideClientNotesBtn) {
   hideClientNotesBtn.style.display = 'none';
@@ -8238,17 +8301,17 @@ function saveUIState(state) {
 }
 
 function restoreUIState() {
-  // Always start in JB on a fresh load
+  // Always start in the default owner filter on a fresh load
   const dd = document.getElementById('topClientsFilterDropdown');
   if (dd) {
     clearLabelFilter();
-    dd.value = 'JB';
+    dd.value = getDefaultTopClientsFilter();
     if (typeof handleTopClientsFilterChange === 'function') {
-      handleTopClientsFilterChange('JB');
+      handleTopClientsFilterChange(getDefaultTopClientsFilter());
     }
   }
 
-  // Optionally restore the last open client (but keep JB filter)
+  // Optionally restore the last open client (but keep the default owner filter)
   let raw = null, st = null;
   try { raw = localStorage.getItem(UI_STATE_KEY); } catch (_){}
   if (!raw) return;
@@ -8962,7 +9025,7 @@ function clientMatchesTopFilter(client, filter) {
   renderTopClientsLabelFilters(clients);
   if (/^LABEL\|/.test(filterKey || '')) syncLabelFilterButtons();
 
-  var filter = normalizeTopClientsFilter(filterKey || 'JB'); // you already have this helper
+  var filter = normalizeTopClientsFilter(filterKey || getDefaultTopClientsFilter()); // you already have this helper
   var labelFilter = filter.startsWith('LABEL|') ? filter.slice(6) : '';
   window.__currentTopClientsFilter = filter;
   updateBirthdayMonthRowVisibility(filter);
@@ -9051,9 +9114,9 @@ function birthdaySortValue(client, startMonth){
 
   fitTopClientsHeaderControls();
 
-  // 2) Resolve filter from dropdown if not passed; default to JB
+  // 2) Resolve filter from dropdown if not passed; default to the user owner
   var dd = document.getElementById('topClientsFilterDropdown');
-  var chosen = filterKey || (dd && dd.value) || 'JB';
+  var chosen = filterKey || (dd && dd.value) || getDefaultTopClientsFilter();
   var filter = normalizeTopClientsFilter(chosen); // you already have this helper
   var labelFilter = filter.startsWith('LABEL|') ? filter.slice(6) : '';
   window.__currentTopClientsFilter = filter;
