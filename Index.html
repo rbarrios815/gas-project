@@ -1,4 +1,4 @@
-<!-- Version 1.0.55 | 00bd9a1 -->
+<!-- Version 1.0.56 | 11a3663 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -4260,6 +4260,52 @@ input#clientAutocomplete, select#clientSelect {
   justify-content: center;
   padding: 0;
 }
+
+/* Keep appointment modal controls compact, readable, and on a single row. */
+#apptModal .modal-footer {
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+#apptModal .modal-footer #apptCancel,
+#apptModal .modal-footer #apptSave {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 8px;
+  height: 16px;
+  padding: 0 6px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+/* Prevent the close button from inheriting oversized global button styles. */
+#apptModal #apptClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+  font-size: 14px;
+  line-height: 1;
+  text-transform: none;
+}
+
+#apptModal #apptClose:hover,
+#apptModal #apptClose:focus {
+  background: #f1f5f9;
+  box-shadow: none;
+  filter: none;
+}
   /* === AUTOCOMPLETE: FULLY HIDE WHEN COLLAPSED === */
   /* Replace .AUTOCOMPLETE_BAR with your real selector (id or class) */
   .AUTOCOMPLETE_BAR.autocomplete-collapsed {
@@ -4581,7 +4627,7 @@ input#clientAutocomplete, select#clientSelect {
     </div>
     <div class="modal-footer">
       <button id="apptCancel" class="btn-secondary">Cancel</button>
-      <button id="apptSave" class="btn-primary">Save</button>
+      <button id="apptSave" class="btn-primary">Add appointment</button>
     </div>
   </div>
 </div>
