@@ -1,4 +1,4 @@
-<!-- Version 1.0.54 | 4dd1fb4 -->
+<!-- Version 1.0.55 | 00bd9a1 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -5026,6 +5026,44 @@ function toggleSuggestions() {
 
 let __topClientsCache = [];
 
+window.__pastWorkDraftByClient = window.__pastWorkDraftByClient || {};
+
+function getCurrentClientNameForDraft() {
+  var clientSel = document.getElementById('clientSelect');
+  if (clientSel && clientSel.value) return String(clientSel.value).trim();
+  return '';
+}
+
+function cachePastWorkDraftForClient(clientName, textValue) {
+  var key = String(clientName || '').trim();
+  if (!key) return;
+  window.__pastWorkDraftByClient[key] = textValue == null ? '' : String(textValue);
+}
+
+function restorePastWorkDraftForClient(clientName) {
+  var pastWorkEl = document.getElementById('newPastWork');
+  if (!pastWorkEl) return;
+  var key = String(clientName || '').trim();
+  if (!key) {
+    pastWorkEl.value = '';
+    return;
+  }
+  var cached = Object.prototype.hasOwnProperty.call(window.__pastWorkDraftByClient, key)
+    ? window.__pastWorkDraftByClient[key]
+    : '';
+  pastWorkEl.value = cached;
+}
+
+
+document.addEventListener('DOMContentLoaded', function () {
+  var pastWorkEl = document.getElementById('newPastWork');
+  if (!pastWorkEl || pastWorkEl.dataset.draftWired === 'true') return;
+  pastWorkEl.dataset.draftWired = 'true';
+  pastWorkEl.addEventListener('input', function () {
+    cachePastWorkDraftForClient(getCurrentClientNameForDraft(), pastWorkEl.value || '');
+  });
+});
+
 const OWNER_INITIALS = ['JB', 'RB', 'MB', 'QC', 'TEAM', 'BDAY'];
 const TOP_CLIENTS_BASE_FILTERS = OWNER_INITIALS.map(function(value) {
   return { value: value, label: value };
@@ -5166,43 +5204,12 @@ function applyLabelFilterSelection(label) {
 function renderTopClientsLabelFilters(clients) {
   var row = document.getElementById('labelFilterBarRow');
   var bar = document.getElementById('labelFilterBar');
-  if (!row || !bar) return;
-
   if (Array.isArray(clients)) {
     __topClientsCache = clients;
   }
-
-  var labels = gatherBrightLabelFilters(clients || __topClientsCache);
-  bar.innerHTML = '';
-  var hasActiveLabel = __activeLabelFilter && labels.includes(__activeLabelFilter);
-
-  if (!labels.length) {
-    row.style.display = 'none';
-    clearLabelFilter();
-    return;
-  }
-
-  // If the active label disappeared from the dataset, reset the selection but keep the buttons visible.
-  if (__activeLabelFilter && !hasActiveLabel) {
-    clearLabelFilter(true);
-  }
-
-  var shouldShowBar = !!window.__suggestionsVisible;
-  row.style.display = shouldShowBar ? 'flex' : 'none';
-  labels.forEach(function (label) {
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'task-type-button label-filter-button';
-    btn.dataset.label = label;
-    btn.textContent = label;
-    btn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      applyLabelFilterSelection(label);
-    });
-    bar.appendChild(btn);
-  });
-
-  syncLabelFilterButtons();
+  if (bar) bar.innerHTML = '';
+  if (row) row.style.display = 'none';
+  clearLabelFilter(true);
 }
 
 function syncTopFilterButtons(activeFilter) {
@@ -5450,8 +5457,7 @@ function applySuggestionsVisibility() {
 
   var labelRow = document.getElementById('labelFilterBarRow');
   if (labelRow) {
-    var hasButtons = labelRow.querySelectorAll('.label-filter-button').length > 0;
-    labelRow.style.display = (visible && hasButtons) ? 'flex' : 'none';
+    labelRow.style.display = 'none';
   }
 
   // after visibility flips, re-enforce the single-left-bulb layout
@@ -5777,6 +5783,9 @@ function wireToplistSuggestionTextareas() {
         return;
       }
 
+      if (typeof updateInProgressDom === 'function') {
+        updateInProgressDom(clientName, pendingValue);
+      }
 
       if (typeof showLoadingBar === 'function') showLoadingBar();
 
@@ -5796,9 +5805,12 @@ function wireToplistSuggestionTextareas() {
         })
         .withFailureHandler(function (err) {
           alert('Error saving In Progress: ' + (err && err.message ? err.message : err));
+          if (typeof updateInProgressDom === 'function') {
+            updateInProgressDom(clientName, baseline);
+          }
           ta.value = baseline; // revert
           dirty = false;
-                    ta.setAttribute('data-last-saved', baseline || '');
+          ta.setAttribute('data-last-saved', baseline || '');
 
           if (typeof hideLoadingBar === 'function') hideLoadingBar();
         })
@@ -7348,7 +7360,7 @@ function showClientNotes() {
         currentClientName = '';
     }
 // Reset values and set displays based on selection
-document.getElementById('newPastWork').value = '';
+restorePastWorkDraftForClient(clientName);
 document.getElementById('categorySelect').value = '';
 setCategoryPlaceholderText('');
 hideCategoryOverlay();
@@ -8660,7 +8672,10 @@ function logPastWorkSubmissionToInbox(noteText, clientName) {
 
 function submitPastWork() {
     var clientName = document.getElementById('clientSelect').value;
-    var pastWorkContent = document.getElementById('newPastWork').value;
+    var pastWorkEl = document.getElementById('newPastWork');
+    var pastWorkContent = pastWorkEl ? pastWorkEl.value : '';
+
+    cachePastWorkDraftForClient(clientName, pastWorkContent);
 
     // Show the loading bar
     showLoadingBar();
@@ -8695,7 +8710,8 @@ google.script.run
         } else {
             alert('Failed to update past work. Please try again.');
         }
-        document.getElementById('newPastWork').value = ''; // Clear the textarea
+        cachePastWorkDraftForClient(clientName, '');
+        if (pastWorkEl) pastWorkEl.value = ''; // Clear only after submission
 
         // Hide the loading bar after processing is complete
         hideLoadingBar();
@@ -10772,24 +10788,43 @@ function populateCategoryDropdown(categories) {
   var sel = document.getElementById('categorySelect');
   if (!sel) return;
 
+  var selectedValue = String(sel.value || __currentCategory || '').trim();
+  var categorySet = new Set();
+
+  (categories || []).forEach(function (cat) {
+    var normalized = String(cat || '').trim();
+    if (normalized) categorySet.add(normalized);
+  });
+
+  if (selectedValue) categorySet.add(selectedValue);
+  if (__currentCategory) categorySet.add(String(__currentCategory).trim());
+
   sel.innerHTML = '';
 
   var ph = document.createElement('option');
   ph.value = '';
-  ph.textContent = __currentCategory || '';
+  ph.textContent = selectedValue || __currentCategory || 'Select category';
   sel.appendChild(ph);
 
-  (categories || []).forEach(function (cat) {
-    var opt = document.createElement('option');
-    opt.value = cat;
-    opt.textContent = cat;
-    sel.appendChild(opt);
-  });
+  Array.from(categorySet)
+    .sort(function (a, b) { return a.localeCompare(b, 'en', { sensitivity: 'base' }); })
+    .forEach(function (cat) {
+      var opt = document.createElement('option');
+      opt.value = cat;
+      opt.textContent = cat;
+      sel.appendChild(opt);
+    });
 
   var newOpt = document.createElement('option');
   newOpt.value = '__NEW__';
   newOpt.textContent = 'NEW CATEGORY…';
   sel.appendChild(newOpt);
+
+  if (selectedValue && categorySet.has(selectedValue)) {
+    sel.value = selectedValue;
+  } else {
+    sel.value = '';
+  }
 
   // 🔧 One unified handler for both cases
   if (!sel._wiredChange) {
@@ -10805,6 +10840,20 @@ function populateCategoryDropdown(categories) {
       }
     });
     sel._wiredChange = true;
+  }
+
+  if (!sel._wiredRefresh) {
+    sel.addEventListener('focus', function () {
+      var activeValue = String(sel.value || __currentCategory || '').trim();
+      google.script.run
+        .withSuccessHandler(function (freshCategories) {
+          populateCategoryDropdown(Array.isArray(freshCategories) ? freshCategories : []);
+          if (activeValue) sel.value = activeValue;
+        })
+        .withFailureHandler(function () {})
+        .getUniqueCategories();
+    });
+    sel._wiredRefresh = true;
   }
 }
 
@@ -11545,6 +11594,11 @@ function onInProgressLoadedBlur(valueFromUI) {
   var oldVal = String(ta.getAttribute('data-last-saved') || '');
   if (newVal.trim() === oldVal.trim()) return;
 
+  var previousValue = oldVal;
+  if (typeof updateInProgressDom === 'function') {
+    updateInProgressDom(clientName, newVal);
+  }
+
   // Optional: tiny spinner cue at field level (keep your global bar too if you like)
   if (typeof showLoadingBar === 'function') showLoadingBar();
 
@@ -11568,6 +11622,9 @@ function onInProgressLoadedBlur(valueFromUI) {
     })
     .withFailureHandler(function (err) {
       alert('Error saving In Progress: ' + (err && err.message ? err.message : err));
+      if (typeof updateInProgressDom === 'function') {
+        updateInProgressDom(clientName, previousValue);
+      }
       // Revert UI to the last saved text
       ta.value = oldVal;
       if (typeof hideLoadingBar === 'function') hideLoadingBar();
@@ -11599,8 +11656,11 @@ var selectEl = document.getElementById('clientSelect');
 
   // 2) Update the “In Progress:” textareas in the top clients list
   //    (They have .className = "inProgressArea" plus a data-client attribute)
-  var allAreas = document.querySelectorAll('.inProgressArea[data-client="' + clientName + '"]');
+  var normalizedClientName = String(clientName || '').trim().toLowerCase();
+  var allAreas = document.querySelectorAll('.inProgressArea[data-client]');
   allAreas.forEach(function(area) {
+    var areaClient = String(area.getAttribute('data-client') || '').trim().toLowerCase();
+    if (areaClient !== normalizedClientName) return;
     if (area.value !== normalizedValue) {
       area.value = normalizedValue;
     }
