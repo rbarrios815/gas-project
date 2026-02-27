@@ -1,4 +1,4 @@
-// Version 1.0.50 | 5eb7a71
+// Version 1.0.57 | ae2ec0e
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -2125,24 +2125,34 @@ function updateClientCategory(clientName, newCategory) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sh = ss.getSheetByName('DASHBOARD 8.0');
   const data = sh.getRange(2, 1, sh.getLastRow() - 1, 6).getValues(); // A..F
+  const targetName = normalizeClientNameForCategoryMatch_(clientName);
 
-  let foundRow = -1;
+  let updatedRows = 0;
   for (let i = 0; i < data.length; i++) {
-    const name = String(data[i][0] || '').trim();
-    if (name.toLowerCase() === String(clientName).trim().toLowerCase()) {
-      foundRow = i + 2; // sheet row (offset from header)
-      break;
+    const rawName = String(data[i][0] || '').trim();
+    if (!rawName) continue;
+
+    // Accept both exact and "legacy" row names that may include numeric suffixes.
+    const exactMatch = rawName.toLowerCase() === String(clientName).trim().toLowerCase();
+    const normalizedMatch = normalizeClientNameForCategoryMatch_(rawName) === targetName;
+    if (exactMatch || normalizedMatch) {
+      sh.getRange(i + 2, 6).setValue(newCategory); // Column F
+      updatedRows++;
     }
   }
 
-  if (foundRow === -1) {
+  if (updatedRows === 0) {
     throw new Error('Client not found: ' + clientName);
   }
 
-  // Write Column F
-  sh.getRange(foundRow, 6).setValue(newCategory);
+  return { ok: true, updatedRows: updatedRows, category: newCategory };
+}
 
-  return { ok: true, row: foundRow, category: newCategory };
+function normalizeClientNameForCategoryMatch_(name) {
+  return String(name || '')
+    .replace(/\d+$/, '') // Legacy entries sometimes append a numeric suffix.
+    .trim()
+    .toLowerCase();
 }
 
 
