@@ -1,4 +1,4 @@
-<!-- Version 1.0.56 | 11a3663 -->
+<!-- Version 1.0.57 | 56123d1 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -7575,6 +7575,11 @@ function wireCategorySelectChange(){
   sel.addEventListener('change', function(){
     if (__suppressCategoryChange) return;               // ignore programmatic set
     const newCat = (sel.value || '').trim();
+    if (newCat === '__NEW__') {
+      updateCategorySelectValue(__currentCategory || '');
+      openNewCategoryModal();
+      return;
+    }
     // Dedupe: don't call server if the value didn't actually change
     if (newCat === (__currentCategory || '')) return;
     setCategoryPlaceholderText(newCat || '');
@@ -7589,11 +7594,30 @@ function wireCategorySelectChange(){
 function updateCategorySelectValue(newValue){
   const sel = document.getElementById('categorySelect');
   if (!sel) return;
+  const normalizedValue = String(newValue || '').trim();
+
+  if (normalizedValue) {
+    const exists = Array.from(sel.options).some(function (opt) {
+      return String(opt.value || '').toLowerCase() === normalizedValue.toLowerCase();
+    });
+    if (!exists) {
+      const opt = document.createElement('option');
+      opt.value = normalizedValue;
+      opt.textContent = normalizedValue;
+      const sentinel = sel.querySelector('option[value="__NEW__"]');
+      sel.add(opt, sentinel || null);
+    }
+  }
+
   __suppressCategoryChange = true;
-  sel.value = (newValue || '');
-  __currentCategory = (newValue || '');  // keep our local notion in sync
+  sel.value = normalizedValue;
+  __currentCategory = normalizedValue;  // keep our local notion in sync
   setCategoryPlaceholderText(__currentCategory || '');
-  positionCategoryDropdownOverAutocomplete();
+  if (__currentCategory) {
+    positionCategoryDropdownOverAutocomplete();
+  } else {
+    hideCategoryOverlay();
+  }
   // release on next tick so real user changes still work
   setTimeout(() => { __suppressCategoryChange = false; }, 0);
 }
@@ -7615,7 +7639,21 @@ function requestCategoryChange(newCategory){
       __categoryInFlight = false;
       setCategoryPlaceholderText(__currentCategory || '');
       positionCategoryDropdownOverAutocomplete();
+      if (typeof updateCategoryLabel === 'function') updateCategoryLabel();
+      if (typeof retriggerTopClientsFilter === 'function') retriggerTopClientsFilter();
       try { if (typeof hideLoadingBar === 'function') hideLoadingBar(); } catch(_){}
+
+      google.script.run
+        .withSuccessHandler(function(categories){
+          if (typeof populateCategoryDropdown === 'function') {
+            populateCategoryDropdown(Array.isArray(categories) ? categories : []);
+            updateCategorySelectValue(__currentCategory);
+          }
+        })
+        .withFailureHandler(function(err){
+          console.warn('Failed to refresh category dropdown after save.', err);
+        })
+        .getUniqueCategories();
       // Optional toast near the select
       try {
         const sel = document.getElementById('categorySelect');
@@ -7943,39 +7981,7 @@ function updateCategory() {
     return;
   }
 
-  // Visual feedback (optional)
-  if (typeof showLoadingBar === 'function') showLoadingBar();
-
-google.script.run
-  .withSuccessHandler(function(res){
-    if (typeof hideLoadingBar === 'function') hideLoadingBar();
-
-    if (typeof updateCategoryLabel === 'function') updateCategoryLabel();
-
-    // ⬇️ re-run the Top Clients filter now
-    retriggerTopClientsFilter();
-
-    google.script.run
-      .withSuccessHandler(function(categories){
-        if (typeof populateCategoryDropdown === 'function') {
-          populateCategoryDropdown(categories);
-          var sel = document.getElementById('categorySelect');
-          if (sel) sel.value = category;
-        }
-      })
-      .getUniqueCategories();
-
-          // Refresh the autocomplete + dropdown data so the updated category appears immediately.
-    if (typeof refreshUIWithNewCategory === 'function') {
-      refreshUIWithNewCategory(clientName, category);
-    }
-  })
-
-    .withFailureHandler(function(err){
-      if (typeof hideLoadingBar === 'function') hideLoadingBar();
-      alert('Failed to save category: ' + (err && err.message ? err.message : err));
-    })
-    .updateClientCategory(clientName, category);
+  requestCategoryChange(category);
 }
 
 
@@ -8009,27 +8015,6 @@ function loadCategoriesForClientAfterNotes() {
     .getUniqueCategories();
 }
 
-
-function updateCategorySelectValue(currentCategory) {
-  var sel = document.getElementById('categorySelect');
-  if (!sel) return;
-
-  if (currentCategory) {
-    // If the current category isn't yet in the dropdown (e.g., just created),
-    // temporarily insert it before the sentinel so it's selectable.
-    var exists = Array.from(sel.options)
-      .some(function (o) { return o.value.toLowerCase() === String(currentCategory).toLowerCase(); });
-
-    if (!exists) {
-      var opt = document.createElement('option');
-      opt.value = currentCategory;
-      opt.textContent = currentCategory;
-      var sentinel = sel.querySelector('option[value="__NEW__"]');
-      sel.add(opt, sentinel); // insert before NEW CATEGORY…
-    }
-  }
-  sel.value = currentCategory || '';
-}
 
 function sanitizeSuggestionBulbs() {
   document.querySelectorAll('.toplist-suggestion').forEach(card => {
@@ -10890,21 +10875,7 @@ function populateCategoryDropdown(categories) {
     sel.value = '';
   }
 
-  // 🔧 One unified handler for both cases
-  if (!sel._wiredChange) {
-    sel.addEventListener('change', function () {
-      if (this.value === '__NEW__') {
-        this.value = '';
-        openNewCategoryModal();
-        return;
-      }
-      if (this.value) {
-        updateCategory();                 // <- saves to sheet
-        if (typeof updateCategoryLabel === 'function') updateCategoryLabel();
-      }
-    });
-    sel._wiredChange = true;
-  }
+  wireCategorySelectChange();
 
   if (!sel._wiredRefresh) {
     sel.addEventListener('focus', function () {
@@ -11453,45 +11424,6 @@ function displayClient(client, container) {
   if (typeof applySuggestionsVisibility === 'function') applySuggestionsVisibility();
 }
 
-
-
-function updateCategorySelectValue(clientCategory) {
-    var categorySelect = document.getElementById('categorySelect');
-    if (!categorySelect) return;
-
-    var normalizedCategory = (clientCategory || '').trim();
-
-    // Ensure the category exists in the dropdown
-    if (normalizedCategory) {
-        var optionExists = Array.from(categorySelect.options).some(function(option) {
-            return option.value === normalizedCategory;
-        });
-
-        // If not, add it to the dropdown
-        if (!optionExists) {
-            var newOption = document.createElement('option');
-            newOption.value = normalizedCategory;
-            newOption.textContent = normalizedCategory;
-            categorySelect.appendChild(newOption);
-        }
-
-        __suppressCategoryChange = true;
-        categorySelect.value = normalizedCategory;
-        __suppressCategoryChange = false;
-
-        __currentCategory = normalizedCategory;
-        setCategoryPlaceholderText(__currentCategory);
-        positionCategoryDropdownOverAutocomplete();
-    } else {
-        __suppressCategoryChange = true;
-        categorySelect.value = '';
-        __suppressCategoryChange = false;
-
-        __currentCategory = '';
-        setCategoryPlaceholderText(__currentCategory);
-        hideCategoryOverlay();
-    }
-}
 
 
 function displayTopClientsByCategory() {
@@ -12574,31 +12506,6 @@ document.addEventListener('DOMContentLoaded', ensureSuggestionsButtonInToolbar);
     };
   }
 })();
-
-// Wire #categorySelect change to handle normal updates vs. NEW CATEGORY modal
-(function wireCategorySelectChange(){
-  var sel = document.getElementById('categorySelect');
-  if (!sel || sel._wiredForNewCat) return;
-  sel.addEventListener('change', function() {
-    var v = sel.value;
-
-    if (v === '__NEW__') {
-      // Open modal and revert select to prior value to avoid accidental save
-      sel.value = '';
-      openNewCategoryModal();
-      return;
-    }
-
-    // Normal path: save the chosen category for the current client
-    if (v) {
-      updateCategory();       // already defined in your file
-      updateCategoryLabel();  // already defined in your file
-    }
-  });
-  sel._wiredForNewCat = true;
-})();
-
-
 
   // Example renderer (adapt to your UI)
   function renderRecentBar(items) {
