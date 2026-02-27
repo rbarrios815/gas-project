@@ -1,4 +1,4 @@
-<!-- Version 1.0.57 | 56123d1 -->
+<!-- Version 1.0.58 | c7d92fa -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -7568,6 +7568,13 @@ function normalizeCategoryOptions(categories) {
   });
 }
 
+function getCategoryOptionsFromLoadedClients_() {
+  if (!Array.isArray(clientsData)) return [];
+  return normalizeCategoryOptions(clientsData.map(function (client) {
+    return client && client.category ? client.category : '';
+  }));
+}
+
 function wireCategorySelectChange(){
   const sel = document.getElementById('categorySelect');
   if (!sel || sel.__wired) return;
@@ -10833,7 +10840,13 @@ function populateCategoryDropdown(categories) {
 
   var selectedValue = String(sel.value || __currentCategory || '').trim();
   var categorySet = new Set();
-  var normalizedOptions = normalizeCategoryOptions(categories);
+  var normalizedOptions = normalizeCategoryOptions(Array.isArray(categories) ? categories : []);
+
+  // Fallback: if server categories are empty, derive options from already loaded clients.
+  // This keeps the dropdown usable when getUniqueCategories() returns an empty payload.
+  if (!normalizedOptions.length) {
+    normalizedOptions = getCategoryOptionsFromLoadedClients_();
+  }
 
   if (normalizedOptions.length) {
     __categoryOptionsCache = normalizedOptions.slice();
