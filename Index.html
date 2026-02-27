@@ -1,4 +1,4 @@
-<!-- Version 1.0.53 | 19e8f6d -->
+<!-- Version 1.0.54 | 4dd1fb4 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -7304,8 +7304,10 @@ function updateDaySettings(value) {
 function setClientDropdownVisibility(hasClient) {
   var autoRow = document.getElementById('clientAutocompleteRow');
   var catWrap = document.getElementById('catCalWrap');
+  var categorySelect = document.getElementById('categorySelect');
   if (autoRow) autoRow.classList.toggle('has-client', !!hasClient);
   if (catWrap) catWrap.style.display = hasClient ? 'flex' : 'none';
+  if (categorySelect) categorySelect.disabled = !hasClient;
 }
 
 function showClientNotes() {
@@ -7385,7 +7387,8 @@ if (labelsAdditionSection) {
 }
 var labelsDropdown = document.getElementById('labelsDropdown');
 if (labelsDropdown) {
-  labelsDropdown.style.display = 'none';
+  labelsDropdown.style.display = displayStyle;
+  labelsDropdown.disabled = !clientName;
 }
 var hideClientNotesBtn = document.getElementById('hideClientNotesBtn');
 if (hideClientNotesBtn) {
@@ -7739,6 +7742,9 @@ function displayLabels(labelsArray) {
 
 
     labelsArray.forEach(function(labelObj) {
+              if (typeof labelObj === 'string') {
+            labelObj = { label: labelObj, isBlue: false };
+        }
               if (labelContainsEmoji(labelObj.label)) {
             emojiLabels.push(labelObj);
         } else {
@@ -7922,6 +7928,8 @@ function loadCategoriesForClientAfterNotes() {
       // Populate the dropdown, but DO NOT unhide the section here.
       // Visibility is controlled strictly by showClientNotes() when a client is loaded.
       populateCategoryDropdown(Array.isArray(cats) ? cats : []);
+      var categorySelect = document.getElementById('categorySelect');
+      if (categorySelect) categorySelect.disabled = false;
       // Intentionally do NOT do:
       //   document.getElementById('categoryChangeSection').style.display = 'block';
     })
