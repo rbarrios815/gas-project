@@ -7555,6 +7555,18 @@ let __suppressCategoryChange = false;     // don't fire when we set value in cod
 let __categoryReqToken = 0;               // ignore stale success/failure
 let __categoryInFlight = false;           // optional: disable UI while saving
 let __currentCategory = '';               // last category we know is applied
+let __categoryOptionsCache = [];          // latest non-empty global category options
+
+function normalizeCategoryOptions(categories) {
+  const unique = new Set();
+  (categories || []).forEach(function (cat) {
+    const normalized = String(cat || '').trim();
+    if (normalized) unique.add(normalized);
+  });
+  return Array.from(unique).sort(function (a, b) {
+    return a.localeCompare(b, 'en', { sensitivity: 'base' });
+  });
+}
 
 function wireCategorySelectChange(){
   const sel = document.getElementById('categorySelect');
@@ -10836,10 +10848,16 @@ function populateCategoryDropdown(categories) {
 
   var selectedValue = String(sel.value || __currentCategory || '').trim();
   var categorySet = new Set();
+  var normalizedOptions = normalizeCategoryOptions(categories);
 
-  (categories || []).forEach(function (cat) {
-    var normalized = String(cat || '').trim();
-    if (normalized) categorySet.add(normalized);
+  if (normalizedOptions.length) {
+    __categoryOptionsCache = normalizedOptions.slice();
+  } else if (__categoryOptionsCache.length) {
+    normalizedOptions = __categoryOptionsCache.slice();
+  }
+
+  normalizedOptions.forEach(function (cat) {
+    categorySet.add(cat);
   });
 
   if (selectedValue) categorySet.add(selectedValue);
@@ -10896,7 +10914,9 @@ function populateCategoryDropdown(categories) {
           populateCategoryDropdown(Array.isArray(freshCategories) ? freshCategories : []);
           if (activeValue) sel.value = activeValue;
         })
-        .withFailureHandler(function () {})
+        .withFailureHandler(function (err) {
+          console.warn('Category refresh failed; keeping last known options.', err);
+        })
         .getUniqueCategories();
     });
     sel._wiredRefresh = true;
