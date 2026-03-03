@@ -1,4 +1,4 @@
-<!-- Version 1.0.59 | f740b33 -->
+<!-- Version 1.0.60 | f0ca3d2 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -7555,6 +7555,7 @@ let __suppressCategoryChange = false;     // don't fire when we set value in cod
 let __categoryReqToken = 0;               // ignore stale success/failure
 let __categoryInFlight = false;           // optional: disable UI while saving
 let __currentCategory = '';               // last category we know is applied
+let __categoryOptionsReqToken = 0;        // ignore stale category-option responses
 
 function wireCategorySelectChange(){
   const sel = document.getElementById('categorySelect');
@@ -7577,13 +7578,54 @@ function wireCategorySelectChange(){
 function updateCategorySelectValue(newValue){
   const sel = document.getElementById('categorySelect');
   if (!sel) return;
+  const normalizedValue = String(newValue || '').trim();
+
+  if (normalizedValue) {
+    const exists = Array.from(sel.options).some(function (opt) {
+      return String(opt.value || '').toLowerCase() === normalizedValue.toLowerCase();
+    });
+
+    if (!exists) {
+      const opt = document.createElement('option');
+      opt.value = normalizedValue;
+      opt.textContent = normalizedValue;
+      const sentinel = sel.querySelector('option[value="__NEW__"]');
+      sel.add(opt, sentinel || null);
+    }
+  }
+
   __suppressCategoryChange = true;
-  sel.value = (newValue || '');
-  __currentCategory = (newValue || '');  // keep our local notion in sync
+  sel.value = normalizedValue;
+  __currentCategory = normalizedValue;  // keep our local notion in sync
   setCategoryPlaceholderText(__currentCategory || '');
   positionCategoryDropdownOverAutocomplete();
   // release on next tick so real user changes still work
   setTimeout(() => { __suppressCategoryChange = false; }, 0);
+}
+
+function fetchAndPopulateCategoryOptions(currentCategory) {
+  const sel = document.getElementById('categorySelect');
+  const clientNameAtRequest = (document.getElementById('clientSelect') || {}).value || '';
+  if (!sel || !clientNameAtRequest) return;
+
+  const token = ++__categoryOptionsReqToken;
+
+  google.script.run
+    .withSuccessHandler(function (cats) {
+      // Latest request wins + client guard to avoid stale overwrites when switching quickly.
+      const activeClient = (document.getElementById('clientSelect') || {}).value || '';
+      if (token !== __categoryOptionsReqToken || activeClient !== clientNameAtRequest) return;
+
+      populateCategoryDropdown(Array.isArray(cats) ? cats : []);
+      updateCategorySelectValue(currentCategory || __currentCategory || '');
+      const categorySelect = document.getElementById('categorySelect');
+      if (categorySelect) categorySelect.disabled = false;
+    })
+    .withFailureHandler(function (err) {
+      if (token !== __categoryOptionsReqToken) return;
+      console.error('Failed to load categories:', err);
+    })
+    .getUniqueCategories();
 }
 
 /* Single, tokened pipeline to update category on the server */
@@ -7952,20 +7994,7 @@ function loadCategoriesForClientAfterNotes() {
     return;
   }
 
-  google.script.run
-    .withSuccessHandler(function (cats) {
-      // Populate the dropdown, but DO NOT unhide the section here.
-      // Visibility is controlled strictly by showClientNotes() when a client is loaded.
-      populateCategoryDropdown(Array.isArray(cats) ? cats : []);
-      var categorySelect = document.getElementById('categorySelect');
-      if (categorySelect) categorySelect.disabled = false;
-      // Intentionally do NOT do:
-      //   document.getElementById('categoryChangeSection').style.display = 'block';
-    })
-    .withFailureHandler(function (err) {
-      console.error('Failed to load categories:', err);
-    })
-    .getUniqueCategories();
+  fetchAndPopulateCategoryOptions(__currentCategory || '');
 }
 
 
@@ -10784,6 +10813,7 @@ function populateCategoryDropdown(categories) {
   var sel = document.getElementById('categorySelect');
   if (!sel) return;
 
+  var selectedValue = String(sel.value || __currentCategory || '').trim();
   sel.innerHTML = '';
 
   var ph = document.createElement('option');
@@ -10803,6 +10833,10 @@ function populateCategoryDropdown(categories) {
   newOpt.textContent = 'NEW CATEGORY…';
   sel.appendChild(newOpt);
 
+  if (selectedValue) {
+    sel.value = selectedValue;
+  }
+
   // One unified handler for both cases
   if (!sel._wiredChange) {
     sel.addEventListener('change', function () {
@@ -10817,6 +10851,15 @@ function populateCategoryDropdown(categories) {
       }
     });
     sel._wiredChange = true;
+  }
+
+  if (!sel._wiredRefreshOnOpen) {
+    var refreshHandler = function () {
+      fetchAndPopulateCategoryOptions(__currentCategory || sel.value || '');
+    };
+    sel.addEventListener('focus', refreshHandler);
+    sel.addEventListener('mousedown', refreshHandler);
+    sel._wiredRefreshOnOpen = true;
   }
 }
 
