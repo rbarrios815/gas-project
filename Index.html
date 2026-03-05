@@ -1,4 +1,4 @@
-<!-- Version 1.0.61 | 5a1cd29 -->
+<!-- Version 1.0.62 | 441ca84 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -7509,6 +7509,9 @@ document.getElementById('notesDisplay').style.display = 'block';
             updateCategorySelectValue(data.category);
             setCategoryPlaceholderText(data.category || __currentCategory || '');
             positionCategoryDropdownOverAutocomplete();
+            // Kick category options refresh immediately for this selected client
+            // so the dropdown is populated without needing a manual refresh.
+            fetchAndPopulateCategoryOptions(data.category || __currentCategory || '', clientName);
         } catch (err) {
             console.error('displayClientDetails pipeline failed', err);
             showToast('Unable to load client');
@@ -7622,9 +7625,9 @@ function updateCategorySelectValue(newValue){
   setTimeout(() => { __suppressCategoryChange = false; }, 0);
 }
 
-function fetchAndPopulateCategoryOptions(currentCategory) {
+function fetchAndPopulateCategoryOptions(currentCategory, clientNameOverride) {
   const sel = document.getElementById('categorySelect');
-  const clientNameAtRequest = (document.getElementById('clientSelect') || {}).value || '';
+  const clientNameAtRequest = String(clientNameOverride || (document.getElementById('clientSelect') || {}).value || '').trim();
   if (!sel) return;
 
   const token = ++__categoryOptionsReqToken;
@@ -7634,7 +7637,8 @@ function fetchAndPopulateCategoryOptions(currentCategory) {
     .withSuccessHandler(function (cats) {
       // Latest request wins + client guard to avoid stale overwrites when switching quickly.
       const activeClient = (document.getElementById('clientSelect') || {}).value || '';
-      if (token !== __categoryOptionsReqToken || activeClient !== clientNameAtRequest) return;
+      if (token !== __categoryOptionsReqToken) return;
+      if (clientNameAtRequest && activeClient && activeClient !== clientNameAtRequest) return;
 
       const normalized = normalizeCategoryList(cats);
       if (normalized.length) __categoryOptionsCache = normalized.slice();
@@ -7645,7 +7649,8 @@ function fetchAndPopulateCategoryOptions(currentCategory) {
     })
     .withFailureHandler(function (err) {
       const activeClient = (document.getElementById('clientSelect') || {}).value || '';
-      if (token !== __categoryOptionsReqToken || activeClient !== clientNameAtRequest) return;
+      if (token !== __categoryOptionsReqToken) return;
+      if (clientNameAtRequest && activeClient && activeClient !== clientNameAtRequest) return;
       console.error('Failed to load categories:', err);
 
       populateCategoryDropdown([], currentCategory || __currentCategory || '');
