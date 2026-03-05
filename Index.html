@@ -1,4 +1,4 @@
-<!-- Version 1.0.62 | 441ca84 -->
+<!-- Version 1.0.63 | 470b688 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -7864,6 +7864,7 @@ function labelContainsEmoji(labelText) {
 
 function displayLabels(labelsArray) {
     var labelsDisplay = document.getElementById('labelsDisplay');
+    if (!labelsDisplay) return;
 
     var addLabelDropdown = document.getElementById('labelsDropdown');
     if (addLabelDropdown) {
@@ -7877,14 +7878,23 @@ function displayLabels(labelsArray) {
     var nonEmojiLabels = [];
 
 
-    labelsArray.forEach(function(labelObj) {
-              if (typeof labelObj === 'string') {
+    (Array.isArray(labelsArray) ? labelsArray : []).forEach(function(labelObj) {
+        if (typeof labelObj === 'string') {
             labelObj = { label: labelObj, isBlue: false };
         }
-              if (labelContainsEmoji(labelObj.label)) {
-            emojiLabels.push(labelObj);
+
+        var labelText = (labelObj && labelObj.label) ? String(labelObj.label).trim() : '';
+        if (!labelText) return;
+
+        var normalized = {
+          label: labelText,
+          isBlue: !!(labelObj && labelObj.isBlue)
+        };
+
+        if (labelContainsEmoji(normalized.label)) {
+            emojiLabels.push(normalized);
         } else {
-            nonEmojiLabels.push(labelObj);
+            nonEmojiLabels.push(normalized);
         }
     });
 
@@ -10744,6 +10754,7 @@ function positionCategoryDropdownOverAutocomplete() {
 
 function populateLabelsDropdown(labels) {
     var dropdown = document.getElementById('labelsDropdown');
+    if (!dropdown) return;
     dropdown.innerHTML = ''; // Clear existing options
 
     // Add a disabled and selected placeholder option at the beginning
@@ -10770,15 +10781,21 @@ function populateLabelsDropdown(labels) {
 
 function addLabelToClient(label) {
     var clientSelect = document.getElementById('clientSelect');
-    var clientName = clientSelect.value;
+    var clientName = clientSelect ? clientSelect.value : '';
+    var selectedLabel = String(label || '').trim();
 
-    if (label === "NEW LABEL") {
+    if (!clientName || !selectedLabel) return;
+
+    if (selectedLabel === "NEW LABEL") {
         // Prompt user to enter the new label name
         var newLabel = prompt("Please enter the new label name:");
+        newLabel = (newLabel || '').trim();
         if (newLabel) {
             // Call server-side function to add the new label to the client
             google.script.run.withSuccessHandler(function() {
                 showToast("New label added successfully!");
+                var dropdown = document.getElementById('labelsDropdown');
+                if (dropdown) dropdown.selectedIndex = 0;
                 showClientNotes(); // Refresh to show the new label
             }).addLabelToClient(clientName, newLabel);
         }
@@ -10786,8 +10803,10 @@ function addLabelToClient(label) {
         // Existing logic to add existing label to client
         google.script.run.withSuccessHandler(function() {
             showToast("Label added successfully!");
+            var dropdown = document.getElementById('labelsDropdown');
+            if (dropdown) dropdown.selectedIndex = 0;
             showClientNotes(); // Refresh to show the added label
-        }).addLabelToClient(clientName, label);
+        }).addLabelToClient(clientName, selectedLabel);
     }
 }
 

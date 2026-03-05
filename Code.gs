@@ -1,4 +1,4 @@
-// Version 1.0.57 | ae2ec0e
+// Version 1.0.58 | 470b688
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -1746,13 +1746,28 @@ function addLabelToClient(clientName, label) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
   var data = sheet.getDataRange().getValues();
   var clientFound = false;
+  var normalizedClientName = String(clientName || '').trim().toLowerCase();
+  var normalizedLabel = String(label || '').trim();
+
+  if (!normalizedClientName) {
+    throw new Error('Client name is required');
+  }
+  if (!normalizedLabel) {
+    throw new Error('Label is required');
+  }
 
   for (var i = 0; i < data.length; i++) {
     var thisClientName = data[i][0]; // Assuming client names are in column A
-    if (thisClientName && thisClientName.toString().toLowerCase() === clientName.toLowerCase()) {
+    if (thisClientName && thisClientName.toString().trim().toLowerCase() === normalizedClientName) {
       clientFound = true;
       var existingLabels = data[i][6] ? data[i][6].toString() : ''; // Column G for labels
-      var newLabels = existingLabels ? existingLabels + " • " + label : label;
+      var labelList = existingLabels
+        ? existingLabels.split(' • ').map(function(item) { return String(item || '').trim(); }).filter(Boolean)
+        : [];
+      if (labelList.indexOf(normalizedLabel) === -1) {
+        labelList.push(normalizedLabel);
+      }
+      var newLabels = labelList.join(' • ');
       sheet.getRange(i + 1, 7).setValue(newLabels); // Update the cell in column G
       break;
     }
@@ -1766,11 +1781,20 @@ function addLabelToClient(clientName, label) {
 function removeLabelFromClient(clientName, labelToRemove) {
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
     var data = sheet.getDataRange().getValues();
+    var normalizedClientName = String(clientName || '').trim().toLowerCase();
+    var normalizedLabelToRemove = String(labelToRemove || '').trim();
+
+    if (!normalizedClientName || !normalizedLabelToRemove) {
+      throw new Error('Client name and label are required');
+    }
 
     for (var i = 0; i < data.length; i++) {
-        if (data[i][0].trim().toLowerCase() === clientName.toLowerCase()) {
+        var rowClientName = String(data[i][0] || '').trim().toLowerCase();
+        if (rowClientName === normalizedClientName) {
             var currentLabels = data[i][6] ? data[i][6].toString().split(' • ') : [];
-            var updatedLabels = currentLabels.filter(label => label.trim() !== labelToRemove.trim());
+            var updatedLabels = currentLabels.filter(function(label) {
+              return String(label || '').trim() !== normalizedLabelToRemove;
+            });
             sheet.getRange(i + 1, 7).setValue(updatedLabels.join(' • '));
             break;
         }
