@@ -1,4 +1,4 @@
-<!-- Version 1.0.64 | d88771b -->
+<!-- Version 1.0.65 | 846b281 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -7843,7 +7843,7 @@ function displayClientDetails(data) {
     if (data.notes) {
         displayNotes(data.notes);
     }
-displayLabels(Array.isArray(data.labels) ? data.labels : []);
+displayLabels(data.labels);
 
 // SNIPPET #4: Ensure the loaded "In Progress:" is set from data.columnL
 // Seed the In Progress textarea and remember the last-saved value
@@ -7907,6 +7907,62 @@ function labelContainsEmoji(labelText) {
     return /[\p{Extended_Pictographic}]/u.test(labelText);
 }
 
+function splitLabelParts(value) {
+    return String(value || '')
+      .split(/\s*•\s*|\r?\n|\s*,\s*/)
+      .map(function(part) { return String(part || '').trim(); })
+      .filter(Boolean);
+}
+
+function collectNormalizedLabels(input, defaultIsBlue, out) {
+    if (!out) out = [];
+    if (input == null || input === '') return out;
+
+    if (Array.isArray(input)) {
+      input.forEach(function(item) { collectNormalizedLabels(item, defaultIsBlue, out); });
+      return out;
+    }
+
+    if (typeof input === 'string' || typeof input === 'number' || typeof input === 'boolean') {
+      splitLabelParts(input).forEach(function(label) {
+        out.push({ label: label, isBlue: !!defaultIsBlue });
+      });
+      return out;
+    }
+
+    if (typeof input === 'object') {
+      var resolvedBlue = (typeof input.isBlue === 'boolean') ? input.isBlue : defaultIsBlue;
+      if (input.label != null) {
+        collectNormalizedLabels(input.label, resolvedBlue, out);
+      }
+      ['labels', 'values', 'items', 'data'].forEach(function(key) {
+        if (input[key] != null) collectNormalizedLabels(input[key], resolvedBlue, out);
+      });
+    }
+
+    return out;
+}
+
+function normalizeLabelPayload(input) {
+    var seen = {};
+    var ordered = [];
+
+    collectNormalizedLabels(input, false, []).forEach(function(entry) {
+      var labelText = String(entry && entry.label ? entry.label : '').trim();
+      if (!labelText) return;
+
+      var key = labelText.toLowerCase();
+      if (seen[key] == null) {
+        seen[key] = ordered.length;
+        ordered.push({ label: labelText, isBlue: !!(entry && entry.isBlue) });
+      } else if (entry && entry.isBlue) {
+        ordered[seen[key]].isBlue = true;
+      }
+    });
+
+    return ordered;
+}
+
 
 
 function displayLabels(labelsArray) {
@@ -7924,20 +7980,7 @@ function displayLabels(labelsArray) {
     var emojiLabels = [];
     var nonEmojiLabels = [];
 
-
-    (Array.isArray(labelsArray) ? labelsArray : []).forEach(function(labelObj) {
-        if (typeof labelObj === 'string') {
-            labelObj = { label: labelObj, isBlue: false };
-        }
-
-        var labelText = (labelObj && labelObj.label) ? String(labelObj.label).trim() : '';
-        if (!labelText) return;
-
-        var normalized = {
-          label: labelText,
-          isBlue: !!(labelObj && labelObj.isBlue)
-        };
-
+    normalizeLabelPayload(labelsArray).forEach(function(normalized) {
         if (labelContainsEmoji(normalized.label)) {
             emojiLabels.push(normalized);
         } else {
@@ -7948,21 +7991,24 @@ function displayLabels(labelsArray) {
     var orderedLabels = emojiLabels.concat(nonEmojiLabels);
 
     orderedLabels.forEach(function(labelObj) {
-        var labelDiv = document.createElement('div');
-        labelDiv.className = 'label-box';
-        labelDiv.textContent = labelObj.label;
-        labelDiv.style.cursor = 'default';
+        try {
+            var labelDiv = document.createElement('div');
+            labelDiv.className = 'label-box';
+            labelDiv.textContent = labelObj.label;
+            labelDiv.style.cursor = 'default';
 
-        // Apply light blue background and black text to labels from columns H-K
-        if (labelObj.isBlue) {
-            labelDiv.style.backgroundColor = 'lightblue';
-            labelDiv.style.color = 'black';
-        } else {
-            // Set the background to light green for labels that are not light blue
-            labelDiv.style.backgroundColor = 'lightgreen';
+            // Keep legacy blue/green chip behavior.
+            if (labelObj.isBlue) {
+                labelDiv.style.backgroundColor = 'lightblue';
+                labelDiv.style.color = 'black';
+            } else {
+                labelDiv.style.backgroundColor = 'lightgreen';
+            }
+
+            labelsDisplay.appendChild(labelDiv);
+        } catch (err) {
+            console.error('Skipping malformed label:', err, labelObj);
         }
-
-        labelsDisplay.appendChild(labelDiv);
     });
 }
 
