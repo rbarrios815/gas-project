@@ -1,4 +1,4 @@
-<!-- Version 1.0.63 | 470b688 -->
+<!-- Version 1.0.64 | d88771b -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -7366,6 +7366,51 @@ function setClientDropdownVisibility(hasClient) {
   if (categorySelect) categorySelect.disabled = !hasClient;
 }
 
+function resolveClientNameFromSelection(rawName) {
+  var normalizedRaw = String(rawName || '').trim();
+  if (!normalizedRaw) return '';
+
+  var normalizedRawLower = normalizedRaw.toLowerCase();
+  var clientSelect = document.getElementById('clientSelect');
+  var directOptions = [];
+
+  if (clientSelect && clientSelect.options) {
+    for (var i = 0; i < clientSelect.options.length; i++) {
+      var optionValue = String(clientSelect.options[i].value || '').trim();
+      if (optionValue) directOptions.push(optionValue);
+    }
+  }
+
+  // 1) Prefer exact matches from dropdown options.
+  for (var j = 0; j < directOptions.length; j++) {
+    if (directOptions[j].toLowerCase() === normalizedRawLower) {
+      return directOptions[j];
+    }
+  }
+
+  // 2) Allow decorated strings ("Name (Category) • labels") to resolve to a real client option.
+  for (var k = 0; k < directOptions.length; k++) {
+    var optionLower = directOptions[k].toLowerCase();
+    if (normalizedRawLower.indexOf(optionLower) === 0 || optionLower.indexOf(normalizedRawLower) === 0) {
+      return directOptions[k];
+    }
+  }
+
+  // 3) Fallback to loaded client data names.
+  if (Array.isArray(clientsData)) {
+    for (var m = 0; m < clientsData.length; m++) {
+      var candidateName = String((clientsData[m] && clientsData[m].clientName) || '').trim();
+      if (!candidateName) continue;
+      var candidateLower = candidateName.toLowerCase();
+      if (candidateLower === normalizedRawLower || normalizedRawLower.indexOf(candidateLower) === 0 || candidateLower.indexOf(normalizedRawLower) === 0) {
+        return candidateName;
+      }
+    }
+  }
+
+  return normalizedRaw;
+}
+
 function showClientNotes() {
       var clientSelect = document.getElementById('clientSelect');
       var clientAutocomplete = document.getElementById('clientAutocomplete');
@@ -7374,8 +7419,10 @@ function showClientNotes() {
       // Ensure the task status bar (columns R+) is restored for clients loaded via autocomplete.
       if (!clientName && clientAutocomplete && clientAutocomplete.value) {
         clientName = clientAutocomplete.value.trim();
-        if (clientName && clientSelect) clientSelect.value = clientName;
       }
+
+      clientName = resolveClientNameFromSelection(clientName);
+      if (clientName && clientSelect) clientSelect.value = clientName;
       // NOTE: recent chips no longer update here (only on hide).
       // SNIPPET: CLEAR LOADED IN-PROGRESS AREA
 
@@ -10781,10 +10828,11 @@ function populateLabelsDropdown(labels) {
 
 function addLabelToClient(label) {
     var clientSelect = document.getElementById('clientSelect');
-    var clientName = clientSelect ? clientSelect.value : '';
+    var clientName = resolveClientNameFromSelection(clientSelect ? clientSelect.value : '');
     var selectedLabel = String(label || '').trim();
 
     if (!clientName || !selectedLabel) return;
+    if (clientSelect) clientSelect.value = clientName;
 
     if (selectedLabel === "NEW LABEL") {
         // Prompt user to enter the new label name
@@ -10792,21 +10840,31 @@ function addLabelToClient(label) {
         newLabel = (newLabel || '').trim();
         if (newLabel) {
             // Call server-side function to add the new label to the client
-            google.script.run.withSuccessHandler(function() {
+            google.script.run
+              .withSuccessHandler(function() {
                 showToast("New label added successfully!");
                 var dropdown = document.getElementById('labelsDropdown');
                 if (dropdown) dropdown.selectedIndex = 0;
                 showClientNotes(); // Refresh to show the new label
-            }).addLabelToClient(clientName, newLabel);
+              })
+              .withFailureHandler(function(error) {
+                showToast('Error adding label: ' + (error && error.message ? error.message : error));
+              })
+              .addLabelToClient(clientName, newLabel);
         }
     } else {
         // Existing logic to add existing label to client
-        google.script.run.withSuccessHandler(function() {
+        google.script.run
+          .withSuccessHandler(function() {
             showToast("Label added successfully!");
             var dropdown = document.getElementById('labelsDropdown');
             if (dropdown) dropdown.selectedIndex = 0;
             showClientNotes(); // Refresh to show the added label
-        }).addLabelToClient(clientName, selectedLabel);
+          })
+          .withFailureHandler(function(error) {
+            showToast('Error adding label: ' + (error && error.message ? error.message : error));
+          })
+          .addLabelToClient(clientName, selectedLabel);
     }
 }
 
