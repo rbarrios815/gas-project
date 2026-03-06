@@ -1,4 +1,4 @@
-// Version 1.0.58 | 470b688
+// Version 1.0.59 | 846b281
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -325,6 +325,84 @@ function getTaskTypeTemplateForSheet(sheet) {
   return applyTaskStatusHeadersToTemplate_(toTemplateOnly(parseTaskTypeCell(DEFAULT_TASK_TYPE_TEXT)), headers);
 }
 
+function splitLabelText_(value) {
+  return String(value || '')
+    .split(/\s*•\s*|\r?\n|\s*,\s*/)
+    .map(function (part) { return String(part || '').trim(); })
+    .filter(Boolean);
+}
+
+function collectLabelEntries_(input, defaultIsBlue, out) {
+  if (!out) out = [];
+  if (input == null || input === '') return out;
+
+  if (Array.isArray(input)) {
+    input.forEach(function (item) {
+      collectLabelEntries_(item, defaultIsBlue, out);
+    });
+    return out;
+  }
+
+  if (input instanceof Date) {
+    out.push({ label: Utilities.formatDate(input, Session.getScriptTimeZone(), 'M/d/yyyy'), isBlue: !!defaultIsBlue });
+    return out;
+  }
+
+  var valueType = typeof input;
+  if (valueType === 'string' || valueType === 'number' || valueType === 'boolean') {
+    splitLabelText_(input).forEach(function (label) {
+      out.push({ label: label, isBlue: !!defaultIsBlue });
+    });
+    return out;
+  }
+
+  if (valueType === 'object') {
+    var entryBlue = (typeof input.isBlue === 'boolean') ? input.isBlue : defaultIsBlue;
+    if (input.label != null) {
+      collectLabelEntries_(input.label, entryBlue, out);
+      return out;
+    }
+
+    ['labels', 'values', 'items', 'data'].forEach(function (key) {
+      if (input[key] != null) {
+        collectLabelEntries_(input[key], entryBlue, out);
+      }
+    });
+  }
+
+  return out;
+}
+
+function normalizeLabelEntries_(input, defaultIsBlue) {
+  var seen = {};
+  var normalized = [];
+
+  collectLabelEntries_(input, defaultIsBlue, []).forEach(function (item) {
+    var labelText = String(item && item.label ? item.label : '').trim();
+    if (!labelText) return;
+
+    var key = labelText.toLowerCase();
+    if (!seen[key]) {
+      seen[key] = normalized.length;
+      normalized.push({ label: labelText, isBlue: !!(item && item.isBlue) });
+      return;
+    }
+
+    // Keep stable order; if either duplicate is blue, preserve blue styling.
+    if (item && item.isBlue) {
+      normalized[seen[key]].isBlue = true;
+    }
+  });
+
+  return normalized;
+}
+
+function normalizeGreenLabelStrings_(input) {
+  return normalizeLabelEntries_(input, false).map(function (entry) {
+    return entry.label;
+  });
+}
+
 
 
 ////////////////////////////////////////////////////////
@@ -377,37 +455,33 @@ function getClientDetails(clientName) {
           category: thisCategory
         });
 
-        // Build labels once for the first matching row, regardless of whether G is empty
-if (clientLabels.length === 0) {
+        // Build labels once for the first matching row, regardless of whether G is empty.
+        if (clientLabels.length === 0) {
+          var mergedLabels = [];
 
-  // Column G (green, removable)
-  if (row[6] && String(row[6]).trim() !== '') {
-    var columnGLabels = String(row[6]).trim().split(' • ').map(function(s){ return s.trim(); }).filter(function(s){ return s.length; });
-    columnGLabels.forEach(function(label) {
-      clientLabels.push({ label: label, isBlue: false });
-    });
-  }
+          // Column G (green, removable) supports legacy delimiters and nested payloads.
+          mergedLabels = mergedLabels.concat(normalizeLabelEntries_(row[6], false));
 
-  // Columns H–K (blue, read-only)
-  for (var i = 7; i <= 10; i++) {
-    if (row[i] && String(row[i]).trim() !== '') {
-      clientLabels.push({ label: String(row[i]).trim(), isBlue: true });
-    }
-  }
+          // Columns H–K (blue, read-only)
+          for (var i = 7; i <= 10; i++) {
+            mergedLabels = mergedLabels.concat(normalizeLabelEntries_(row[i], true));
+          }
 
-  // Column N (DOB, blue, read-only)
-  if (row[13] && String(row[13]).trim() !== '') {
-    var dobText = "";
-    if (row[13] instanceof Date) {
-      dobText = Utilities.formatDate(row[13], tz, "M/d/yyyy");
-    } else {
-      dobText = String(row[13]).trim();
-    }
-    if (dobText) {
-      clientLabels.push({ label: "DOB: " + dobText, isBlue: true });
-    }
-  }
-}
+          // Column N (DOB, blue, read-only)
+          if (row[13] && String(row[13]).trim() !== '') {
+            var dobText = '';
+            if (row[13] instanceof Date) {
+              dobText = Utilities.formatDate(row[13], tz, 'M/d/yyyy');
+            } else {
+              dobText = String(row[13]).trim();
+            }
+            if (dobText) {
+              mergedLabels.push({ label: 'DOB: ' + dobText, isBlue: true });
+            }
+          }
+
+          clientLabels = normalizeLabelEntries_(mergedLabels, false);
+        }
 
       }
     }
@@ -1726,12 +1800,11 @@ function getAllLabels() {
   var data = dataRange.getValues();
   var labelsSet = new Set();
 
-  data.forEach(function(row) {
-    var labelsCell = row[6]; // Assuming labels are in column G
-    if (labelsCell) {
-      var labels = labelsCell.toString().split(' • ');
-      labels.forEach(label => labelsSet.add(label.trim()));
-    }
+  data.forEach(function(row, index) {
+    if (index === 0) return;
+    normalizeGreenLabelStrings_(row[6]).forEach(function (label) {
+      labelsSet.add(label);
+    });
   });
 
   var labelsArray = Array.from(labelsSet);
@@ -1756,20 +1829,21 @@ function addLabelToClient(clientName, label) {
     throw new Error('Label is required');
   }
 
-  for (var i = 0; i < data.length; i++) {
-    var thisClientName = data[i][0]; // Assuming client names are in column A
-    if (thisClientName && thisClientName.toString().trim().toLowerCase() === normalizedClientName) {
+  for (var i = 1; i < data.length; i++) {
+    var thisClientName = data[i][0]; // client names are in column A
+    var normalizedRowClient = String(thisClientName || '').replace(/\d+$/, '').trim().toLowerCase();
+    if (normalizedRowClient && normalizedRowClient === normalizedClientName) {
       clientFound = true;
-      var existingLabels = data[i][6] ? data[i][6].toString() : ''; // Column G for labels
-      var labelList = existingLabels
-        ? existingLabels.split(' • ').map(function(item) { return String(item || '').trim(); }).filter(Boolean)
-        : [];
-      if (labelList.indexOf(normalizedLabel) === -1) {
+      var labelList = normalizeGreenLabelStrings_(data[i][6]);
+      var hasMatch = labelList.some(function (existing) {
+        return existing.toLowerCase() === normalizedLabel.toLowerCase();
+      });
+      if (!hasMatch) {
         labelList.push(normalizedLabel);
       }
       var newLabels = labelList.join(' • ');
       sheet.getRange(i + 1, 7).setValue(newLabels); // Update the cell in column G
-      break;
+      return newLabels;
     }
   }
 
@@ -1788,12 +1862,12 @@ function removeLabelFromClient(clientName, labelToRemove) {
       throw new Error('Client name and label are required');
     }
 
-    for (var i = 0; i < data.length; i++) {
-        var rowClientName = String(data[i][0] || '').trim().toLowerCase();
+    for (var i = 1; i < data.length; i++) {
+        var rowClientName = String(data[i][0] || '').replace(/\d+$/, '').trim().toLowerCase();
         if (rowClientName === normalizedClientName) {
-            var currentLabels = data[i][6] ? data[i][6].toString().split(' • ') : [];
+            var currentLabels = normalizeGreenLabelStrings_(data[i][6]);
             var updatedLabels = currentLabels.filter(function(label) {
-              return String(label || '').trim() !== normalizedLabelToRemove;
+              return String(label || '').trim().toLowerCase() !== normalizedLabelToRemove.toLowerCase();
             });
             sheet.getRange(i + 1, 7).setValue(updatedLabels.join(' • '));
             break;
