@@ -1,4 +1,4 @@
-// Version 1.0.59 | 846b281
+// Version 1.0.60 | 111b758
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -2194,22 +2194,6 @@ function getAllClientsData() {
     }
   }
   return clients;
-}
-
-/** Return sorted unique, non-empty categories from Column F (row 2 → last). */
-function getUniqueCategories() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sh = ss.getSheetByName('DASHBOARD 8.0');
-  const last = sh.getLastRow();
-  if (last < 2) return [];
-
-  const vals = sh.getRange(2, 6, last - 1, 1).getValues()  // Col F
-                 .map(r => String(r[0] || '').trim())
-                 .filter(Boolean);
-
-  const uniq = Array.from(new Set(vals));
-  uniq.sort(function(a, b){ return a.localeCompare(b, 'en', { sensitivity:'base' }); });
-  return uniq;
 }
 
 /**

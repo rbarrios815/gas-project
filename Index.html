@@ -1,4 +1,4 @@
-<!-- Version 1.0.67 | 374a1f0 -->
+<!-- Version 1.0.68 | 111b758 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -7681,7 +7681,7 @@ function fetchAndPopulateCategoryOptions(currentCategory, clientNameOverride) {
   sel.disabled = true;
 
   const finishCategoryOptionsRequest = function () {
-    if (token === __categoryOptionsReqToken) sel.disabled = false;
+    sel.disabled = false;
   };
 
   google.script.run
@@ -7689,8 +7689,14 @@ function fetchAndPopulateCategoryOptions(currentCategory, clientNameOverride) {
       try {
         // Latest request wins + client guard to avoid stale overwrites when switching quickly.
         const activeClient = (document.getElementById('clientSelect') || {}).value || '';
-        if (token !== __categoryOptionsReqToken) return;
-        if (clientNameAtRequest && activeClient && activeClient !== clientNameAtRequest) return;
+        if (token !== __categoryOptionsReqToken) {
+          console.debug('Ignoring stale category-options success response.', { token: token, activeToken: __categoryOptionsReqToken });
+          return;
+        }
+        if (clientNameAtRequest && activeClient && activeClient !== clientNameAtRequest) {
+          console.debug('Ignoring category-options success response for inactive client.', { requestClient: clientNameAtRequest, activeClient: activeClient });
+          return;
+        }
 
         let categories = normalizeCategoryList(cats);
         categories = categories.filter(function (c) { return c && c.trim().length; });
@@ -7705,8 +7711,14 @@ function fetchAndPopulateCategoryOptions(currentCategory, clientNameOverride) {
     .withFailureHandler(function (err) {
       try {
         const activeClient = (document.getElementById('clientSelect') || {}).value || '';
-        if (token !== __categoryOptionsReqToken) return;
-        if (clientNameAtRequest && activeClient && activeClient !== clientNameAtRequest) return;
+        if (token !== __categoryOptionsReqToken) {
+          console.debug('Ignoring stale category-options failure response.', { token: token, activeToken: __categoryOptionsReqToken });
+          return;
+        }
+        if (clientNameAtRequest && activeClient && activeClient !== clientNameAtRequest) {
+          console.debug('Ignoring category-options failure response for inactive client.', { requestClient: clientNameAtRequest, activeClient: activeClient });
+          return;
+        }
         console.error('Failed to load categories:', err);
 
         populateCategoryDropdown([], currentCategory || __currentCategory || '');
@@ -7854,7 +7866,7 @@ function displayClientDetails(data) {
     if (data.notes) {
         displayNotes(data.notes);
     }
-displayLabels(Array.isArray(data.labels) ? data.labels : []);
+displayLabels(normalizeLabelsForRender(data));
 
 // SNIPPET #4: Ensure the loaded "In Progress:" is set from data.columnL
 // Seed the In Progress textarea and remember the last-saved value
@@ -7981,6 +7993,19 @@ function normalizeLabelPayload(input) {
     });
 
     return ordered;
+}
+
+function normalizeLabelsForRender(details) {
+    var payload = details || {};
+    var hasSplitArrays = Array.isArray(payload.blueLabels) || Array.isArray(payload.greenLabels);
+    if (hasSplitArrays) {
+      var merged = [];
+      collectNormalizedLabels(payload.greenLabels || [], false, merged);
+      collectNormalizedLabels(payload.blueLabels || [], true, merged);
+      return normalizeLabelPayload(merged);
+    }
+
+    return normalizeLabelPayload(payload.labels != null ? payload.labels : payload);
 }
 
 
