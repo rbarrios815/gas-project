@@ -1,4 +1,4 @@
-<!-- Version 1.0.66 | 31a4b0e -->
+<!-- Version 1.0.67 | 374a1f0 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -7558,7 +7558,7 @@ document.getElementById('notesDisplay').style.display = 'block';
             positionCategoryDropdownOverAutocomplete();
             // Kick category options refresh immediately for this selected client
             // so the dropdown is populated without needing a manual refresh.
-            fetchAndPopulateCategoryOptions(data.category || __currentCategory || '', clientName);
+            fetchAndPopulateCategoryOptions(data.category || __currentCategory || '');
         } catch (err) {
             console.error('displayClientDetails pipeline failed', err);
             showToast('Unable to load client');
@@ -7692,10 +7692,11 @@ function fetchAndPopulateCategoryOptions(currentCategory, clientNameOverride) {
         if (token !== __categoryOptionsReqToken) return;
         if (clientNameAtRequest && activeClient && activeClient !== clientNameAtRequest) return;
 
-        const normalized = normalizeCategoryList(cats);
-        if (normalized.length) __categoryOptionsCache = normalized.slice();
+        let categories = normalizeCategoryList(cats);
+        categories = categories.filter(function (c) { return c && c.trim().length; });
+        if (categories.length) __categoryOptionsCache = categories.slice();
 
-        populateCategoryDropdown(Array.isArray(cats) ? cats : [], currentCategory || __currentCategory || '');
+        populateCategoryDropdown(categories, currentCategory || __currentCategory || '');
         updateCategorySelectValue(currentCategory || __currentCategory || '');
       } finally {
         finishCategoryOptionsRequest();
@@ -7942,10 +7943,19 @@ function collectNormalizedLabels(input, defaultIsBlue, out) {
 
     if (typeof input === 'object') {
       var resolvedBlue = (typeof input.isBlue === 'boolean') ? input.isBlue : defaultIsBlue;
+      if (input.value != null) {
+        collectNormalizedLabels(input.value, resolvedBlue, out);
+      }
+      if (input.text != null) {
+        collectNormalizedLabels(input.text, resolvedBlue, out);
+      }
+      if (input.name != null) {
+        collectNormalizedLabels(input.name, resolvedBlue, out);
+      }
       if (input.label != null) {
         collectNormalizedLabels(input.label, resolvedBlue, out);
       }
-      ['labels', 'values', 'items', 'data'].forEach(function(key) {
+      ['labels', 'values', 'items', 'data', 'payload', 'result', 'results', 'children'].forEach(function(key) {
         if (input[key] != null) collectNormalizedLabels(input[key], resolvedBlue, out);
       });
     }
@@ -10995,7 +11005,7 @@ function populateCategoryDropdown(categories, selectedValue) {
 
   var newOpt = document.createElement('option');
   newOpt.value = '__NEW__';
-  newOpt.textContent = 'NEW CATEGORY…';
+  newOpt.textContent = 'New Category…';
   sel.appendChild(newOpt);
 
   if (selected) {
