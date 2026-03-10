@@ -1,4 +1,4 @@
-<!-- Version 1.0.65 | 846b281 -->
+<!-- Version 1.0.66 | 31a4b0e -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -7680,29 +7680,39 @@ function fetchAndPopulateCategoryOptions(currentCategory, clientNameOverride) {
   const token = ++__categoryOptionsReqToken;
   sel.disabled = true;
 
+  const finishCategoryOptionsRequest = function () {
+    if (token === __categoryOptionsReqToken) sel.disabled = false;
+  };
+
   google.script.run
     .withSuccessHandler(function (cats) {
-      // Latest request wins + client guard to avoid stale overwrites when switching quickly.
-      const activeClient = (document.getElementById('clientSelect') || {}).value || '';
-      if (token !== __categoryOptionsReqToken) return;
-      if (clientNameAtRequest && activeClient && activeClient !== clientNameAtRequest) return;
+      try {
+        // Latest request wins + client guard to avoid stale overwrites when switching quickly.
+        const activeClient = (document.getElementById('clientSelect') || {}).value || '';
+        if (token !== __categoryOptionsReqToken) return;
+        if (clientNameAtRequest && activeClient && activeClient !== clientNameAtRequest) return;
 
-      const normalized = normalizeCategoryList(cats);
-      if (normalized.length) __categoryOptionsCache = normalized.slice();
+        const normalized = normalizeCategoryList(cats);
+        if (normalized.length) __categoryOptionsCache = normalized.slice();
 
-      populateCategoryDropdown(Array.isArray(cats) ? cats : [], currentCategory || __currentCategory || '');
-      updateCategorySelectValue(currentCategory || __currentCategory || '');
-      sel.disabled = false;
+        populateCategoryDropdown(Array.isArray(cats) ? cats : [], currentCategory || __currentCategory || '');
+        updateCategorySelectValue(currentCategory || __currentCategory || '');
+      } finally {
+        finishCategoryOptionsRequest();
+      }
     })
     .withFailureHandler(function (err) {
-      const activeClient = (document.getElementById('clientSelect') || {}).value || '';
-      if (token !== __categoryOptionsReqToken) return;
-      if (clientNameAtRequest && activeClient && activeClient !== clientNameAtRequest) return;
-      console.error('Failed to load categories:', err);
+      try {
+        const activeClient = (document.getElementById('clientSelect') || {}).value || '';
+        if (token !== __categoryOptionsReqToken) return;
+        if (clientNameAtRequest && activeClient && activeClient !== clientNameAtRequest) return;
+        console.error('Failed to load categories:', err);
 
-      populateCategoryDropdown([], currentCategory || __currentCategory || '');
-      updateCategorySelectValue(currentCategory || __currentCategory || '');
-      sel.disabled = false;
+        populateCategoryDropdown([], currentCategory || __currentCategory || '');
+        updateCategorySelectValue(currentCategory || __currentCategory || '');
+      } finally {
+        finishCategoryOptionsRequest();
+      }
     })
     .getUniqueCategories();
 }
@@ -7843,7 +7853,7 @@ function displayClientDetails(data) {
     if (data.notes) {
         displayNotes(data.notes);
     }
-displayLabels(data.labels);
+displayLabels(Array.isArray(data.labels) ? data.labels : []);
 
 // SNIPPET #4: Ensure the loaded "In Progress:" is set from data.columnL
 // Seed the In Progress textarea and remember the last-saved value
