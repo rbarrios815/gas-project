@@ -1,4 +1,4 @@
-<!-- Version 1.0.69 | c237bf2 -->
+<!-- Version 1.0.70 | 55233ee -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -7692,7 +7692,7 @@ function updateCategorySelectValue(newValue){
 
 function fetchAndPopulateCategoryOptions(currentCategory, clientNameOverride) {
   const sel = document.getElementById('categorySelect');
-  const clientNameAtRequest = String(clientNameOverride || (document.getElementById('clientSelect') || {}).value || '').trim();
+  const clientNameAtRequest = String((document.getElementById('clientSelect') || {}).value || '').trim();
   if (!sel) return;
 
   const token = ++__categoryOptionsReqToken;
@@ -7713,10 +7713,13 @@ function fetchAndPopulateCategoryOptions(currentCategory, clientNameOverride) {
         console.log("fetchAndPopulateCategoryOptions raw categories", cats);
         let categories = normalizeCategoryList(cats);
         categories = categories.filter(function (c) { return c && c.trim().length; });
+        console.log('fetchAndPopulateCategoryOptions normalized categories', categories);
         if (categories.length) __categoryOptionsCache = categories.slice();
 
         populateCategoryDropdown(categories, currentCategory || __currentCategory || '');
         updateCategorySelectValue(currentCategory || __currentCategory || '');
+
+        console.log('fetchAndPopulateCategoryOptions categorySelect option count', sel.options.length);
       } finally {
         finishCategoryOptionsRequest();
       }
@@ -10889,7 +10892,6 @@ function populateLabelsDropdown(labels) {
     var dropdown = document.getElementById('labelsDropdown'); // Find the label dropdown element in the DOM.
     if (!dropdown) return; // Safely stop if the label dropdown is not rendered yet.
 
-    var normalizedLabels = normalizeFlatStringList(labels, 'populateLabelsDropdown');
     dropdown.innerHTML = ''; // Clear existing label options before repopulating.
 
     var placeholderOption = document.createElement('option'); // Build placeholder option shown before any label choice.
@@ -10899,8 +10901,7 @@ function populateLabelsDropdown(labels) {
     placeholderOption.selected = true; // Make placeholder the default selected option after each refresh.
     dropdown.appendChild(placeholderOption); // Insert placeholder at the top of the dropdown.
 
-    var fixedLabels = ["NEW LABEL", "🎂", "💻"];
-    normalizeFlatStringList(fixedLabels.concat(normalizedLabels), 'populateLabelsDropdown merged').forEach(function(label) {
+    ["🎂", "NEW LABEL"].forEach(function(label) { // Intentionally keep picker limited to supported label actions.
         var option = document.createElement('option');
         option.value = label;
         option.textContent = label;
@@ -11006,6 +11007,12 @@ function populateCategoryDropdown(categories, selectedValue) {
   });
 
   normalized = normalizeCategoryList(normalized); // Re-normalize after forced inserts.
+  console.log('populateCategoryDropdown preparing options', {
+    selected: selected,
+    current: current,
+    normalizedCount: normalized.length,
+    normalized: normalized
+  });
   sel.innerHTML = ''; // Clear existing category options before rebuild.
 
   var ph = document.createElement('option'); // Create placeholder option.
@@ -11029,6 +11036,8 @@ function populateCategoryDropdown(categories, selectedValue) {
     sel.value = selected; // Set dropdown selected value.
     sel.dataset.prevValue = selected; // Cache prior value for modal-cancel rollback.
   }
+
+  console.log('populateCategoryDropdown final option count', sel.options.length);
 
   // One unified handler for both cases
   if (!sel._wiredChange) { // Ensure we only attach one change listener.
@@ -12813,24 +12822,8 @@ function chipSearchString(client) {
   }
   function populateDatalist(list) {
     categories = list || [];
-    const sel = catList();
-    if (!sel) return;
-
-    sel.innerHTML = '';
-
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = currentCategory || 'Select category';
-    placeholder.disabled = !currentCategory;
-    placeholder.selected = true;
-    sel.appendChild(placeholder);
-
-    categories.forEach(c => {
-      const opt = document.createElement('option');
-      opt.value = c;
-      opt.textContent = c;
-      sel.appendChild(opt);
-    });
+    // Keep categories cached for this legacy bar workflow, but do not rewrite #categorySelect.
+    // The main category pipeline owns #categorySelect population via populateCategoryDropdown().
   }
   function refreshCategoryUI(cat) {
     currentCategory = cat || '';
