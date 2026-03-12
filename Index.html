@@ -1,4 +1,4 @@
-<!-- Version 1.0.71 | 88ea85b -->
+<!-- Version 1.0.72 | 92f7a6a -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -7978,45 +7978,69 @@ function normalizeClientLabelsForRender(input) {
 }
 
 function renderClientLabels(labels) {
-    var labelsDisplay = document.getElementById('labelsDisplay');
-    if (!labelsDisplay) return;
+  var labelsDisplay = document.getElementById('labelsDisplay');
+  if (!labelsDisplay) return;
 
-    labelsDisplay.innerHTML = '';
+  labelsDisplay.innerHTML = '';
 
-    var addLabelDropdown = document.getElementById('labelsDropdown');
-    if (addLabelDropdown) {
-      addLabelDropdown.classList.add('label-box', 'add-label-dropdown');
-      addLabelDropdown.selectedIndex = 0;
-    }
+  var addLabelDropdown = document.getElementById('labelsDropdown');
+  if (addLabelDropdown) {
+    addLabelDropdown.classList.add('label-box', 'add-label-dropdown');
+    addLabelDropdown.selectedIndex = 0;
+  }
 
-    normalizeClientLabelsForRender(labels).forEach(function(labelObj) {
-      var chip = document.createElement('div');
-      chip.className = 'label-box';
-      chip.textContent = labelObj.label;
-      chip.style.cursor = 'default';
-      chip.style.backgroundColor = labelObj.isBlue ? 'lightblue' : 'lightgreen';
-      chip.style.color = 'black';
-      labelsDisplay.appendChild(chip);
-    });
+  var normalized = normalizeClientLabelsForRender(labels);
+  if (!normalized.length) return;
+
+  normalized.forEach(function(labelObj) {
+    var chip = document.createElement('div');
+    chip.className = 'label-box';
+    chip.textContent = labelObj.label;
+    chip.style.cursor = 'default';
+    chip.style.backgroundColor = labelObj.isBlue ? 'lightblue' : 'lightgreen';
+    chip.style.color = 'black';
+    chip.title = labelObj.label;
+    labelsDisplay.appendChild(chip);
+  });
+}
+
+function getCachedGlobalCategoriesForUI(selectedCategory) {
+  var fromClients = normalizeCategoryList((clientsData || []).map(function (client) {
+    return client && client.category ? client.category : '';
+  }));
+
+  var selected = String(selectedCategory || __currentCategory || '').trim();
+  if (selected && !fromClients.some(function (cat) {
+    return String(cat || '').toLowerCase() === selected.toLowerCase();
+  })) {
+    fromClients.push(selected);
+    fromClients = normalizeCategoryList(fromClients);
+  }
+
+  return fromClients;
+}
+
+function loadGlobalCategoriesForUI(selectedCategory) {
+  var fallbackCategories = getCachedGlobalCategoriesForUI(selectedCategory);
+
+  google.script.run
+    .withSuccessHandler(function(categories) {
+      var merged = normalizeCategoryList([].concat(categories || [], fallbackCategories || []));
+      populateGlobalCategoryDropdown(merged, selectedCategory);
+    })
+    .withFailureHandler(function(err) {
+      console.error('Failed to load global categories from server; using clientsData fallback.', err);
+      populateGlobalCategoryDropdown(fallbackCategories, selectedCategory);
+    })
+    .getGlobalCategories_();
 }
 
 function initializeClientCategoryAndLabels(clientData) {
   var selectedCategory = String((clientData && clientData.category) || __currentCategory || '').trim();
-  updateCategorySelectValue(selectedCategory);
-  setCategoryPlaceholderText(selectedCategory || '');
-  positionCategoryDropdownOverAutocomplete();
 
+  __currentCategory = selectedCategory;
   renderClientLabels(clientData ? clientData.labels : []);
-
-  google.script.run
-    .withSuccessHandler(function(categories) {
-      populateGlobalCategoryDropdown(categories, selectedCategory);
-    })
-    .withFailureHandler(function(err) {
-      console.error('Failed to load global categories:', err);
-      populateGlobalCategoryDropdown([], selectedCategory);
-    })
-    .getGlobalCategories_();
+  loadGlobalCategoriesForUI(selectedCategory);
 }
 
 function confirmAndRemoveLabel(label) {
@@ -8103,13 +8127,10 @@ function updateCategory() {
 
 
 function loadCategoriesForClientAfterNotes() {
-  var sel = document.getElementById('categorySelect');
-  if (!sel) {
-    console.warn('loadCategoriesForClientAfterNotes: #categorySelect not found in DOM yet.');
-    return;
-  }
-
-  initializeClientCategoryAndLabels({ category: __currentCategory || '', labels: [] });
+  initializeClientCategoryAndLabels({
+    category: __currentCategory || '',
+    labels: []
+  });
 }
 
 
@@ -10943,10 +10964,12 @@ function populateGlobalCategoryDropdown(categories, selectedCategory) {
   var sel = document.getElementById('categorySelect');
   if (!sel) return;
 
-  var normalized = normalizeCategoryList(categories);
   var selected = String(selectedCategory || __currentCategory || '').trim();
+  var normalized = normalizeCategoryList(categories).filter(Boolean);
 
-  if (selected && !normalized.some(function(cat) { return cat.toLowerCase() === selected.toLowerCase(); })) {
+  if (selected && !normalized.some(function(cat) {
+    return String(cat || '').toLowerCase() === selected.toLowerCase();
+  })) {
     normalized.push(selected);
     normalized = normalizeCategoryList(normalized);
   }
@@ -10965,31 +10988,37 @@ function populateGlobalCategoryDropdown(categories, selectedCategory) {
     sel.appendChild(opt);
   });
 
-  var newOption = document.createElement('option');
-  newOption.value = '__NEW_CATEGORY__';
-  newOption.textContent = 'New Category';
-  sel.appendChild(newOption);
+  var newOpt = document.createElement('option');
+  newOpt.value = '__NEW__';
+  newOpt.textContent = 'New Category';
+  sel.appendChild(newOpt);
 
-  if (selected) {
-    sel.value = selected;
-    sel.dataset.prevValue = selected;
-  }
+  updateCategorySelectValue(selected);
 
-  if (!sel._globalCategoryWired) {
+  if (!sel.__globalCategoryWired) {
     sel.addEventListener('change', function() {
-      if (this.value === '__NEW_CATEGORY__') {
+      if (__suppressCategoryChange) return;
+
+      var nextValue = String(this.value || '').trim();
+
+      if (nextValue === '__NEW__') {
         updateCategorySelectValue(this.dataset.prevValue || __currentCategory || '');
         openNewCategoryModal();
         return;
       }
 
-      if (this.value) {
-        this.dataset.prevValue = this.value;
-        updateCategory();
-      }
+      if (!nextValue) return;
+      if (nextValue === (__currentCategory || '')) return;
+
+      this.dataset.prevValue = nextValue;
+      requestCategoryChange(nextValue);
     });
-    sel._globalCategoryWired = true;
+
+    sel.__globalCategoryWired = true;
   }
+
+  setCategoryPlaceholderText(selected || '');
+  positionCategoryDropdownOverAutocomplete();
 }
 
 // Legacy alias retained for compatibility; new global dropdown path is authoritative.
