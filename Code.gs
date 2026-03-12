@@ -1,4 +1,4 @@
-// Version 1.0.71 | 88ea85b
+// Version 1.0.72 | 92f7a6a
 
 function normalizeHeaderName_(value) {
   return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]+/g, '');
@@ -536,11 +536,12 @@ function getClientDetails(clientName) {
     return new Date(a.noteDate) - new Date(b.noteDate);
   });
 
-  var resolvedCategory = clientNotes.length ? String(clientNotes[0].category || '').trim() : '';
+  var categoryValue = clientNotes.length ? String(clientNotes[0].category || '').trim() : '';
+  var labelsValue = clientLabels;
   var payload = {
     notes: clientNotes.length > 0 ? clientNotes : null,
-    labels: clientLabels,
-    category: resolvedCategory,
+    labels: labelsValue || [],
+    category: categoryValue || '',
     columnB: columnB,
     columnD: columnD,
     columnL: columnLValue,
@@ -2237,45 +2238,44 @@ function sendEditSummaryEmail(clientName, type, oldText, newText) {
 
 
 /**
- * Authoritative global category source: Column F (CATEGORY) in "JB PRIMERICA V3".
- * Returns sorted, unique, non-empty category names.
+ * Authoritative global category source for category dropdowns.
+ * Uses existing getUniqueCategories when available, otherwise reads Column F.
  */
 function getGlobalCategories_() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  if (!ss || ss.getName() !== 'JB PRIMERICA V3') {
-    var files = DriveApp.getFilesByName('JB PRIMERICA V3');
-    if (files.hasNext()) {
-      ss = SpreadsheetApp.open(files.next());
-    }
+  if (typeof getUniqueCategories === 'function') {
+    return normalizeServerCategoryList_(getUniqueCategories());
   }
 
-  var sheet = ss.getSheetByName('DASHBOARD 8.0');
-  if (!sheet) return [];
-
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = ss.getSheetByName('JB PRIMERICA V3') || ss.getActiveSheet();
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return [];
 
-  var categories = sheet
-    .getRange(2, 6, lastRow - 1, 1)
-    .getDisplayValues()
-    .map(function (row) { return String(row[0] || '').trim(); })
-    .filter(Boolean);
+  var values = sheet.getRange(2, 6, lastRow - 1, 1).getDisplayValues();
+  return normalizeServerCategoryList_(values.map(function(r) { return r[0]; }));
+}
 
-  var seen = {};
-  var unique = [];
-  categories.forEach(function (category) {
-    var key = category.toLowerCase();
-    if (seen[key]) return;
-    seen[key] = true;
-    unique.push(category);
-  });
+function normalizeServerCategoryList_(values) {
+  var seen = Object.create(null);
 
-  unique.sort(function (a, b) {
-    return a.localeCompare(b, undefined, { sensitivity: 'base' });
-  });
-
-  Logger.log('getGlobalCategories_ returning ' + unique.length + ' categories');
-  return unique;
+  return (values || [])
+    .reduce(function(acc, value) {
+      if (Array.isArray(value)) {
+        value.forEach(function(inner) { acc.push(inner); });
+      } else {
+        acc.push(value);
+      }
+      return acc;
+    }, [])
+    .map(function(value) { return String(value || '').trim(); })
+    .filter(Boolean)
+    .filter(function(value) {
+      var key = value.toLowerCase();
+      if (seen[key]) return false;
+      seen[key] = true;
+      return true;
+    })
+    .sort(function(a, b) { return a.localeCompare(b); });
 }
 
 function getAllClientsData() {
@@ -2306,7 +2306,16 @@ function getAllClientsData() {
 
 /** Return sorted unique, non-empty categories from CATEGORY header (row 2 → last). */
 function getUniqueCategories() {
-  return getGlobalCategories_();
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
+  if (!sheet) return [];
+
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+
+  var headerMap = getHeaderMap_(sheet);
+  var categoryIdx = col_(headerMap, 'CATEGORY');
+  var values = sheet.getRange(2, categoryIdx + 1, lastRow - 1, 1).getDisplayValues();
+  return normalizeServerCategoryList_(values.map(function (row) { return row[0]; }));
 }
 
 /**
