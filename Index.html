@@ -1,4 +1,4 @@
-<!-- Version 1.0.68 | c13e5d6 -->
+<!-- Version 1.0.69 | c237bf2 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -7606,17 +7606,35 @@ let __currentCategory = '';               // last category we know is applied
 let __categoryOptionsReqToken = 0;        // ignore stale category-option responses
 let __categoryOptionsCache = [];          // last non-empty category list from server
 
-function normalizeCategoryList(categories) {
+function normalizeFlatStringList(values, debugLabel) {
+  var flattened = [];
+
+  (Array.isArray(values) ? values : []).forEach(function (value) {
+    if (Array.isArray(value)) {
+      value.forEach(function (inner) { flattened.push(inner); });
+      return;
+    }
+    flattened.push(value);
+  });
+
   var byKey = new Map();
-  (Array.isArray(categories) ? categories : []).forEach(function (raw) {
+  flattened.forEach(function (raw) {
     var trimmed = String(raw || '').trim();
     if (!trimmed) return;
     var key = trimmed.toLocaleLowerCase();
     if (!byKey.has(key)) byKey.set(key, trimmed);
   });
-  return Array.from(byKey.values()).sort(function (a, b) {
+
+  var normalized = Array.from(byKey.values()).sort(function (a, b) {
     return a.localeCompare(b, undefined, { sensitivity: 'base' });
   });
+
+  console.log((debugLabel || 'normalizeFlatStringList') + ' normalized', normalized);
+  return normalized;
+}
+
+function normalizeCategoryList(categories) {
+  return normalizeFlatStringList(categories, 'normalizeCategoryList');
 }
 
 function getCategoriesFromClientsData() {
@@ -7692,6 +7710,7 @@ function fetchAndPopulateCategoryOptions(currentCategory, clientNameOverride) {
         if (token !== __categoryOptionsReqToken) return;
         if (clientNameAtRequest && activeClient && activeClient !== clientNameAtRequest) return;
 
+        console.log("fetchAndPopulateCategoryOptions raw categories", cats);
         let categories = normalizeCategoryList(cats);
         categories = categories.filter(function (c) { return c && c.trim().length; });
         if (categories.length) __categoryOptionsCache = categories.slice();
@@ -7849,6 +7868,7 @@ function setupColumnDDropdown(data) {
 }
 
 function displayClientDetails(data) {
+    console.log("displayClientDetails payload", data);
     var labelsDisplay = document.getElementById('labelsDisplay');
     labelsDisplay.innerHTML = '';
     if (data.notes) {
@@ -10868,28 +10888,25 @@ function positionCategoryDropdownOverAutocomplete() {
 function populateLabelsDropdown(labels) {
     var dropdown = document.getElementById('labelsDropdown'); // Find the label dropdown element in the DOM.
     if (!dropdown) return; // Safely stop if the label dropdown is not rendered yet.
+
+    var normalizedLabels = normalizeFlatStringList(labels, 'populateLabelsDropdown');
     dropdown.innerHTML = ''; // Clear existing label options before repopulating.
 
-    // Add a disabled and selected placeholder option at the beginning
     var placeholderOption = document.createElement('option'); // Build placeholder option shown before any label choice.
     placeholderOption.value = ""; // Keep placeholder value empty so it is not treated as a real label.
     placeholderOption.textContent = "ADD"; // Show ADD prompt text in the dropdown UI.
     placeholderOption.disabled = true; // Prevent users from submitting the placeholder as a real selection.
     placeholderOption.selected = true; // Make placeholder the default selected option after each refresh.
     dropdown.appendChild(placeholderOption); // Insert placeholder at the top of the dropdown.
-    // Define the only label options that should be available
-    var fixedLabels = ["NEW LABEL", "🎂", "💻"]; // Restrict available label actions/options to the approved list.
 
-    fixedLabels.forEach(function(label) { // Create and append one option element per allowed label.
-        var option = document.createElement('option'); // Create option node for current label token.
-        option.value = label; // Store raw label token as option value.
-        option.textContent = label; // Display the same token text to the user.
-        dropdown.appendChild(option); // Add option to labels dropdown.
+    var fixedLabels = ["NEW LABEL", "🎂", "💻"];
+    normalizeFlatStringList(fixedLabels.concat(normalizedLabels), 'populateLabelsDropdown merged').forEach(function(label) {
+        var option = document.createElement('option');
+        option.value = label;
+        option.textContent = label;
+        dropdown.appendChild(option);
     });
 }
-
-
-
 
 
 function addLabelToClient(label) {
