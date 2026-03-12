@@ -1,4 +1,4 @@
-// Version 1.0.72 | 92f7a6a
+// Version 1.0.73 | 2bdeb3e
 
 function normalizeHeaderName_(value) {
   return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]+/g, '');
@@ -1838,75 +1838,40 @@ function getTomorrowsCalendarEvents() {
 
 function getAllLabels() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
-  if (!sheet) return [];
+  var dataRange = sheet.getDataRange();
+  var data = dataRange.getValues();
+  var labelsSet = new Set();
 
-  var lastRow = sheet.getLastRow();
-  if (lastRow < 2) return [];
-
-  var headerMap = getHeaderMap_(sheet);
-  var labelIdx = col_(headerMap, 'LABEL');
-  var values = sheet.getRange(2, labelIdx + 1, lastRow - 1, 1).getDisplayValues();
-  var labelsSet = {};
-  var labels = [];
-
-  values.forEach(function (row) {
-    splitLabelText_(row[0]).forEach(function (label) {
-      var normalized = String(label || '').trim();
-      if (!normalized) return;
-      var key = normalized.toLowerCase();
-      if (labelsSet[key]) return;
-      labelsSet[key] = true;
-      labels.push(normalized);
-    });
+  data.forEach(function (row) {
+    var labelsCell = row[6]; // Column G
+    if (labelsCell) {
+      String(labelsCell).split(' • ').forEach(function (label) {
+        labelsSet.add(String(label || '').trim());
+      });
+    }
   });
 
-  labels.sort(function (a, b) {
-    return a.localeCompare(b, undefined, { sensitivity: 'base' });
-  });
-
-  Logger.log('getAllLabels returning ' + labels.length + ' labels');
-  return labels;
+  return Array.from(labelsSet).filter(Boolean).sort();
 }
 
 
 function addLabelToClient(clientName, label) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0'); // Open target sheet where labels are stored.
-  var data = sheet.getDataRange().getValues(); // Read current sheet values for lookup and update.
-  var headerMap = getHeaderMap_(sheet);
-  var clientNameIdx = colOptional_(headerMap, ['CLIENT NAME', 'CLIENTNAME', 'NAME'], 0);
-  var labelIdx = col_(headerMap, 'LABEL');
-  var clientFound = false; // Track whether we found at least one matching client row.
-  var normalizedClientName = String(clientName || '').trim().toLowerCase(); // Normalize selected client name from UI.
-  var normalizedLabel = String(label || '').trim(); // Normalize requested label text.
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
+  var data = sheet.getDataRange().getValues();
+  var clientFound = false;
 
-  if (!normalizedClientName) {
-    throw new Error('Client name is required');
-  }
-  if (!normalizedLabel) {
-    throw new Error('Label is required');
-  }
-
-  for (var i = 1; i < data.length; i++) { // Walk each data row to find the selected client.
-    var thisClientName = data[i][clientNameIdx]; // Client names are resolved by header.
-    var normalizedRowClient = String(thisClientName || '').replace(/\d+$/, '').trim().toLowerCase(); // Normalize sheet value to same comparison format.
-    if (normalizedRowClient && normalizedRowClient === normalizedClientName) { // Match selected client case-insensitively.
-      clientFound = true; // Mark as found so we can throw proper error if never matched.
-      var labelList = normalizeGreenLabelStrings_(data[i][labelIdx]); // Parse existing green labels from LABEL column.
-      var hasMatch = labelList.some(function (existing) { // Check whether label already exists to prevent duplicates.
-        return existing.toLowerCase() === normalizedLabel.toLowerCase(); // Compare existing label and requested label case-insensitively.
-      });
-      if (!hasMatch) { // Only append when label is truly new.
-        labelList.push(normalizedLabel); // Add new label to this client's label list.
-      }
-      var newLabels = labelList.join(' • '); // Serialize labels back to the expected delimiter format.
-      sheet.getRange(i + 1, labelIdx + 1).setValue(newLabels); // Save updated labels into LABEL column.
-      return newLabels; // Return the saved label string for immediate UI refresh.
+  for (var i = 0; i < data.length; i++) {
+    var thisClientName = data[i][0]; // Column A
+    if (thisClientName && String(thisClientName).toLowerCase() === String(clientName).toLowerCase()) {
+      clientFound = true;
+      var existingLabels = data[i][6] ? String(data[i][6]) : ''; // Column G
+      var newLabels = existingLabels ? existingLabels + ' • ' + label : label;
+      sheet.getRange(i + 1, 7).setValue(newLabels);
+      break;
     }
   }
 
-  if (!clientFound) {
-    throw new Error('Client not found');
-  }
+  if (!clientFound) throw new Error('Client not found');
 }
 
 function removeLabelFromClient(clientName, labelToRemove) {
@@ -2306,16 +2271,18 @@ function getAllClientsData() {
 
 /** Return sorted unique, non-empty categories from CATEGORY header (row 2 → last). */
 function getUniqueCategories() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
-  if (!sheet) return [];
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('DASHBOARD 8.0');
+  var last = sh.getLastRow();
+  if (last < 2) return [];
 
-  var lastRow = sheet.getLastRow();
-  if (lastRow < 2) return [];
+  var vals = sh.getRange(2, 6, last - 1, 1).getValues()
+    .map(function (row) { return String(row[0] || '').trim(); })
+    .filter(Boolean);
 
-  var headerMap = getHeaderMap_(sheet);
-  var categoryIdx = col_(headerMap, 'CATEGORY');
-  var values = sheet.getRange(2, categoryIdx + 1, lastRow - 1, 1).getDisplayValues();
-  return normalizeServerCategoryList_(values.map(function (row) { return row[0]; }));
+  var uniq = Array.from(new Set(vals));
+  uniq.sort(function (a, b) { return a.localeCompare(b, 'en', { sensitivity: 'base' }); });
+  return uniq;
 }
 
 /**
@@ -2327,35 +2294,22 @@ function updateClientCategory(clientName, newCategory) {
   if (!newCategory) throw new Error('Missing category.');
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName('DASHBOARD 8.0');
-  var lastRow = sheet.getLastRow();
-  if (lastRow < 2) throw new Error('No client rows available.');
+  var sh = ss.getSheetByName('DASHBOARD 8.0');
+  var data = sh.getRange(2, 1, sh.getLastRow() - 1, 6).getValues();
 
-  var headerMap = getHeaderMap_(sheet);
-  var clientNameIdx = colOptional_(headerMap, ['CLIENT NAME', 'CLIENTNAME', 'NAME'], 0);
-  var categoryIdx = col_(headerMap, 'CATEGORY');
-
-  var data = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getDisplayValues();
-  var targetName = normalizeClientNameForCategoryMatch_(clientName);
-
-  var updatedRows = 0;
+  var foundRow = -1;
   for (var i = 0; i < data.length; i++) {
-    var rawName = String(data[i][clientNameIdx] || '').trim();
-    if (!rawName) continue;
-
-    var exactMatch = rawName.toLowerCase() === String(clientName).trim().toLowerCase();
-    var normalizedMatch = normalizeClientNameForCategoryMatch_(rawName) === targetName;
-    if (exactMatch || normalizedMatch) {
-      sheet.getRange(i + 2, categoryIdx + 1).setValue(newCategory);
-      updatedRows++;
+    var name = String(data[i][0] || '').trim();
+    if (name.toLowerCase() === String(clientName).trim().toLowerCase()) {
+      foundRow = i + 2;
+      break;
     }
   }
 
-  if (updatedRows === 0) {
-    throw new Error('Client not found: ' + clientName);
-  }
+  if (foundRow === -1) throw new Error('Client not found: ' + clientName);
 
-  return { ok: true, updatedRows: updatedRows, category: newCategory };
+  sh.getRange(foundRow, 6).setValue(newCategory);
+  return { ok: true, row: foundRow, category: newCategory };
 }
 
 function normalizeClientNameForCategoryMatch_(name) {

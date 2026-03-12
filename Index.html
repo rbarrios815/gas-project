@@ -1,4 +1,4 @@
-<!-- Version 1.0.72 | 92f7a6a -->
+<!-- Version 1.0.73 | 2bdeb3e -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -7656,80 +7656,28 @@ function wireCategorySelectChange(){
 
 /* Call this to programmatically set the dropdown value WITHOUT triggering save */
 function updateCategorySelectValue(newValue){
-  const sel = document.getElementById('categorySelect'); // Locate category dropdown element.
-  if (!sel) return; // Exit early if category dropdown is unavailable.
-  const normalizedValue = String(newValue || '').trim(); // Normalize incoming category value.
-
-  if (normalizedValue) { // Ensure non-empty category value exists in dropdown options.
-    const exists = Array.from(sel.options).some(function (opt) { // Check option list for case-insensitive match.
-      return String(opt.value || '').toLowerCase() === normalizedValue.toLowerCase(); // Compare current option to requested category.
-    });
-
-    if (!exists) { // Insert missing category to keep UI selectable.
-      const opt = document.createElement('option'); // Build option for missing category.
-      opt.value = normalizedValue; // Set missing category as option value.
-      opt.textContent = normalizedValue; // Show missing category text in dropdown.
-      const sentinel = sel.querySelector('option[value="__NEW__"]'); // Locate sentinel new-category option.
-      sel.add(opt, sentinel || null); // Insert missing category before sentinel when present.
-    }
-  }
-
-  __suppressCategoryChange = true; // Prevent change listeners from saving while we set value programmatically.
-  sel.value = normalizedValue; // Apply category value to dropdown control.
-  sel.dataset.prevValue = normalizedValue; // Cache value as previous valid category.
-  __currentCategory = normalizedValue;  // Keep in-memory category state synchronized.
-  setCategoryPlaceholderText(__currentCategory || ''); // Update placeholder/overlay text to match selected category.
-  positionCategoryDropdownOverAutocomplete(); // Reposition category UI overlay after value update.
-  // release on next tick so real user changes still work
-  setTimeout(() => { __suppressCategoryChange = false; }, 0); // Re-enable normal change handling after this call stack.
+  const sel = document.getElementById('categorySelect');
+  if (!sel) return;
+  __suppressCategoryChange = true;
+  sel.value = (newValue || '');
+  __currentCategory = (newValue || '');
+  setCategoryPlaceholderText(__currentCategory || '');
+  positionCategoryDropdownOverAutocomplete();
+  setTimeout(() => { __suppressCategoryChange = false; }, 0);
 }
 
 function fetchAndPopulateCategoryOptions(currentCategory, clientNameOverride) {
-  const sel = document.getElementById('categorySelect');
-  const clientNameAtRequest = String((document.getElementById('clientSelect') || {}).value || '').trim();
-  if (!sel) return;
-
-  const token = ++__categoryOptionsReqToken;
-  sel.disabled = true;
-
-  const finishCategoryOptionsRequest = function () {
-    if (token === __categoryOptionsReqToken) sel.disabled = false;
-  };
-
   google.script.run
     .withSuccessHandler(function (cats) {
-      try {
-        // Latest request wins + client guard to avoid stale overwrites when switching quickly.
-        const activeClient = (document.getElementById('clientSelect') || {}).value || '';
-        if (token !== __categoryOptionsReqToken) return;
-        if (clientNameAtRequest && activeClient && activeClient !== clientNameAtRequest) return;
-
-        console.log("fetchAndPopulateCategoryOptions raw categories", cats);
-        let categories = normalizeCategoryList(cats);
-        categories = categories.filter(function (c) { return c && c.trim().length; });
-        console.log('fetchAndPopulateCategoryOptions normalized categories', categories);
-        if (categories.length) __categoryOptionsCache = categories.slice();
-
-        populateCategoryDropdown(categories, currentCategory || __currentCategory || '');
-        updateCategorySelectValue(currentCategory || __currentCategory || '');
-
-        console.log('fetchAndPopulateCategoryOptions categorySelect option count', sel.options.length);
-      } finally {
-        finishCategoryOptionsRequest();
-      }
+      var selected = String(currentCategory || __currentCategory || '').trim();
+      populateCategoryDropdown(cats || [], selected);
+      updateCategorySelectValue(selected);
     })
     .withFailureHandler(function (err) {
-      try {
-        const activeClient = (document.getElementById('clientSelect') || {}).value || '';
-        if (token !== __categoryOptionsReqToken) return;
-        if (clientNameAtRequest && activeClient && activeClient !== clientNameAtRequest) return;
-        console.error('Failed to load categories:', err);
-
-        populateCategoryDropdown([], currentCategory || __currentCategory || '');
-        updateCategorySelectValue(currentCategory || __currentCategory || '');
-      } finally {
-        finishCategoryOptionsRequest();
-      }
+      console.error('Failed to load categories:', err);
+      var selected = String(currentCategory || __currentCategory || '').trim();
+      populateCategoryDropdown([], selected);
+      updateCategorySelectValue(selected);
     })
     .getUniqueCategories();
 }
@@ -7926,62 +7874,9 @@ loadedInProgressArea.setAttribute('data-last-saved', seed);
 
 
 
-function normalizeClientLabelsForRender(input) {
-    var flattened = [];
-
-    function visit(value, inheritedBlue) {
-      if (value == null || value === '') return;
-
-      if (Array.isArray(value)) {
-        value.forEach(function(item) { visit(item, inheritedBlue); });
-        return;
-      }
-
-      if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-        String(value)
-          .split(/\s*•\s*|\r?\n|\s*,\s*/)
-          .map(function(part) { return String(part || '').trim(); })
-          .filter(Boolean)
-          .forEach(function(part) {
-            flattened.push({ label: part, isBlue: !!inheritedBlue });
-          });
-        return;
-      }
-
-      if (typeof value === 'object') {
-        var resolvedBlue = (typeof value.isBlue === 'boolean') ? value.isBlue : inheritedBlue;
-        if (value.label != null) visit(value.label, resolvedBlue);
-        ['labels', 'values', 'items', 'data', 'payload', 'result', 'results', 'children'].forEach(function(key) {
-          if (value[key] != null) visit(value[key], resolvedBlue);
-        });
-      }
-    }
-
-    visit(input, false);
-
-    var seen = {};
-    var ordered = [];
-    flattened.forEach(function(entry) {
-      var text = String(entry && entry.label ? entry.label : '').trim();
-      if (!text) return;
-
-      var key = text.toLowerCase();
-      if (seen[key] == null) {
-        seen[key] = ordered.length;
-        ordered.push({ label: text, isBlue: !!entry.isBlue });
-      } else if (entry.isBlue) {
-        ordered[seen[key]].isBlue = true;
-      }
-    });
-
-    return ordered;
-}
-
 function renderClientLabels(labels) {
   var labelsDisplay = document.getElementById('labelsDisplay');
   if (!labelsDisplay) return;
-
-  labelsDisplay.innerHTML = '';
 
   var addLabelDropdown = document.getElementById('labelsDropdown');
   if (addLabelDropdown) {
@@ -7989,50 +7884,40 @@ function renderClientLabels(labels) {
     addLabelDropdown.selectedIndex = 0;
   }
 
-  var normalized = normalizeClientLabelsForRender(labels);
-  if (!normalized.length) return;
+  labelsDisplay.innerHTML = '';
 
-  normalized.forEach(function(labelObj) {
-    var chip = document.createElement('div');
-    chip.className = 'label-box';
-    chip.textContent = labelObj.label;
-    chip.style.cursor = 'default';
-    chip.style.backgroundColor = labelObj.isBlue ? 'lightblue' : 'lightgreen';
-    chip.style.color = 'black';
-    chip.title = labelObj.label;
-    labelsDisplay.appendChild(chip);
+  var labelsArray = Array.isArray(labels) ? labels : [];
+  var emojiLabels = [];
+  var nonEmojiLabels = [];
+
+  labelsArray.forEach(function (labelObj) {
+    var text = String(labelObj && labelObj.label ? labelObj.label : '').trim();
+    if (!text) return;
+    if (/[\p{Extended_Pictographic}]/u.test(text)) {
+      emojiLabels.push({ label: text, isBlue: !!(labelObj && labelObj.isBlue) });
+    } else {
+      nonEmojiLabels.push({ label: text, isBlue: !!(labelObj && labelObj.isBlue) });
+    }
   });
-}
 
-function getCachedGlobalCategoriesForUI(selectedCategory) {
-  var fromClients = normalizeCategoryList((clientsData || []).map(function (client) {
-    return client && client.category ? client.category : '';
-  }));
+  var orderedLabels = emojiLabels.concat(nonEmojiLabels);
+  orderedLabels.forEach(function (labelObj) {
+    var labelDiv = document.createElement('div');
+    labelDiv.className = 'label-box';
+    labelDiv.textContent = labelObj.label;
 
-  var selected = String(selectedCategory || __currentCategory || '').trim();
-  if (selected && !fromClients.some(function (cat) {
-    return String(cat || '').toLowerCase() === selected.toLowerCase();
-  })) {
-    fromClients.push(selected);
-    fromClients = normalizeCategoryList(fromClients);
-  }
+    if (labelObj.isBlue) {
+      labelDiv.style.backgroundColor = 'lightblue';
+      labelDiv.style.color = 'black';
+    } else {
+      labelDiv.style.backgroundColor = 'lightgreen';
+      labelDiv.onclick = function () {
+        confirmAndRemoveLabel(labelObj.label);
+      };
+    }
 
-  return fromClients;
-}
-
-function loadGlobalCategoriesForUI(selectedCategory) {
-  var fallbackCategories = getCachedGlobalCategoriesForUI(selectedCategory);
-
-  google.script.run
-    .withSuccessHandler(function(categories) {
-      var merged = normalizeCategoryList([].concat(categories || [], fallbackCategories || []));
-      populateGlobalCategoryDropdown(merged, selectedCategory);
-    })
-    .withFailureHandler(function(err) {
-      console.error('Failed to load global categories from server; using clientsData fallback.', err);
-      populateGlobalCategoryDropdown(fallbackCategories, selectedCategory);
-    })
-    .getGlobalCategories_();
+    labelsDisplay.appendChild(labelDiv);
+  });
 }
 
 function initializeClientCategoryAndLabels(clientData) {
@@ -8040,17 +7925,28 @@ function initializeClientCategoryAndLabels(clientData) {
 
   __currentCategory = selectedCategory;
   renderClientLabels(clientData ? clientData.labels : []);
-  loadGlobalCategoriesForUI(selectedCategory);
+
+  google.script.run
+    .withSuccessHandler(function (categories) {
+      populateCategoryDropdown(categories || [], selectedCategory);
+      updateCategorySelectValue(selectedCategory);
+    })
+    .withFailureHandler(function (err) {
+      console.error('Failed to load categories for selected client', err);
+      populateCategoryDropdown([], selectedCategory);
+      updateCategorySelectValue(selectedCategory);
+    })
+    .getUniqueCategories();
 }
 
 function confirmAndRemoveLabel(label) {
     var clientName = document.getElementById('clientSelect').value;
     if (confirm('Are you sure you want to remove the label "' + label + '" from ' + clientName + '?')) {
         google.script.run.withSuccessHandler(function() {
-            showToast('Label removed successfully!');
+            alert('Label removed successfully!');
             showClientNotes(); // Assuming this function refreshes client details
         }).withFailureHandler(function(error) {
-            showToast('Error removing label: ' + error.message);
+            alert('Error removing label: ' + error.message);
         }).removeLabelFromClient(clientName, label);
     }
 }
@@ -10875,7 +10771,7 @@ function populateLabelsDropdown(labels) {
     placeholderOption.selected = true; // Make placeholder the default selected option after each refresh.
     dropdown.appendChild(placeholderOption); // Insert placeholder at the top of the dropdown.
 
-    ["🎂", "NEW LABEL"].forEach(function(label) { // Intentionally keep picker limited to supported label actions.
+    ["NEW LABEL", "🎂", "💻"].forEach(function(label) {
         var option = document.createElement('option');
         option.value = label;
         option.textContent = label;
@@ -10885,44 +10781,22 @@ function populateLabelsDropdown(labels) {
 
 
 function addLabelToClient(label) {
-    var clientSelect = document.getElementById('clientSelect'); // Reference the currently selected client control.
-    var clientName = resolveClientNameFromSelection(clientSelect ? clientSelect.value : ''); // Resolve canonical client name for label writes.
-    var selectedLabel = String(label || '').trim(); // Normalize requested label from dropdown input.
+    var clientSelect = document.getElementById('clientSelect');
+    var clientName = clientSelect ? clientSelect.value : '';
 
-    if (!clientName || !selectedLabel) return; // Require both a valid client and a valid label.
-    if (clientSelect) clientSelect.value = clientName; // Keep UI selection aligned to resolved client name.
-
-    if (selectedLabel === "NEW LABEL") { // Handle custom label creation path.
-        // Prompt user to enter the new label name
-        var newLabel = prompt("Please enter the new label name:"); // Ask the user for custom label text.
-        newLabel = (newLabel || '').trim(); // Normalize custom label input.
-        if (newLabel) { // Continue only if custom label has non-empty text.
-            // Call server-side function to add the new label to the client
-            google.script.run // Invoke Apps Script server method to persist the new label.
-              .withSuccessHandler(function() {
-                showToast("New label added successfully!"); // Confirm successful label creation to the user.
-                var dropdown = document.getElementById('labelsDropdown'); // Re-fetch label dropdown node.
-                if (dropdown) dropdown.selectedIndex = 0; // Reset dropdown back to ADD placeholder.
-                showClientNotes(); // Refresh client details so new label chip appears immediately.
-              })
-              .withFailureHandler(function(error) {
-                showToast('Error adding label: ' + (error && error.message ? error.message : error)); // Surface label-save failure details.
-              })
-              .addLabelToClient(clientName, newLabel); // Send selected client + custom label to backend.
+    if (label === "NEW LABEL") {
+        var newLabel = prompt("Please enter the new label name:");
+        if (newLabel) {
+            google.script.run.withSuccessHandler(function() {
+                alert("New label added successfully!");
+                showClientNotes();
+            }).addLabelToClient(clientName, newLabel);
         }
     } else {
-        // Existing logic to add existing label to client
-        google.script.run // Invoke Apps Script server method for fixed label add.
-          .withSuccessHandler(function() {
-            showToast("Label added successfully!"); // Confirm successful fixed-label add.
-            var dropdown = document.getElementById('labelsDropdown'); // Re-fetch label dropdown node.
-            if (dropdown) dropdown.selectedIndex = 0; // Reset labels dropdown to placeholder after add.
-            showClientNotes(); // Refresh client notes/chips so label UI updates immediately.
-          })
-          .withFailureHandler(function(error) {
-            showToast('Error adding label: ' + (error && error.message ? error.message : error)); // Show backend error when label add fails.
-          })
-          .addLabelToClient(clientName, selectedLabel); // Send selected fixed label to backend.
+        google.script.run.withSuccessHandler(function() {
+            alert("Label added successfully!");
+            showClientNotes();
+        }).addLabelToClient(clientName, label);
     }
 }
 
@@ -10964,24 +10838,15 @@ function populateGlobalCategoryDropdown(categories, selectedCategory) {
   var sel = document.getElementById('categorySelect');
   if (!sel) return;
 
-  var selected = String(selectedCategory || __currentCategory || '').trim();
-  var normalized = normalizeCategoryList(categories).filter(Boolean);
-
-  if (selected && !normalized.some(function(cat) {
-    return String(cat || '').toLowerCase() === selected.toLowerCase();
-  })) {
-    normalized.push(selected);
-    normalized = normalizeCategoryList(normalized);
-  }
-
   sel.innerHTML = '';
 
+  var selected = String(selectedCategory || __currentCategory || '').trim();
   var placeholder = document.createElement('option');
   placeholder.value = '';
-  placeholder.textContent = selected || 'Select category';
+  placeholder.textContent = selected || '';
   sel.appendChild(placeholder);
 
-  normalized.forEach(function(cat) {
+  (categories || []).forEach(function(cat) {
     var opt = document.createElement('option');
     opt.value = cat;
     opt.textContent = cat;
@@ -10990,33 +10855,26 @@ function populateGlobalCategoryDropdown(categories, selectedCategory) {
 
   var newOpt = document.createElement('option');
   newOpt.value = '__NEW__';
-  newOpt.textContent = 'New Category';
+  newOpt.textContent = 'NEW CATEGORY…';
   sel.appendChild(newOpt);
 
-  updateCategorySelectValue(selected);
-
-  if (!sel.__globalCategoryWired) {
+  if (!sel._wiredChange) {
     sel.addEventListener('change', function() {
-      if (__suppressCategoryChange) return;
-
-      var nextValue = String(this.value || '').trim();
-
-      if (nextValue === '__NEW__') {
-        updateCategorySelectValue(this.dataset.prevValue || __currentCategory || '');
+      if (this.value === '__NEW__') {
+        this.value = '';
         openNewCategoryModal();
         return;
       }
 
-      if (!nextValue) return;
-      if (nextValue === (__currentCategory || '')) return;
-
-      this.dataset.prevValue = nextValue;
-      requestCategoryChange(nextValue);
+      if (this.value) {
+        updateCategory();
+        if (typeof updateCategoryLabel === 'function') updateCategoryLabel();
+      }
     });
-
-    sel.__globalCategoryWired = true;
+    sel._wiredChange = true;
   }
 
+  updateCategorySelectValue(selected);
   setCategoryPlaceholderText(selected || '');
   positionCategoryDropdownOverAutocomplete();
 }
