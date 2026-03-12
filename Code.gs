@@ -1,15 +1,56 @@
+// Version 1.0.60 | c13e5d6
+
+function normalizeEmail(email) {
+  return String(email || '').trim().toLowerCase();
+}
+
+function getUserDefaultTopClientsFilter() {
+  var activeUserEmail = normalizeEmail(Session.getActiveUser().getEmail());
+  var effectiveUserEmail = normalizeEmail(Session.getEffectiveUser().getEmail());
+  var emailToFilter = {
+    'rbarrios815@gmail.com': 'RB',
+    'rbarrio1@alumni.nd.edu': 'QC',
+    'jbgreatfamily1@gmail.com': 'JB',
+    'mbarrios94@gmail.com': 'MB'
+  };
+
+  return emailToFilter[activeUserEmail] ||
+    emailToFilter[effectiveUserEmail] ||
+    'JB';
+}
+
 function doGet(e) {
-  var userEmail = Session.getActiveUser().getEmail(); // Ensure it gets the active user
-  Logger.log("Detected User Email: " + userEmail); // Debugging - logs detected email
+  const activeUserEmail = Session.getActiveUser().getEmail();
+  const effectiveUserEmail = Session.getEffectiveUser().getEmail();
+  // Use both active and effective user values to handle consumer and Workspace accounts.
+  Logger.log('Detected Active User Email: ' + activeUserEmail);
+  Logger.log('Detected Effective User Email: ' + effectiveUserEmail);
 
-  var allowedUsers = ['jbgreatfamily1@gmail.com', 'rbarrios815@gmail.com', 'domlozano7@gmail.com', 'rbarrio1nd@gmail.com', 'rbarrio1@alumni.nd.edu','barriosgreatfamily1@gmail.com'];
+  const allowedUsers = [
+    'jbgreatfamily1@gmail.com',
+    'rbarrios815@gmail.com',
+    'domlozano7@gmail.com',
+    'rbarrio1nd@gmail.com',
+    'rbarrio1@alumni.nd.edu',
+    'barriosgreatfamily1@gmail.com',
+    'mbarrios94@gmail.com'
+  ].map(normalizeEmail);
 
-  if (allowedUsers.includes(userEmail)) {
-    ensureJbChipDailyTrigger();
+  const normalizedActive = normalizeEmail(activeUserEmail);
+  const normalizedEffective = normalizeEmail(effectiveUserEmail);
+  const hasAccess = allowedUsers.includes(normalizedActive) || allowedUsers.includes(normalizedEffective);
+
+  if (hasAccess) {
     return HtmlService.createHtmlOutputFromFile('Index');
-  } else {
-    return HtmlService.createHtmlOutput("Sorry, you do not have access to this app.<br>Your detected email: " + userEmail);
   }
+
+  const messageParts = [
+    'Sorry, you do not have access to this app.',
+    'Please sign in with an approved Google account and try again.',
+    'Active user: ' + (activeUserEmail || 'Not detected'),
+    'Effective user: ' + (effectiveUserEmail || 'Not detected')
+  ];
+  return HtmlService.createHtmlOutput(messageParts.join('<br>'));
 }
 
 
@@ -76,6 +117,292 @@ function getClientNamesAndCategories() {
 }
 
 
+const BASE_TASK_COLORS = ['Red', 'Orange', 'Yellow', 'Green', 'Blue', 'Purple', 'Violet', 'Brown', 'Pink', 'Black', 'Black (White Font)', 'White', 'Grey'];
+const DEFAULT_TASK_TYPE_TEXT = [
+  'Faded Red: 🗣️',
+  'Faded Orange: 🎯',
+  'Faded Yellow: 📞',
+  'Faded Green: 🔍',
+  'Faded Blue: 💼',
+  'Faded Purple: ✉️',
+  'Bright Violet:',
+  'Faded Brown: 📊',
+  'Faded Pink: 🎂',
+  'Bright Black (White Font):',
+  'Faded White: 🎓',
+  'Faded Grey: ✍️'
+].join('\n');
+const TASK_STATUS_COLUMN_START = 18; // Column R
+const TASK_STATUS_COLUMN_COUNT = 11; // Columns R-AB
+
+function isClientActiveFromTaskStatus_(row) {
+  var startIndex = TASK_STATUS_COLUMN_START - 1;
+  var endIndex = startIndex + TASK_STATUS_COLUMN_COUNT;
+  var taskValues = Array.isArray(row) ? row.slice(startIndex, endIndex) : [];
+  return taskValues.some(function (value) {
+    return String(value || '').trim().toLowerCase() === 'x';
+  });
+}
+
+function normalizeTaskBaseColor(name) {
+  var key = (name || '').toString().trim().toLowerCase().replace(/[^a-z]/g, '');
+  if (key === 'blackwhitefont') return 'black';
+  return key;
+}
+
+function getTaskStatusHeaders_(sheet) {
+  return sheet
+    .getRange(1, TASK_STATUS_COLUMN_START, 1, TASK_STATUS_COLUMN_COUNT)
+    .getDisplayValues()[0]
+    .map(function (label) { return String(label || '').trim(); });
+}
+
+function getTaskStatusHeaderMap_(sheet) {
+  var headers = getTaskStatusHeaders_(sheet);
+  var map = {};
+  headers.forEach(function (label, idx) {
+    var key = String(label || '').trim();
+    if (key) {
+      map[key] = TASK_STATUS_COLUMN_START + idx;
+    }
+  });
+  return map;
+}
+
+function applyTaskStatusHeadersToTemplate_(template, headers) {
+  return (template || []).map(function (t, idx) {
+    var label = (headers && headers[idx]) ? String(headers[idx]).trim() : '';
+    return { baseColor: t.baseColor, label: label };
+  });
+}
+
+function resolveTaskTypeLabel_(taskType) {
+  var label = (taskType && taskType.label) ? String(taskType.label).trim() : '';
+  return label;
+}
+
+function buildTaskTypesFromRow_(row, template, headerMap) {
+  return ensureTaskTypeDefaults(template).map(function (t) {
+    var label = t.label || '';
+    var lookupLabel = resolveTaskTypeLabel_(t);
+    var columnIndex = lookupLabel ? headerMap[lookupLabel] : null;
+    var cellValue = (columnIndex && row) ? row[columnIndex - 1] : '';
+    var isBright = String(cellValue || '').trim().toLowerCase() === 'x';
+    return {
+      baseColor: t.baseColor,
+      label: label,
+      brightness: isBright ? 'bright' : 'faded'
+    };
+  });
+}
+
+function getTaskStatusColumnForBaseColor_(template, headerMap, baseColor) {
+  var target = normalizeTaskBaseColor(baseColor);
+  var entry = ensureTaskTypeDefaults(template).find(function (t) {
+    return normalizeTaskBaseColor(t.baseColor) === target;
+  });
+  if (!entry) return null;
+  var label = resolveTaskTypeLabel_(entry);
+  return label ? headerMap[label] : null;
+}
+
+function stripBrightnessPrefix(colorText) {
+  var match = String(colorText || '').match(/^(Bright|Faded)\s+(.*)$/i);
+  if (match) {
+    return { baseColor: match[2].trim(), brightness: match[1].toLowerCase() === 'faded' ? 'faded' : 'bright' };
+  }
+  return { baseColor: String(colorText || '').trim(), brightness: 'bright' };
+}
+
+function ensureTaskTypeDefaults(taskTypes) {
+  var map = {};
+
+  var uniqueBaseColors = [];
+  var seenBaseKeys = {};
+  BASE_TASK_COLORS.forEach(function (color) {
+    var key = normalizeTaskBaseColor(color);
+    if (seenBaseKeys[key]) return;
+    seenBaseKeys[key] = true;
+    // Prevent duplicate entries when different labels normalize to the same base color (e.g., Black variants)
+    uniqueBaseColors.push({ color: color, key: key });
+  });
+
+  (taskTypes || []).forEach(function (t) {
+    var parsed = stripBrightnessPrefix(t.baseColor || t.color || '');
+    var key = normalizeTaskBaseColor(parsed.baseColor);
+    if (!key) return;
+    if (!seenBaseKeys[key]) return;
+    map[key] = {
+      baseColor: parsed.baseColor,
+      brightness: (t.brightness === 'faded') ? 'faded' : 'bright',
+      label: t.label || ''
+    };
+  });
+
+  var ordered = [];
+  uniqueBaseColors.forEach(function (entry) {
+    var key = entry.key;
+    if (map[key]) {
+      ordered.push(map[key]);
+    } else {
+      ordered.push({ baseColor: entry.color, brightness: 'bright', label: '' });
+    }
+  });
+
+  return ordered;
+}
+
+function parseTaskTypeCell(cellValue) {
+  var text = (cellValue == null || cellValue === '') ? DEFAULT_TASK_TYPE_TEXT : String(cellValue);
+  var lines = text.split(/\r?\n/);
+  var parsed = lines.map(function (line) {
+    var parts = line.split(':');
+    var colorPart = parts[0] || '';
+    var labelPart = parts.slice(1).join(':');
+    var parsedColor = stripBrightnessPrefix(colorPart);
+    return {
+      baseColor: parsedColor.baseColor,
+      brightness: parsedColor.brightness,
+      label: (labelPart || '').trim()
+    };
+  });
+  return ensureTaskTypeDefaults(parsed);
+}
+
+function formatTaskTypeCell(taskTypes) {
+  return ensureTaskTypeDefaults(taskTypes).map(function (t) {
+    var prefix = (t.brightness === 'faded') ? 'Faded' : 'Bright';
+    var label = t.label ? ' ' + t.label : '';
+    return prefix + ' ' + t.baseColor + ':' + label;
+  }).join('\n');
+}
+
+function getBrightLabelsFromTaskTypes(taskTypes) {
+  var labels = [];
+
+  (taskTypes || []).forEach(function (t) {
+    if (t.brightness !== 'bright') return;
+    var label = (t.label || '').toString().trim();
+
+    if (label) labels.push(label);
+  });
+
+  return labels;
+}
+
+function toTemplateOnly(taskTypes) {
+  return ensureTaskTypeDefaults(taskTypes).map(function (t) {
+    return { baseColor: t.baseColor, label: t.label || '' };
+  });
+}
+
+function mergeTemplateWithClientBrightness(template, clientTaskTypes) {
+  var brightnessMap = {};
+  (clientTaskTypes || []).forEach(function (t) {
+    brightnessMap[normalizeTaskBaseColor(t.baseColor)] = (t.brightness === 'faded') ? 'faded' : 'bright';
+  });
+
+  return ensureTaskTypeDefaults(template).map(function (t) {
+    var key = normalizeTaskBaseColor(t.baseColor);
+    return {
+      baseColor: t.baseColor,
+      label: t.label || '',
+      brightness: brightnessMap[key] || 'bright'
+    };
+  });
+}
+
+function getTaskTypeTemplateForSheet(sheet) {
+  var lastRow = sheet.getLastRow();
+  var values = sheet.getRange(1, 15, Math.max(lastRow, 1), 1).getValues();
+  var headers = getTaskStatusHeaders_(sheet);
+  for (var i = 0; i < values.length; i++) {
+    var raw = values[i][0];
+    if (raw !== '' && raw != null) {
+      return applyTaskStatusHeadersToTemplate_(toTemplateOnly(parseTaskTypeCell(raw)), headers);
+    }
+  }
+  return applyTaskStatusHeadersToTemplate_(toTemplateOnly(parseTaskTypeCell(DEFAULT_TASK_TYPE_TEXT)), headers);
+}
+
+function splitLabelText_(value) {
+  return String(value || '')
+    .split(/\s*•\s*|\r?\n|\s*,\s*/)
+    .map(function (part) { return String(part || '').trim(); })
+    .filter(Boolean);
+}
+
+function collectLabelEntries_(input, defaultIsBlue, out) {
+  if (!out) out = [];
+  if (input == null || input === '') return out;
+
+  if (Array.isArray(input)) {
+    input.forEach(function (item) {
+      collectLabelEntries_(item, defaultIsBlue, out);
+    });
+    return out;
+  }
+
+  if (input instanceof Date) {
+    out.push({ label: Utilities.formatDate(input, Session.getScriptTimeZone(), 'M/d/yyyy'), isBlue: !!defaultIsBlue });
+    return out;
+  }
+
+  var valueType = typeof input;
+  if (valueType === 'string' || valueType === 'number' || valueType === 'boolean') {
+    splitLabelText_(input).forEach(function (label) {
+      out.push({ label: label, isBlue: !!defaultIsBlue });
+    });
+    return out;
+  }
+
+  if (valueType === 'object') {
+    var entryBlue = (typeof input.isBlue === 'boolean') ? input.isBlue : defaultIsBlue;
+    if (input.label != null) {
+      collectLabelEntries_(input.label, entryBlue, out);
+      return out;
+    }
+
+    ['labels', 'values', 'items', 'data'].forEach(function (key) {
+      if (input[key] != null) {
+        collectLabelEntries_(input[key], entryBlue, out);
+      }
+    });
+  }
+
+  return out;
+}
+
+function normalizeLabelEntries_(input, defaultIsBlue) {
+  var seen = {};
+  var normalized = [];
+
+  collectLabelEntries_(input, defaultIsBlue, []).forEach(function (item) {
+    var labelText = String(item && item.label ? item.label : '').trim();
+    if (!labelText) return;
+
+    var key = labelText.toLowerCase();
+    if (!seen[key]) {
+      seen[key] = normalized.length;
+      normalized.push({ label: labelText, isBlue: !!(item && item.isBlue) });
+      return;
+    }
+
+    // Keep stable order; if either duplicate is blue, preserve blue styling.
+    if (item && item.isBlue) {
+      normalized[seen[key]].isBlue = true;
+    }
+  });
+
+  return normalized;
+}
+
+function normalizeGreenLabelStrings_(input) {
+  return normalizeLabelEntries_(input, false).map(function (entry) {
+    return entry.label;
+  });
+}
+
 
 
 ////////////////////////////////////////////////////////
@@ -89,6 +416,11 @@ function getClientDetails(clientName) {
   var columnB = "";
   var columnD = "";
   var columnLValue = "";
+  var tz = Session.getScriptTimeZone();
+  var sharedTaskTemplate = getTaskTypeTemplateForSheet(sheet);
+  var taskTypeTemplate = sharedTaskTemplate.length ? sharedTaskTemplate : toTemplateOnly(parseTaskTypeCell(DEFAULT_TASK_TYPE_TEXT));
+  var headerMap = getTaskStatusHeaderMap_(sheet);
+  var clientTaskTypes = [];
 
   // NEW: chip fields (P/Q)
   var chipInitials = ""; // Column P (index 15)
@@ -100,14 +432,15 @@ function getClientDetails(clientName) {
       thisClientName = thisClientName.replace(/\d+$/, '').trim();
       if (thisClientName.toLowerCase() === clientName.toLowerCase()) {
         var thisCategory = row[5] ? row[5].toString().trim() : "N/A";
-        var thisNoteDate = row[1] ? Utilities.formatDate(new Date(row[1]), Session.getScriptTimeZone(), "MM/dd/yy") : "N/A";
-        var thisFollowUpDate = row[3] ? Utilities.formatDate(new Date(row[3]), Session.getScriptTimeZone(), "MM/dd/yy") : "N/A";
+        var thisNoteDate = row[1] ? Utilities.formatDate(new Date(row[1]), tz, "MM/dd/yy") : "N/A";
+        var thisFollowUpDate = row[3] ? Utilities.formatDate(new Date(row[3]), tz, "MM/dd/yy") : "N/A";
         var thisNote = row[2] ? row[2].toString().trim() : "N/A";
         var thisFollowUp = row[4] ? row[4].toString().trim() : "N/A";
 
         columnB = row[1];
         columnD = row[3];
         columnLValue = row[11];
+        clientTaskTypes = buildTaskTypesFromRow_(row, taskTypeTemplate, headerMap);
 
         // Capture P/Q (may be blank)
         chipInitials = row[15] ? row[15].toString().trim() : "";
@@ -122,24 +455,33 @@ function getClientDetails(clientName) {
           category: thisCategory
         });
 
-        // Build labels once for the first matching row, regardless of whether G is empty
-if (clientLabels.length === 0) {
+        // Build labels once for the first matching row, regardless of whether G is empty.
+        if (clientLabels.length === 0) {
+          var mergedLabels = [];
 
-  // Column G (green, removable)
-  if (row[6] && String(row[6]).trim() !== '') {
-    var columnGLabels = String(row[6]).trim().split(' • ').map(function(s){ return s.trim(); }).filter(function(s){ return s.length; });
-    columnGLabels.forEach(function(label) {
-      clientLabels.push({ label: label, isBlue: false });
-    });
-  }
+          // Column G (green, removable) supports legacy delimiters and nested payloads.
+          mergedLabels = mergedLabels.concat(normalizeLabelEntries_(row[6], false));
 
-  // Columns H–K (blue, read-only)
-  for (var i = 7; i <= 10; i++) {
-    if (row[i] && String(row[i]).trim() !== '') {
-      clientLabels.push({ label: String(row[i]).trim(), isBlue: true });
-    }
-  }
-}
+          // Columns H–K (blue, read-only)
+          for (var i = 7; i <= 10; i++) {
+            mergedLabels = mergedLabels.concat(normalizeLabelEntries_(row[i], true));
+          }
+
+          // Column N (DOB, blue, read-only)
+          if (row[13] && String(row[13]).trim() !== '') {
+            var dobText = '';
+            if (row[13] instanceof Date) {
+              dobText = Utilities.formatDate(row[13], tz, 'M/d/yyyy');
+            } else {
+              dobText = String(row[13]).trim();
+            }
+            if (dobText) {
+              mergedLabels.push({ label: 'DOB: ' + dobText, isBlue: true });
+            }
+          }
+
+          clientLabels = normalizeLabelEntries_(mergedLabels, false);
+        }
 
       }
     }
@@ -168,6 +510,8 @@ if (clientLabels.length === 0) {
     columnB: columnB,
     columnD: columnD,
     columnL: columnLValue,
+    taskTypes: clientTaskTypes.length ? clientTaskTypes : buildTaskTypesFromRow_([], taskTypeTemplate, headerMap),
+    taskTypeTemplate: toTemplateOnly(taskTypeTemplate),
     chipInitials: chipInitials, // Column P
     chipDate: chipDate          // Column Q -> "MM/dd/yy" or ""
   };
@@ -358,23 +702,23 @@ function displayClientNotes(notes) {
 
 }
 function updateCategory(clientName, newCategory) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
-  var data = sheet.getDataRange().getValues();
-  var updated = false;
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0'); // Open the main dashboard sheet where category values live.
+  var data = sheet.getDataRange().getValues(); // Read all rows so we can update every matching client instance.
+  var updated = false; // Track whether we changed at least one category cell.
 
-  for (var i = 1; i < data.length; i++) {
-    var thisClientName = data[i][0];
-    if (thisClientName) {
-      thisClientName = thisClientName.replace(/\d+$/, '').trim(); // Remove numbers from the end
-      if (thisClientName.toLowerCase() === clientName.toLowerCase()) {
-        sheet.getRange(i + 1, 6).setValue(newCategory); // Update column F with the new category
-        updated = true;
+  for (var i = 1; i < data.length; i++) { // Skip header row and iterate each data row.
+    var thisClientName = data[i][0]; // Column A stores the client name.
+    if (thisClientName) { // Only process rows that have a client name.
+      thisClientName = thisClientName.replace(/\d+$/, '').trim(); // Normalize the stored name by removing trailing numeric suffixes.
+      if (thisClientName.toLowerCase() === clientName.toLowerCase()) { // Match the selected client regardless of letter case.
+        sheet.getRange(i + 1, 6).setValue(newCategory); // Write the new category into Column F for this matching row.
+        updated = true; // Mark that at least one category update happened.
         // break; // Exit loop after updating to avoid unnecessary iterations
       }
     }
   }
 
-  return updated;
+  return updated; // Return true/false so the UI knows whether category save succeeded.
 }
 
 // Add this in your script tag
@@ -570,6 +914,15 @@ function addAppointmentToCalendar(clientName, appointmentDate, appointmentTime) 
 function getTopClients() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
   var data = sheet.getDataRange().getValues();
+  var sharedTaskTemplate = getTaskTypeTemplateForSheet(sheet);
+  var taskTypeTemplate = sharedTaskTemplate.length ? sharedTaskTemplate : toTemplateOnly(parseTaskTypeCell(DEFAULT_TASK_TYPE_TEXT));
+  var headerMap = getTaskStatusHeaderMap_(sheet);
+  var headerRow = data[0] || [];
+  var topFilterStartIndex = 17; // Column R (0-based index)
+  var topFilterEndIndex = 28; // Column AB (end, exclusive)
+  var topFilterLabels = headerRow.slice(topFilterStartIndex, topFilterEndIndex).map(function (label) {
+    return label ? label.toString().trim() : '';
+  });
 
   var clientMap = {};
   var categorySortOrder = {
@@ -593,9 +946,20 @@ function getTopClients() {
     var columnD       = row[3];   // Day-of-week (Mon/Tues/etc) or a date
     var followUpNote  = row[4];   // Column E
     var category      = row[5];   // Column F
+    var columnGLabels = row[6] ? row[6].toString() : ""; // Column G (labels with emojis)
+    var birthdayRaw   = row[13];  // Column N (birthday)
     var columnLRaw    = row[11];  // Column L (In Progress)
+    var columnOTasks = buildTaskTypesFromRow_(row, taskTypeTemplate, headerMap);
     var chipInitials  = row[15] ? row[15].toString().trim() : ""; // Column P
     var chipDateRaw   = row[16];                                 // Column Q
+    var rowTopFilters = topFilterLabels.reduce(function (acc, label, idx) {
+      if (!label) return acc;
+      var cellValue = row[topFilterStartIndex + idx];
+      if (String(cellValue || '').trim().toLowerCase() === 'x') {
+        acc.push(label);
+      }
+      return acc;
+    }, []);
 
     // 🔒 Normalize Column L to a safe string (front-end filters on this!)
     var colL = (columnLRaw == null) ? '' : columnLRaw.toString();
@@ -610,6 +974,29 @@ function getTopClients() {
         chipDate = chipDateRaw.toString();
       }
     }
+
+    var birthdayDisplay = "";
+    var birthdayMonth = null;
+    var birthdayDay = null;
+    if (birthdayRaw) {
+      var bDate = (birthdayRaw instanceof Date) ? birthdayRaw : new Date(birthdayRaw);
+      if (!isNaN(bDate.getTime())) {
+        birthdayDisplay = Utilities.formatDate(bDate, tz, "M/d");
+        birthdayMonth = bDate.getMonth() + 1;
+        birthdayDay = bDate.getDate();
+      } else {
+        var parts = birthdayRaw.toString().split('/');
+        if (parts.length >= 2) {
+          birthdayMonth = parseInt(parts[0], 10);
+          birthdayDay = parseInt(parts[1], 10);
+          if (!isNaN(birthdayMonth) && !isNaN(birthdayDay)) {
+            birthdayDisplay = birthdayMonth + '/' + birthdayDay;
+          }
+        }
+      }
+    }
+
+    var birthdayActive = !!birthdayDisplay;
 
     var key = clientName + ':' + (category || ''); // combine name+category
 
@@ -627,8 +1014,19 @@ function getTopClients() {
         columnL: colL,
         columnLContent: colL,
 
+        taskTypes: columnOTasks,
+        topFilters: rowTopFilters.slice(),
+
+        labelsText: columnGLabels,
+        hasCakeLabel: columnGLabels.indexOf('🎂') !== -1,
+
         chipInitials: chipInitials,
-        chipDate: chipDate
+        chipDate: chipDate,
+
+        birthday: birthdayDisplay,
+        birthdayMonth: birthdayMonth,
+        birthdayDay: birthdayDay,
+        birthdayActive: birthdayActive
       };
       if (followUpNote) clientMap[key].followUps.push(followUpNote);
       if (pastWorkNote) clientMap[key].pastWorks.push(pastWorkNote);
@@ -649,6 +1047,22 @@ function getTopClients() {
       // Keep columnB/columnD if empty previously
       if (!clientMap[key].columnB && columnB) clientMap[key].columnB = columnB;
       if (!clientMap[key].columnD && columnD) clientMap[key].columnD = columnD;
+
+      // Preserve birthday details if missing; refresh display if we find one
+      if (!clientMap[key].birthday && birthdayDisplay) clientMap[key].birthday = birthdayDisplay;
+      if (!clientMap[key].birthdayMonth && birthdayMonth) clientMap[key].birthdayMonth = birthdayMonth;
+      if (!clientMap[key].birthdayDay && birthdayDay) clientMap[key].birthdayDay = birthdayDay;
+      if (birthdayActive) clientMap[key].birthdayActive = true;
+
+      if (!clientMap[key].labelsText && columnGLabels) clientMap[key].labelsText = columnGLabels;
+      if (columnGLabels && columnGLabels.indexOf('🎂') !== -1) clientMap[key].hasCakeLabel = true;
+      if (rowTopFilters.length) {
+        var existingFilters = clientMap[key].topFilters || [];
+        var nextFilters = existingFilters.concat(rowTopFilters).filter(function (item, idx, arr) {
+          return arr.indexOf(item) === idx;
+        });
+        clientMap[key].topFilters = nextFilters;
+      }
     }
   });
 
@@ -659,6 +1073,101 @@ function getTopClients() {
   return topClients;
 }
 
+
+function updateTaskTypeLabelForAll(baseColor, newLabel) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 1) return [];
+
+  var range = sheet.getRange(1, 15, lastRow, 1);
+  var values = range.getValues();
+  var normTarget = normalizeTaskBaseColor(baseColor);
+
+  var updated = values.map(function (row) {
+    var parsed = parseTaskTypeCell(row[0]);
+    var merged = ensureTaskTypeDefaults(parsed).map(function (t) {
+      if (normalizeTaskBaseColor(t.baseColor) === normTarget) {
+        return { baseColor: t.baseColor, brightness: t.brightness, label: newLabel || '' };
+      }
+      return t;
+    });
+    return [formatTaskTypeCell(merged)];
+  });
+
+  range.setValues(updated);
+  return toTemplateOnly(parseTaskTypeCell(updated[0][0]));
+}
+
+function setTaskTypeBrightnessForClient(clientName, baseColor, isBright) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
+  var data = sheet.getDataRange().getValues();
+  var normName = (clientName || '').toString().replace(/\d+$/, '').trim().toLowerCase();
+  var updatedTaskTypes = null;
+  var template = getTaskTypeTemplateForSheet(sheet);
+  var headerMap = getTaskStatusHeaderMap_(sheet);
+  var statusColumn = getTaskStatusColumnForBaseColor_(template, headerMap, baseColor);
+
+  if (!statusColumn) {
+    return {
+      taskTypes: buildTaskTypesFromRow_([], template, headerMap),
+      template: template
+    };
+  }
+
+  data.forEach(function (row, idx) {
+    if (idx === 0) return;
+    var candidate = (row[0] || '').toString().replace(/\d+$/, '').trim().toLowerCase();
+    if (candidate === normName && updatedTaskTypes === null) {
+      sheet.getRange(idx + 1, statusColumn).setValue(isBright ? 'x' : '');
+      row[statusColumn - 1] = isBright ? 'x' : '';
+      updatedTaskTypes = buildTaskTypesFromRow_(row, template, headerMap);
+    }
+  });
+
+  return {
+    taskTypes: updatedTaskTypes ? updatedTaskTypes : buildTaskTypesFromRow_([], template, headerMap),
+    template: template
+  };
+}
+
+function addTaskTypeColorForAll(baseColor, label) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
+  var template = getTaskTypeTemplateForSheet(sheet);
+  var normTarget = normalizeTaskBaseColor(baseColor);
+  var exists = (template || []).some(function (t) {
+    return normalizeTaskBaseColor(t.baseColor) === normTarget;
+  });
+
+  if (!exists) {
+    // Do not introduce new lines/colors—just return the existing template.
+    return toTemplateOnly(template);
+  }
+
+  return updateTaskTypeLabelForAll(baseColor, label || '');
+}
+
+function removeTaskTypeColorForAll(baseColor) {
+  var normTarget = normalizeTaskBaseColor(baseColor);
+  if (BASE_TASK_COLORS.map(normalizeTaskBaseColor).indexOf(normTarget) !== -1) {
+    return getTaskTypeTemplateForSheet(SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0'));
+  }
+
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 1) return [];
+
+  var range = sheet.getRange(1, 15, lastRow, 1);
+  var values = range.getValues();
+  var updated = values.map(function (row) {
+    var parsed = parseTaskTypeCell(row[0]).filter(function (t) {
+      return normalizeTaskBaseColor(t.baseColor) !== normTarget;
+    });
+    return [formatTaskTypeCell(parsed)];
+  });
+
+  range.setValues(updated);
+  return toTemplateOnly(parseTaskTypeCell(updated[0][0]));
+}
 
 
 
@@ -1089,10 +1598,10 @@ function getBirthdayClients() {
     var birthdays = {};
 
     data.forEach(function(row) {
-        var clientStatus = row[14]; // Column O for client status
+        var clientStatus = isClientActiveFromTaskStatus_(row); // Column R-AB task status replaces column O
         var birthdayStr = row[13]; // Column N for birthday string
         var clientName = row[0]; // Column A for client names
-        if (clientStatus === 'YES' && birthdayStr) {
+        if (clientStatus && birthdayStr) {
             var birthday = new Date(birthdayStr);
             var birthdayMonth = birthday.getMonth();
             if (isInRelevantMonth(birthdayMonth, currentMonth)) {
@@ -1286,40 +1795,55 @@ function getTomorrowsCalendarEvents() {
 
 
 function getAllLabels() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
-  var dataRange = sheet.getDataRange();
-  var data = dataRange.getValues();
-  var labelsSet = new Set();
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0'); // Open the sheet containing label data.
+  var dataRange = sheet.getDataRange(); // Grab the full used range.
+  var data = dataRange.getValues(); // Convert all rows to a 2D array.
+  var labelsSet = new Set(); // Use a Set so duplicate labels collapse automatically.
 
-  data.forEach(function(row) {
-    var labelsCell = row[6]; // Assuming labels are in column G
-    if (labelsCell) {
-      var labels = labelsCell.toString().split(' • ');
-      labels.forEach(label => labelsSet.add(label.trim()));
-    }
+  data.forEach(function(row, index) { // Scan every row to gather distinct labels.
+    if (index === 0) return; // Ignore header row.
+    normalizeGreenLabelStrings_(row[6]).forEach(function (label) { // Parse Column G labels (green/removable labels).
+      labelsSet.add(label); // Add each parsed label into the unique set.
+    });
   });
 
-  var labelsArray = Array.from(labelsSet);
-  labelsArray.sort(); // Sort labels alphabetically
-  return labelsArray;
+  var labelsArray = Array.from(labelsSet); // Convert unique labels back into an array for the client.
+  labelsArray.sort(); // Sort labels alphabetically for predictable dropdown order.
+  return labelsArray; // Return the sorted label options for the UI.
 }
 
 
 
 
 function addLabelToClient(clientName, label) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
-  var data = sheet.getDataRange().getValues();
-  var clientFound = false;
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0'); // Open target sheet where labels are stored.
+  var data = sheet.getDataRange().getValues(); // Read current sheet values for lookup and update.
+  var clientFound = false; // Track whether we found at least one matching client row.
+  var normalizedClientName = String(clientName || '').trim().toLowerCase(); // Normalize selected client name from UI.
+  var normalizedLabel = String(label || '').trim(); // Normalize requested label text.
 
-  for (var i = 0; i < data.length; i++) {
-    var thisClientName = data[i][0]; // Assuming client names are in column A
-    if (thisClientName && thisClientName.toString().toLowerCase() === clientName.toLowerCase()) {
-      clientFound = true;
-      var existingLabels = data[i][6] ? data[i][6].toString() : ''; // Column G for labels
-      var newLabels = existingLabels ? existingLabels + " • " + label : label;
-      sheet.getRange(i + 1, 7).setValue(newLabels); // Update the cell in column G
-      break;
+  if (!normalizedClientName) {
+    throw new Error('Client name is required');
+  }
+  if (!normalizedLabel) {
+    throw new Error('Label is required');
+  }
+
+  for (var i = 1; i < data.length; i++) { // Walk each data row to find the selected client.
+    var thisClientName = data[i][0]; // Client names are in Column A.
+    var normalizedRowClient = String(thisClientName || '').replace(/\d+$/, '').trim().toLowerCase(); // Normalize sheet value to same comparison format.
+    if (normalizedRowClient && normalizedRowClient === normalizedClientName) { // Match selected client case-insensitively.
+      clientFound = true; // Mark as found so we can throw proper error if never matched.
+      var labelList = normalizeGreenLabelStrings_(data[i][6]); // Parse existing green labels from Column G.
+      var hasMatch = labelList.some(function (existing) { // Check whether label already exists to prevent duplicates.
+        return existing.toLowerCase() === normalizedLabel.toLowerCase(); // Compare existing label and requested label case-insensitively.
+      });
+      if (!hasMatch) { // Only append when label is truly new.
+        labelList.push(normalizedLabel); // Add new label to this client's label list.
+      }
+      var newLabels = labelList.join(' • '); // Serialize labels back to the expected delimiter format.
+      sheet.getRange(i + 1, 7).setValue(newLabels); // Save updated labels into Column G.
+      return newLabels; // Return the saved label string for immediate UI refresh.
     }
   }
 
@@ -1329,15 +1853,24 @@ function addLabelToClient(clientName, label) {
 }
 
 function removeLabelFromClient(clientName, labelToRemove) {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
-    var data = sheet.getDataRange().getValues();
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0'); // Open the dashboard sheet where labels are stored.
+    var data = sheet.getDataRange().getValues(); // Read all rows so we can find the requested client.
+    var normalizedClientName = String(clientName || '').trim().toLowerCase(); // Normalize selected client name.
+    var normalizedLabelToRemove = String(labelToRemove || '').trim(); // Normalize the label requested for removal.
 
-    for (var i = 0; i < data.length; i++) {
-        if (data[i][0].trim().toLowerCase() === clientName.toLowerCase()) {
-            var currentLabels = data[i][6] ? data[i][6].toString().split(' • ') : [];
-            var updatedLabels = currentLabels.filter(label => label.trim() !== labelToRemove.trim());
-            sheet.getRange(i + 1, 7).setValue(updatedLabels.join(' • '));
-            break;
+    if (!normalizedClientName || !normalizedLabelToRemove) {
+      throw new Error('Client name and label are required');
+    }
+
+    for (var i = 1; i < data.length; i++) { // Iterate data rows to locate the selected client.
+        var rowClientName = String(data[i][0] || '').replace(/\d+$/, '').trim().toLowerCase(); // Normalize row client name for matching.
+        if (rowClientName === normalizedClientName) { // Stop at the first matching client row.
+            var currentLabels = normalizeGreenLabelStrings_(data[i][6]); // Parse current Column G labels.
+            var updatedLabels = currentLabels.filter(function(label) { // Keep all labels except the one to remove.
+              return String(label || '').trim().toLowerCase() !== normalizedLabelToRemove.toLowerCase(); // Case-insensitive remove comparison.
+            });
+            sheet.getRange(i + 1, 7).setValue(updatedLabels.join(' • ')); // Save remaining labels back to Column G.
+            break; // Exit once target client row is updated.
         }
     }
 }
@@ -1547,11 +2080,17 @@ function deriveNoteChanges_(oldText, newText) {
   var changes = [];
 
   for (var i = 0; i < max; i++) {
-    var oldNote = oldLines[i] ? oldLines[i].noteText : '';
-    var newNote = newLines[i] ? newLines[i].noteText : '';
+    var oldLine = oldLines[i] || {};
+    var newLine = newLines[i] || {};
+    var oldNote = oldLine.noteText || '';
+    var newNote = newLine.noteText || '';
     if (!oldNote || !newNote) continue;
     if (oldNote !== newNote) {
-      changes.push({ oldNote: oldNote, newNote: newNote });
+      changes.push({
+        oldNote: oldNote,
+        newNote: newNote,
+        dateText: oldLine.dateText || newLine.dateText || ''
+      });
     }
   }
   return changes;
@@ -1561,22 +2100,43 @@ function parsePastWorkLines_(text) {
   return String(text || '')
     .split('\n')
     .map(function(line) {
+      var match = String(line || '').match(/^\s*(\d{1,2}\/\d{1,2}\/\d{2,4})\s*:\s*/);
       return {
         raw: line,
-        noteText: line.replace(/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\s*:\s*/, '').trim()
+        dateText: match ? match[1] : '',
+        datePrefix: match ? match[0] : '',
+        noteText: String(line || '').replace(/^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\s*:\s*/, '').trim()
       };
     });
+}
+
+function parseDateTextToDate_(dateText) {
+  var cleaned = String(dateText || '').trim();
+  if (!cleaned) return null;
+  var parts = cleaned.split('/');
+  if (parts.length < 3) return null;
+  var month = parseInt(parts[0], 10);
+  var day = parseInt(parts[1], 10);
+  var year = parseInt(parts[2], 10);
+  if (year < 100) year += 2000;
+  if (!month || !day || !year) return null;
+  return new Date(year, month - 1, day);
 }
 
 function syncDashboardChangesToInbox_(clientName, changes) {
   var sh = ensureNotesInbox_();
   var last = sh.getLastRow();
-  if (last < 2) return changes.length === 0;
+  if (last < 2 && changes.length === 0) return true;
 
-  var data = sh.getRange(2, 1, last - 1, 2).getValues();
+  var data = last >= 2 ? sh.getRange(2, 1, last - 1, 2).getValues() : [];
   var target = normalizeClientName_(clientName);
   var pending = changes.map(function(c) {
-    return { old: String(c.oldNote || '').trim(), updated: String(c.newNote || '').trim(), matched: false };
+    return {
+      old: String(c.oldNote || '').trim(),
+      updated: String(c.newNote || '').trim(),
+      dateText: String(c.dateText || '').trim(),
+      matched: false
+    };
   });
 
   for (var i = 0; i < data.length; i++) {
@@ -1593,6 +2153,14 @@ function syncDashboardChangesToInbox_(clientName, changes) {
       }
     }
   }
+
+  pending.forEach(function(change) {
+    if (change.matched || !change.updated) return;
+    var stamp = parseDateTextToDate_(change.dateText) || new Date();
+    var nextRow = sh.getLastRow() + 1;
+    sh.getRange(nextRow, 1, 1, 3).setValues([[change.updated, clientName, stamp]]);
+    change.matched = true;
+  });
 
   return pending.every(function(p) { return p.matched; });
 }
@@ -1655,24 +2223,34 @@ function updateClientCategory(clientName, newCategory) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sh = ss.getSheetByName('DASHBOARD 8.0');
   const data = sh.getRange(2, 1, sh.getLastRow() - 1, 6).getValues(); // A..F
+  const targetName = normalizeClientNameForCategoryMatch_(clientName);
 
-  let foundRow = -1;
+  let updatedRows = 0;
   for (let i = 0; i < data.length; i++) {
-    const name = String(data[i][0] || '').trim();
-    if (name.toLowerCase() === String(clientName).trim().toLowerCase()) {
-      foundRow = i + 2; // sheet row (offset from header)
-      break;
+    const rawName = String(data[i][0] || '').trim();
+    if (!rawName) continue;
+
+    // Accept both exact and "legacy" row names that may include numeric suffixes.
+    const exactMatch = rawName.toLowerCase() === String(clientName).trim().toLowerCase();
+    const normalizedMatch = normalizeClientNameForCategoryMatch_(rawName) === targetName;
+    if (exactMatch || normalizedMatch) {
+      sh.getRange(i + 2, 6).setValue(newCategory); // Column F
+      updatedRows++;
     }
   }
 
-  if (foundRow === -1) {
+  if (updatedRows === 0) {
     throw new Error('Client not found: ' + clientName);
   }
 
-  // Write Column F
-  sh.getRange(foundRow, 6).setValue(newCategory);
+  return { ok: true, updatedRows: updatedRows, category: newCategory };
+}
 
-  return { ok: true, row: foundRow, category: newCategory };
+function normalizeClientNameForCategoryMatch_(name) {
+  return String(name || '')
+    .replace(/\d+$/, '') // Legacy entries sometimes append a numeric suffix.
+    .trim()
+    .toLowerCase();
 }
 
 
@@ -2304,24 +2882,6 @@ function findLineWithLargestDate(textArray) {
   return mostRecentLine;
 }
 
-/**
- * Ensure a time-based trigger exists to send the JB chip summary at 8 AM daily.
- */
-function ensureJbChipDailyTrigger() {
-  var handler = 'sendJbChipTasksEmail';
-  var hasTrigger = ScriptApp.getProjectTriggers().some(function(t) {
-    return t.getHandlerFunction() === handler;
-  });
-
-  if (!hasTrigger) {
-    ScriptApp.newTrigger(handler)
-      .timeBased()
-      .atHour(8)
-      .everyDays(1)
-      .create();
-  }
-}
-
 function parseDateFromLine_(line) {
   if (!line) return null;
   var match = String(line).match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/);
@@ -2353,42 +2913,117 @@ function formatDateTaskLine_(line, tz) {
   return remainder ? (formattedDate + ': ' + remainder) : formattedDate;
 }
 
-function extractHighlightedLines_(lines, tz) {
+// Limit JB/RB MMS payload size by capping highlighted notes per client and using MMS gateways.
+const MAX_JB_HIGHLIGHTS_PER_CLIENT = 3;
+// Automated JB chip texts should mirror the JB button summary and go to both 6370 and 5185.
+const JB_CHIP_RECIPIENTS = ['2817146370@vzwpix.com', '8326215185@vzwpix.com'];
+const JB_BUTTON_RECIPIENTS = ['8326215185@vzwpix.com'];
+const RB_CHIP_RECIPIENTS = ['8326215185@vzwpix.com'];
+
+function extractHighlightedLines_(lines, tz, cutoffDate, maxLines) {
   var withDates = [];
   var withoutDates = [];
+  var limit = (typeof maxLines === 'number' && maxLines > 0) ? Math.floor(maxLines) : null;
 
-  (lines || []).forEach(function(rawLine) {
-    var line = String(rawLine || '').trim();
-    if (!line) return;
+  (lines || []).forEach(function(item) {
+    var isHighlighted = true;
+    var text = '';
 
-    var dt = parseDateFromLine_(line);
-    if (dt) {
-      withDates.push({ date: dt, text: formatDateTaskLine_(line, tz) });
+    if (typeof item === 'object' && item !== null) {
+      isHighlighted = !!item.highlighted;
+      text = String(item.text || '').trim();
     } else {
-      withoutDates.push({ text: line });
+      text = String(item || '').trim();
     }
+
+    if (!isHighlighted || !text) return;
+
+    var dt = parseDateFromLine_(text);
+    if (dt && (!cutoffDate || dt.getTime() <= cutoffDate.getTime())) {
+      withDates.push({ date: dt, formatted: formatDateTaskLine_(text, tz) });
+      return;
+    }
+
+    withoutDates.push({ date: null, formatted: text });
   });
 
-  withDates.sort(function(a, b) { return a.date - b.date; });
-  var ordered = withDates.map(function(item) { return item.text; })
-    .concat(withoutDates.map(function(item) { return item.text; }));
+  // Sort with dates descending (latest first).
+  withDates.sort(function(a, b) { return b.date - a.date; });
 
-  var start = Math.max(0, ordered.length - 3);
-  return ordered.slice(start);
+  var combined = [];
+  if (limit !== null) {
+    var datedPortion = withDates.slice(0, limit);
+    var remainingSlots = limit - datedPortion.length;
+    var undatedPortion = remainingSlots > 0 ? withoutDates.slice(0, remainingSlots) : [];
+    combined = datedPortion.concat(undatedPortion);
+  } else {
+    combined = withDates.concat(withoutDates);
+  }
+
+  return combined;
 }
 
-function collectJbChipClients_(targetDate) {
+function normalizeChipDate_(value) {
+  if (!value) return null;
+
+  var parsed = parseDateFromLine_(String(value));
+  var date = parsed || (value instanceof Date && !isNaN(value.getTime()) ? new Date(value) : null);
+  if (!date) return null;
+
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function isHighlightedCell_(bg) {
+  if (!bg) return false;
+  var c = String(bg).toLowerCase();
+  return c !== '#ffffff' && c !== '#fff' && c !== 'white';
+}
+
+function collectEmojiListFromRow_(rowDisplay, headers) {
+  var startIndex = TASK_STATUS_COLUMN_START - 1; // Column R -> index 17
+  var endIndex = startIndex + TASK_STATUS_COLUMN_COUNT; // Through column AB
+  var values = Array.isArray(rowDisplay) ? rowDisplay.slice(startIndex, endIndex) : [];
+  var headerValues = Array.isArray(headers) ? headers : [];
+  return values
+    .map(function(value, idx) {
+      var cellValue = String(value || '').trim();
+      if (!cellValue) return '';
+      if (cellValue.toLowerCase() === 'x') {
+        return String(headerValues[idx] || '').trim();
+      }
+      return cellValue;
+    })
+    .filter(function(value) { return value !== ''; });
+}
+
+function collectChipClients_(initials, targetDate, maxHighlights) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
   if (!sheet) {
     return { dateString: '', clients: [] };
   }
 
-  var data = sheet.getDataRange().getValues();
+  var owner = (initials || '').toString().trim().toUpperCase();
+  if (!owner) {
+    return { dateString: '', clients: [] };
+  }
+
+  var dataRange = sheet.getDataRange();
+  var data = dataRange.getValues();
+  var displayValues = dataRange.getDisplayValues();
+  var backgrounds = dataRange.getBackgrounds();
   var tz = Session.getScriptTimeZone();
+  var sharedTaskTemplate = getTaskTypeTemplateForSheet(sheet);
+  var taskTypeTemplate = sharedTaskTemplate.length ? sharedTaskTemplate : toTemplateOnly(parseTaskTypeCell(DEFAULT_TASK_TYPE_TEXT));
+  var headerMap = getTaskStatusHeaderMap_(sheet);
   var targetDay = new Date(targetDate);
+  var taskStatusHeaders = getTaskStatusHeaders_(sheet);
   targetDay.setHours(0, 0, 0, 0);
   var targetStr = Utilities.formatDate(targetDay, tz, "MM/dd/yy");
   var clients = {};
+  var maxHighlightCount = (typeof maxHighlights === 'number' && maxHighlights > 0)
+    ? Math.floor(maxHighlights)
+    : MAX_JB_HIGHLIGHTS_PER_CLIENT;
 
   data.forEach(function(row, idx) {
     if (idx === 0) return; // header
@@ -2396,95 +3031,231 @@ function collectJbChipClients_(targetDate) {
     var rawName = row[0];
     if (!rawName) return;
 
-    var initials = row[15] ? row[15].toString().trim().toUpperCase() : '';
-    var chipDateRaw = row[16];
-    var chipDateStr = '';
-    var chipDate = null;
-    if (chipDateRaw) {
-      chipDate = (chipDateRaw instanceof Date) ? new Date(chipDateRaw) : new Date(chipDateRaw);
-      if (!isNaN(chipDate.getTime())) {
-        chipDate.setHours(0, 0, 0, 0);
-        chipDateStr = Utilities.formatDate(chipDate, tz, "MM/dd/yy");
-      } else {
-        chipDate = null;
-        chipDateStr = chipDateRaw.toString();
-      }
-    }
+    var initialsCell = row[15] ? row[15].toString().trim().toUpperCase() : '';
+    var chipDate = normalizeChipDate_(row[16]);
+    var category = row[5] ? String(row[5]).trim() : '';
 
-    if (initials !== 'JB' || !chipDate || chipDate.getTime() > targetDay.getTime()) {
+    if (initialsCell !== owner || !chipDate || chipDate.getTime() > targetDay.getTime()) {
       return;
     }
 
     var name = rawName.toString().replace(/\d+$/, '').trim();
+    var rowDisplay = displayValues[idx] || [];
+    var rowEmojis = collectEmojiListFromRow_(rowDisplay, taskStatusHeaders);
+
     if (!clients[name]) {
-      clients[name] = { name: name, pastWorks: [] };
+      var rowTaskTypes = buildTaskTypesFromRow_(row, taskTypeTemplate, headerMap);
+      clients[name] = {
+        name: name,
+        category: category,
+        firstChipDate: chipDate,
+        firstRowIndex: idx,
+        pastWorks: [],
+        taskTypes: rowTaskTypes,
+        emojis: rowEmojis
+      };
+    } else if (!clients[name].category && category) {
+      clients[name].category = category;
+    }
+    if (chipDate) {
+      var entryDate = clients[name].firstChipDate;
+      if (!entryDate || chipDate.getTime() < entryDate.getTime()) {
+        clients[name].firstChipDate = chipDate;
+        clients[name].firstRowIndex = idx;
+      } else if (chipDate.getTime() === entryDate.getTime() && idx < clients[name].firstRowIndex) {
+        clients[name].firstRowIndex = idx;
+      }
     }
 
+    if (!clients[name].taskTypes || clients[name].taskTypes.length === 0) {
+      clients[name].taskTypes = buildTaskTypesFromRow_(row, taskTypeTemplate, headerMap);
+    }
+
+    if (rowEmojis.length) {
+      clients[name].emojis = (clients[name].emojis || []).concat(rowEmojis);
+    }
+
+    var noteBg = backgrounds[idx][2];
     var pastNote = row[2];
     if (pastNote) {
       String(pastNote).split('\n').forEach(function(line) {
         var t = line.trim();
         if (t) {
-          clients[name].pastWorks.push(t);
+          clients[name].pastWorks.push({ text: t, highlighted: isHighlightedCell_(noteBg) });
         }
       });
     }
   });
 
   var sortedNames = Object.keys(clients).sort(function(a, b) {
+    var aEntry = clients[a];
+    var bEntry = clients[b];
+    var aDate = aEntry.firstChipDate;
+    var bDate = bEntry.firstChipDate;
+    if (aDate && bDate) {
+      if (aDate.getTime() !== bDate.getTime()) {
+        return aDate.getTime() - bDate.getTime();
+      }
+    } else if (aDate && !bDate) {
+      return -1;
+    } else if (!aDate && bDate) {
+      return 1;
+    }
+    if (aEntry.firstRowIndex !== bEntry.firstRowIndex) {
+      return aEntry.firstRowIndex - bEntry.firstRowIndex;
+    }
     return a.localeCompare(b);
   });
 
   var resultClients = sortedNames.map(function(name) {
     var entry = clients[name];
+    var emojiSet = {};
+    (entry.emojis || []).forEach(function(emoji) {
+      emojiSet[emoji] = true;
+    });
     return {
       name: entry.name,
-      highlights: extractHighlightedLines_(entry.pastWorks, tz)
+      category: entry.category,
+      chipDate: entry.firstChipDate,
+      taskTypes: entry.taskTypes || [],
+      emojis: Object.keys(emojiSet),
+      highlights: extractHighlightedLines_(entry.pastWorks, tz, targetDay, maxHighlightCount)
     };
   });
 
   return { dateString: targetStr, clients: resultClients };
 }
 
+function collectJbChipClients_(targetDate) {
+  return collectChipClients_('JB', targetDate, MAX_JB_HIGHLIGHTS_PER_CLIENT);
+}
 
-function sendJbChipTasksEmail() {
-  var summary = collectJbChipClients_(new Date());
-  var lines = [];
+function collectRbChipClients_(targetDate) {
+  return collectChipClients_('RB', targetDate, MAX_JB_HIGHLIGHTS_PER_CLIENT);
+}
 
-  // Blank line at the very top of the body (creates visual gap after subject)
-  lines.push('');
-
+function buildChipSummaryLines_(summary) {
   if (!summary.clients.length) {
-    lines.push('No clients matched the JB chip for ' + (summary.dateString || 'today') + '.');
-  } else {
-    summary.clients.forEach(function(client) {
-      // Client name
-      lines.push(client.name);
+    return ['No clients for today!'];
+  }
 
-      // Blank line between client name and tasks
-      lines.push('');
+  return summary.clients.map(function(client) {
+    var categoryLabel = client.category ? (' (' + client.category + ')') : '';
+    var emojis = (client.emojis || []).filter(Boolean);
+    var emojiText = emojis.length ? (' ' + emojis.join(' ')) : '';
+    return client.name + categoryLabel + emojiText;
+  });
+}
 
-      // Indented tasks (5 spaces)
-      if (client.highlights.length === 0) {
-        lines.push('     No highlighted tasks available');
-      } else {
-        client.highlights.forEach(function(line) {
-          lines.push('     ' + line);
-        });
+function selectJbOverdueClients_(clients, referenceDate) {
+  var list = Array.isArray(clients) ? clients : [];
+  if (list.length <= 4) {
+    return list;
+  }
+
+  var ref = new Date(referenceDate || new Date());
+  ref.setHours(0, 0, 0, 0);
+
+  var withDates = list
+    .map(function(client, idx) {
+      var chipDate = client && client.chipDate instanceof Date ? new Date(client.chipDate) : null;
+      if (!chipDate || isNaN(chipDate.getTime())) return null;
+      chipDate.setHours(0, 0, 0, 0);
+      return { idx: idx, diff: Math.abs(ref.getTime() - chipDate.getTime()) };
+    })
+    .filter(function(entry) { return !!entry; });
+
+  if (withDates.length >= 2) {
+    withDates.sort(function(a, b) {
+      if (a.diff !== b.diff) return a.diff - b.diff;
+      return a.idx - b.idx;
+    });
+
+    var selected = {};
+    withDates.slice(0, 2).forEach(function(entry) {
+      selected[entry.idx] = true;
+    });
+    withDates.slice(-2).forEach(function(entry) {
+      selected[entry.idx] = true;
+    });
+
+    var picked = list.filter(function(client, idx) {
+      return selected[idx];
+    });
+
+    if (picked.length) {
+      if (picked.length >= 4) {
+        return picked;
       }
 
-      // Blank line between clients
-      lines.push('');
-    });
+      var filled = picked.slice();
+      list.forEach(function(client, idx) {
+        if (filled.length >= 4) return;
+        if (!selected[idx]) {
+          selected[idx] = true;
+          filled.push(client);
+        }
+      });
+      return filled;
+    }
+  }
+
+  // Fallback: keep the 2 oldest and 2 most recent in the current order.
+  var fallback = {};
+  fallback[0] = true;
+  fallback[1] = true;
+  fallback[list.length - 2] = true;
+  fallback[list.length - 1] = true;
+  return list.filter(function(client, idx) { return fallback[idx]; });
+}
+
+function sendChipTasksEmail_(ownerLabel, recipients) {
+  // If an old "CLIENT TASKS" subject appears, check for other deployments/copies still running legacy code.
+  var summary = collectChipClients_(ownerLabel, new Date(), MAX_JB_HIGHLIGHTS_PER_CLIENT);
+  if (ownerLabel === 'JB') {
+    summary.clients = selectJbOverdueClients_(summary.clients, new Date());
+  }
+  var lines = buildChipSummaryLines_(summary);
+
+  // Add a timestamp footer so carrier gateways don't de-duplicate identical bodies.
+  var sentAt = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'MM/dd/yyyy HH:mm:ss');
+  var bodyLines = lines.concat(['', 'Sent at: ' + sentAt]);
+  var sanitizedBody = sanitizeDigestTaskPrefixes_(bodyLines.join('\n'));
+  var recipientList = Array.isArray(recipients) ? recipients.filter(Boolean) : [];
+  if (!recipientList.length) {
+    throw new Error('No recipients configured for ' + ownerLabel + ' chip summary');
   }
 
   MailApp.sendEmail({
-    to: '8326215185@vtext.com',
-    subject: 'JB DASHBOARD TASKS THROUGH ' + (summary.dateString || 'today') + ':',
-    body: lines.join('\n')
+    to: recipientList.join(','),
+    subject: ownerLabel + ' DASHBOARD TOP CLIENTS FOR TODAY (' + (summary.dateString || 'today') + '):',
+    body: sanitizedBody
   });
 
-  ensureJbChipDailyTrigger();
+  return summary;
+}
+
+function sendJbChipTasksEmail() {
+  return sendChipTasksEmail_('JB', JB_CHIP_RECIPIENTS);
+}
+
+function sendJbChipTasksEmailToButton() {
+  return sendChipTasksEmail_('JB', JB_BUTTON_RECIPIENTS);
+}
+
+function sendRbChipTasksEmail() {
+  return sendChipTasksEmail_('RB', RB_CHIP_RECIPIENTS);
+}
+
+function sanitizeDigestTaskPrefixes_(body) {
+  if (!body) return body;
+
+  return String(body)
+    .split(/\n/)
+    .map(function(line) {
+      return line.replace(/^(\s*)(?:3RD LATEST: |2ND LATEST: |LATEST: )/, '$1');
+    })
+    .join('\n');
 }
 
 
@@ -2689,21 +3460,21 @@ function levenshteinDistance(a, b) {
 
 /**
  * Updates Columns P (initials) and Q (date) for the LAST occurrence row of a client.
- * initials must be one of: RB, JB, QC.
+ * initials must be one of: RB, JB, MB, QC.
  * dateInput can be "YYYY-MM-DD" (from <input type="date">) or "MM/DD/YY" or a Date.
  */
 /**
  * Updates Columns P (initials) and Q (date) for the LAST occurrence row of a client.
- * initials must be one of: RB, JB, QC, or blank.
+ * initials must be one of: RB, JB, MB, QC, or blank.
  * dateInput can be "YYYY-MM-DD" (from <input type="date">), "MM/DD/YY(YY)", a Date, or blank.
  */
 function updateClientChip(clientName, initials, dateInput) {
   var allowed = Object.create(null);
-  ['RB','JB','TEAM','QC','BDAY',''].forEach(function(k){ allowed[k] = true; });
+  ['RB','JB','MB','TEAM','QC','BDAY',''].forEach(function(k){ allowed[k] = true; });
 
   var initialsTrim = (initials || '').toUpperCase().trim();
   if (!allowed[initialsTrim]) {
-    throw new Error('Initials must be RB, JB, TEAM, QC, BDAY, or blank.');
+    throw new Error('Initials must be RB, JB, MB, TEAM, QC, BDAY, or blank.');
   }
 
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
@@ -3051,10 +3822,16 @@ function syncInboxNoteToDashboard_(clientName, oldNote, newNote, timestamp) {
     const pastWork = data[i][2];
     const lines = String(pastWork || '').split('\n');
     const idx = findNoteLineIndex_(lines, oldNote, dateStr);
-    if (idx === -1) continue;
+    if (idx !== -1) {
+      const prefix = extractDatePrefix_(lines[idx]);
+      lines[idx] = (prefix ? prefix : '') + newNote;
+      sheet.getRange(i + 1, 3).setValue(lines.join('\n'));
+      return true;
+    }
 
-    const prefix = extractDatePrefix_(lines[idx]);
-    lines[idx] = (prefix ? prefix : '') + newNote;
+    var prefix = dateStr ? (dateStr + ': ') : '';
+    var appended = prefix + newNote;
+    lines.push(appended);
     sheet.getRange(i + 1, 3).setValue(lines.join('\n'));
     return true;
   }
