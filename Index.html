@@ -1,4 +1,4 @@
-<!-- Version 1.0.70 | 55233ee -->
+<!-- Version 1.0.71 | 88ea85b -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -6493,7 +6493,7 @@ document.getElementById('scrollBottomBtn').style.display = 'inline-block';
     updateCategoryLabel(); // Initialize the category label
     runWhenIdle(displayTable); // Call displayTable here instead of using window.onload
     runWhenIdle(function() {
-      fetchAndPopulateCategoryOptions(__currentCategory || '');
+      initializeClientCategoryAndLabels({ category: __currentCategory || '', labels: [] });
     });
 
 
@@ -7552,13 +7552,7 @@ document.getElementById('notesDisplay').style.display = 'block';
 
             setTaskTypesForClient(clientName, data.taskTypes, data.taskTypeTemplate);
 
-            // Update the category select value based on fetched client data
-            updateCategorySelectValue(data.category);
-            setCategoryPlaceholderText(data.category || __currentCategory || '');
-            positionCategoryDropdownOverAutocomplete();
-            // Kick category options refresh immediately for this selected client
-            // so the dropdown is populated without needing a manual refresh.
-            fetchAndPopulateCategoryOptions(data.category || __currentCategory || '');
+            initializeClientCategoryAndLabels(data);
         } catch (err) {
             console.error('displayClientDetails pipeline failed', err);
             showToast('Unable to load client');
@@ -7877,7 +7871,7 @@ function displayClientDetails(data) {
     if (data.notes) {
         displayNotes(data.notes);
     }
-displayLabels(Array.isArray(data.labels) ? data.labels : []);
+renderClientLabels(data ? data.labels : []);
 
 // SNIPPET #4: Ensure the loaded "In Progress:" is set from data.columnL
 // Seed the In Progress textarea and remember the last-saved value
@@ -7927,78 +7921,55 @@ loadedInProgressArea.setAttribute('data-last-saved', seed);
     e.stopPropagation();
   }, true);
 });
-// === Paste this as the LAST line inside your "client notes are ready" function ===
-loadCategoriesForClientAfterNotes();
-
-
 }
 
 
 
 
-function labelContainsEmoji(labelText) {
-    if (!labelText) return false;
-    return /[\p{Extended_Pictographic}]/u.test(labelText);
-}
+function normalizeClientLabelsForRender(input) {
+    var flattened = [];
 
-function splitLabelParts(value) {
-    return String(value || '')
-      .split(/\s*•\s*|\r?\n|\s*,\s*/)
-      .map(function(part) { return String(part || '').trim(); })
-      .filter(Boolean);
-}
+    function visit(value, inheritedBlue) {
+      if (value == null || value === '') return;
 
-function collectNormalizedLabels(input, defaultIsBlue, out) {
-    if (!out) out = [];
-    if (input == null || input === '') return out;
+      if (Array.isArray(value)) {
+        value.forEach(function(item) { visit(item, inheritedBlue); });
+        return;
+      }
 
-    if (Array.isArray(input)) {
-      input.forEach(function(item) { collectNormalizedLabels(item, defaultIsBlue, out); });
-      return out;
+      if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        String(value)
+          .split(/\s*•\s*|\r?\n|\s*,\s*/)
+          .map(function(part) { return String(part || '').trim(); })
+          .filter(Boolean)
+          .forEach(function(part) {
+            flattened.push({ label: part, isBlue: !!inheritedBlue });
+          });
+        return;
+      }
+
+      if (typeof value === 'object') {
+        var resolvedBlue = (typeof value.isBlue === 'boolean') ? value.isBlue : inheritedBlue;
+        if (value.label != null) visit(value.label, resolvedBlue);
+        ['labels', 'values', 'items', 'data', 'payload', 'result', 'results', 'children'].forEach(function(key) {
+          if (value[key] != null) visit(value[key], resolvedBlue);
+        });
+      }
     }
 
-    if (typeof input === 'string' || typeof input === 'number' || typeof input === 'boolean') {
-      splitLabelParts(input).forEach(function(label) {
-        out.push({ label: label, isBlue: !!defaultIsBlue });
-      });
-      return out;
-    }
+    visit(input, false);
 
-    if (typeof input === 'object') {
-      var resolvedBlue = (typeof input.isBlue === 'boolean') ? input.isBlue : defaultIsBlue;
-      if (input.value != null) {
-        collectNormalizedLabels(input.value, resolvedBlue, out);
-      }
-      if (input.text != null) {
-        collectNormalizedLabels(input.text, resolvedBlue, out);
-      }
-      if (input.name != null) {
-        collectNormalizedLabels(input.name, resolvedBlue, out);
-      }
-      if (input.label != null) {
-        collectNormalizedLabels(input.label, resolvedBlue, out);
-      }
-      ['labels', 'values', 'items', 'data', 'payload', 'result', 'results', 'children'].forEach(function(key) {
-        if (input[key] != null) collectNormalizedLabels(input[key], resolvedBlue, out);
-      });
-    }
-
-    return out;
-}
-
-function normalizeLabelPayload(input) {
     var seen = {};
     var ordered = [];
+    flattened.forEach(function(entry) {
+      var text = String(entry && entry.label ? entry.label : '').trim();
+      if (!text) return;
 
-    collectNormalizedLabels(input, false, []).forEach(function(entry) {
-      var labelText = String(entry && entry.label ? entry.label : '').trim();
-      if (!labelText) return;
-
-      var key = labelText.toLowerCase();
+      var key = text.toLowerCase();
       if (seen[key] == null) {
         seen[key] = ordered.length;
-        ordered.push({ label: labelText, isBlue: !!(entry && entry.isBlue) });
-      } else if (entry && entry.isBlue) {
+        ordered.push({ label: text, isBlue: !!entry.isBlue });
+      } else if (entry.isBlue) {
         ordered[seen[key]].isBlue = true;
       }
     });
@@ -8006,59 +7977,47 @@ function normalizeLabelPayload(input) {
     return ordered;
 }
 
-
-
-function displayLabels(labelsArray) {
+function renderClientLabels(labels) {
     var labelsDisplay = document.getElementById('labelsDisplay');
     if (!labelsDisplay) return;
 
+    labelsDisplay.innerHTML = '';
+
     var addLabelDropdown = document.getElementById('labelsDropdown');
     if (addLabelDropdown) {
-        addLabelDropdown.classList.add('label-box', 'add-label-dropdown');
-        addLabelDropdown.selectedIndex = 0; // Keep placeholder visible after refresh
+      addLabelDropdown.classList.add('label-box', 'add-label-dropdown');
+      addLabelDropdown.selectedIndex = 0;
     }
 
-    labelsDisplay.innerHTML = '';
-    
-    var emojiLabels = [];
-    var nonEmojiLabels = [];
-
-    normalizeLabelPayload(labelsArray).forEach(function(normalized) {
-        if (labelContainsEmoji(normalized.label)) {
-            emojiLabels.push(normalized);
-        } else {
-            nonEmojiLabels.push(normalized);
-        }
-    });
-
-    var orderedLabels = emojiLabels.concat(nonEmojiLabels);
-
-    orderedLabels.forEach(function(labelObj) {
-        try {
-            var labelDiv = document.createElement('div');
-            labelDiv.className = 'label-box';
-            labelDiv.textContent = labelObj.label;
-            labelDiv.style.cursor = 'default';
-
-            // Keep legacy blue/green chip behavior.
-            if (labelObj.isBlue) {
-                labelDiv.style.backgroundColor = 'lightblue';
-                labelDiv.style.color = 'black';
-            } else {
-                labelDiv.style.backgroundColor = 'lightgreen';
-            }
-
-            labelsDisplay.appendChild(labelDiv);
-        } catch (err) {
-            console.error('Skipping malformed label:', err, labelObj);
-        }
+    normalizeClientLabelsForRender(labels).forEach(function(labelObj) {
+      var chip = document.createElement('div');
+      chip.className = 'label-box';
+      chip.textContent = labelObj.label;
+      chip.style.cursor = 'default';
+      chip.style.backgroundColor = labelObj.isBlue ? 'lightblue' : 'lightgreen';
+      chip.style.color = 'black';
+      labelsDisplay.appendChild(chip);
     });
 }
 
+function initializeClientCategoryAndLabels(clientData) {
+  var selectedCategory = String((clientData && clientData.category) || __currentCategory || '').trim();
+  updateCategorySelectValue(selectedCategory);
+  setCategoryPlaceholderText(selectedCategory || '');
+  positionCategoryDropdownOverAutocomplete();
 
+  renderClientLabels(clientData ? clientData.labels : []);
 
-
-
+  google.script.run
+    .withSuccessHandler(function(categories) {
+      populateGlobalCategoryDropdown(categories, selectedCategory);
+    })
+    .withFailureHandler(function(err) {
+      console.error('Failed to load global categories:', err);
+      populateGlobalCategoryDropdown([], selectedCategory);
+    })
+    .getGlobalCategories_();
+}
 
 function confirmAndRemoveLabel(label) {
     var clientName = document.getElementById('clientSelect').value;
@@ -8098,7 +8057,7 @@ function confirmNewCategory() {
   updateCategorySelectValue(name);
 
   requestCategoryChange(name, function () {
-    fetchAndPopulateCategoryOptions(name);
+    initializeClientCategoryAndLabels({ category: name, labels: [] });
 
     google.script.run
       .withSuccessHandler(function(data){
@@ -8144,19 +8103,13 @@ function updateCategory() {
 
 
 function loadCategoriesForClientAfterNotes() {
-  // Ensure the select exists (it's okay if the section is hidden at first)
   var sel = document.getElementById('categorySelect');
   if (!sel) {
     console.warn('loadCategoriesForClientAfterNotes: #categorySelect not found in DOM yet.');
     return;
   }
 
-  if (!(window.google && google.script && google.script.run)) {
-    console.error('google.script.run is not available yet.');
-    return;
-  }
-
-  fetchAndPopulateCategoryOptions(__currentCategory || '');
+  initializeClientCategoryAndLabels({ category: __currentCategory || '', labels: [] });
 }
 
 
@@ -10986,88 +10939,63 @@ function displayTodayNotes(notes) {
 
 
 // REPLACEMENT: populateCategoryDropdown — fills #categorySelect with robust fallbacks.
-function populateCategoryDropdown(categories, selectedValue) {
-  var sel = document.getElementById('categorySelect'); // Find the category dropdown in the page.
-  if (!sel) return; // Abort if category control is not mounted yet.
+function populateGlobalCategoryDropdown(categories, selectedCategory) {
+  var sel = document.getElementById('categorySelect');
+  if (!sel) return;
 
-  var selected = String(selectedValue || sel.value || __currentCategory || '').trim(); // Determine desired selected category value.
-  var current = String(__currentCategory || '').trim(); // Capture current in-memory category value.
-  var normalized = normalizeCategoryList(categories); // Normalize and dedupe incoming category list.
+  var normalized = normalizeCategoryList(categories);
+  var selected = String(selectedCategory || __currentCategory || '').trim();
 
-  if (!normalized.length) { // Use fallback sources if backend sent an empty category list.
-    var fromClients = getCategoriesFromClientsData(); // Pull categories from already-loaded client data.
-    normalized = fromClients.length ? fromClients : normalizeCategoryList(__categoryOptionsCache); // Fall back to cached category options if needed.
+  if (selected && !normalized.some(function(cat) { return cat.toLowerCase() === selected.toLowerCase(); })) {
+    normalized.push(selected);
+    normalized = normalizeCategoryList(normalized);
   }
 
-  [selected, current].forEach(function (forced) { // Force currently selected/current category into options if missing.
-    if (!forced) return; // Skip blank forced values.
-    if (!normalized.some(function (cat) { return cat.toLowerCase() === forced.toLowerCase(); })) { // Check whether forced value already exists.
-      normalized.push(forced); // Inject missing forced value so UI can still show it.
-    }
+  sel.innerHTML = '';
+
+  var placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = selected || 'Select category';
+  sel.appendChild(placeholder);
+
+  normalized.forEach(function(cat) {
+    var opt = document.createElement('option');
+    opt.value = cat;
+    opt.textContent = cat;
+    sel.appendChild(opt);
   });
 
-  normalized = normalizeCategoryList(normalized); // Re-normalize after forced inserts.
-  console.log('populateCategoryDropdown preparing options', {
-    selected: selected,
-    current: current,
-    normalizedCount: normalized.length,
-    normalized: normalized
-  });
-  sel.innerHTML = ''; // Clear existing category options before rebuild.
+  var newOption = document.createElement('option');
+  newOption.value = '__NEW_CATEGORY__';
+  newOption.textContent = 'New Category';
+  sel.appendChild(newOption);
 
-  var ph = document.createElement('option'); // Create placeholder option.
-  ph.value = ''; // Placeholder uses empty value.
-  ph.textContent = current || selected || 'Select category'; // Show best-known category hint text.
-  sel.appendChild(ph); // Add placeholder first.
-
-  normalized.forEach(function (cat) { // Add normalized category values to dropdown.
-    var opt = document.createElement('option'); // Create option element for one category.
-    opt.value = cat; // Set option value to category text.
-    opt.textContent = cat; // Render category text in option label.
-    sel.appendChild(opt); // Append category option to dropdown.
-  });
-
-  var newOpt = document.createElement('option'); // Create special option for creating a new category.
-  newOpt.value = '__NEW__'; // Sentinel value used to trigger new-category modal.
-  newOpt.textContent = 'New Category…'; // User-facing text for new-category action.
-  sel.appendChild(newOpt); // Append sentinel option at bottom.
-
-  if (selected) { // Restore selection when we have a current category value.
-    sel.value = selected; // Set dropdown selected value.
-    sel.dataset.prevValue = selected; // Cache prior value for modal-cancel rollback.
+  if (selected) {
+    sel.value = selected;
+    sel.dataset.prevValue = selected;
   }
 
-  console.log('populateCategoryDropdown final option count', sel.options.length);
-
-  // One unified handler for both cases
-  if (!sel._wiredChange) { // Ensure we only attach one change listener.
-    sel.addEventListener('change', function () { // Handle category dropdown changes.
-      if (this.value === '__NEW__') { // If user chose sentinel option, open modal instead of saving.
-        updateCategorySelectValue(this.dataset.prevValue || __currentCategory || ''); // Revert dropdown to prior real category.
-        openNewCategoryModal(); // Launch modal to create a new category value.
-        return; // Stop normal save path.
+  if (!sel._globalCategoryWired) {
+    sel.addEventListener('change', function() {
+      if (this.value === '__NEW_CATEGORY__') {
+        updateCategorySelectValue(this.dataset.prevValue || __currentCategory || '');
+        openNewCategoryModal();
+        return;
       }
-      if (this.value) { // Normal category selection save path.
-        this.dataset.prevValue = this.value; // Store current value as previous valid selection.
-        updateCategory(); // Persist category change to sheet backend.
-        if (typeof updateCategoryLabel === 'function') updateCategoryLabel(); // Refresh visible category pill/text if helper exists.
+
+      if (this.value) {
+        this.dataset.prevValue = this.value;
+        updateCategory();
       }
     });
-    sel._wiredChange = true; // Mark listener as attached.
-  }
-
-  if (!sel._wiredRefreshOnOpen) { // Add live refresh hooks only once.
-    var refreshHandler = function () { // Refresh category choices right before opening list.
-      fetchAndPopulateCategoryOptions(__currentCategory || ''); // Pull latest category values from backend/cache.
-    };
-    sel.addEventListener('focus', refreshHandler); // Refresh when dropdown gains focus.
-    sel.addEventListener('mousedown', refreshHandler); // Refresh when user clicks/taps dropdown.
-    sel._wiredRefreshOnOpen = true; // Mark refresh hooks as installed.
+    sel._globalCategoryWired = true;
   }
 }
 
-
-
+// Legacy alias retained for compatibility; new global dropdown path is authoritative.
+function populateCategoryDropdown(categories, selectedValue) {
+  populateGlobalCategoryDropdown(categories, selectedValue);
+}
 
 // Call the function at the end of the script to automatically execute it on page load
 // displayTopClients();
