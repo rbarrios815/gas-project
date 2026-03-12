@@ -1,12 +1,10 @@
-<!-- Version 1.0.72 | 92f7a6a -->
+<!-- Version 1.0.0 | 72afdbe -->
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Dashboard</title>
-<base target="_top" />
-<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 <style>
   :root{
     --green1:#12b886;
@@ -24,14 +22,8 @@
  /* === DASHBOARD SHEET (Notes-style) ======================================== */
 :root{
   --dash-handle-h: 88px;
-  /* Full screen height with legacy fallback */
-  --dash-open-h: 100vh;
-}
-
-@supports (height: 100dvh) {
-  :root {
-    --dash-open-h: 100dvh;
-  }
+  /* Full screen height using dynamic viewport units */
+  --dash-open-h: 100dvh;
 }
 
 
@@ -75,38 +67,11 @@
   background: linear-gradient(135deg, var(--green1), var(--green2));
   border-top-left-radius: 12px;
   border-top-right-radius: 12px;
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center; justify-content: center;
   color: #fff;
   font-weight: 800; letter-spacing: .3px;
   cursor: pointer; user-select: none;
   position: relative; z-index: 1;
-  padding: 0 12px;
-  gap: 8px;
-}
-
-#dashHandleLabel {
-  flex: 1 1 auto;
-  text-align: center;
-}
-
-/* Loading bar mirrored in the CHANGE VIEW handle */
-#dashHandleLoadingBar{
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 4px;
-  opacity: 0;
-  background: linear-gradient(90deg, #16a34a, #22c55e, #22d3ee, #2563eb);
-  background-size: 250% 100%;
-  transition: width 0.35s ease, opacity 0.25s ease, background-position 0.35s ease;
-  width: 0;
-  pointer-events: none;
-}
-
-#dashHandleLoadingBar.indeterminate{
-  opacity: 1;
-  animation: loadingSweep 1.05s ease-in-out infinite, loadingGradientShift 1.2s linear infinite;
 }
 
 /* Scrollable body area */
@@ -192,10 +157,10 @@
   /* Make the textarea consume a quarter of the screen height */
   #dashBody #noteInput{
     width: 100%;
-    /* Use small-viewport units when supported, fallback to vh */
-    height: 25vh;
-    min-height: 25vh;
-    max-height: 25vh;
+    /* Use small-viewport units to avoid iOS URL bar issues */
+    height: 25svh;
+    min-height: 25svh;
+    max-height: 25svh;
   }
 
   /* Keep action row from overflowing; stack buttons full-width */
@@ -274,13 +239,6 @@
 .floatingUtilityBtn:active { transform: translateY(1px); box-shadow: 0 6px 18px rgba(0,0,0,.18); }
 
 #floatingEmailBtn { right: 16px; }
-#floatingRbEmailBtn { right: 96px; }
-
-.floatingUtilityLabel {
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1;
-}
 
 .usage-counter .usage-meta {
   display: flex;
@@ -294,32 +252,12 @@
 /* === Mobile textarea height (leave room for buttons) ===================== */
 @media (max-width: 640px) {
   #dashBody textarea#noteInput {
-    height: 25vh !important;
-    min-height: 25vh !important;
-    max-height: 25vh !important;
+    height: 25dvh !important;
+    min-height: 25dvh !important;
+    max-height: 25dvh !important;
     width: 100% !important;
     box-sizing: border-box;
     resize: vertical;
-  }
-}
-
-@supports (height: 25svh) {
-  @media (max-width: 640px) {
-    #dashBody textarea#noteInput {
-      height: 25svh !important;
-      min-height: 25svh !important;
-      max-height: 25svh !important;
-    }
-  }
-}
-
-@supports (height: 25dvh) {
-  @media (max-width: 640px) {
-    #dashBody textarea#noteInput {
-      height: 25dvh !important;
-      min-height: 25dvh !important;
-      max-height: 25dvh !important;
-    }
   }
 }
 
@@ -656,424 +594,31 @@ a:focus {
   object-fit: cover !important;
   flex: 0 0 auto !important;
 }
-
-/* === Sunday Love Dashboard ============================================== */
-.sunday-love-overlay{
-  position: fixed;
-  inset: 0;
-  background: linear-gradient(135deg, #fff0f6 0%, #ffe8f0 45%, #fde2ff 100%);
-  color: #2f1a2c;
-  display: none;
-  z-index: 300500;
-  overflow: auto;
-  padding: 24px 20px 48px;
-}
-
-body.sunday-love-active{
-  overflow: hidden;
-}
-
-.sunday-love-overlay.is-active{
-  display: block;
-}
-
-.sunday-love-shell{
-  max-width: 1100px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.sunday-love-header{
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 16px 20px;
-  border-radius: 18px;
-  background: #fff;
-  box-shadow: 0 10px 24px rgba(111, 25, 90, 0.12);
-}
-
-.sunday-love-title{
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.sunday-love-title h1{
-  margin: 0 0 6px 0;
-  font-size: 32px;
-  letter-spacing: 0.5px;
-}
-
-.sunday-love-title p{
-  margin: 0;
-  font-size: 16px;
-  color: #5f3b59;
-}
-
-.sunday-love-icon{
-  font-size: 44px;
-}
-
-.love-date-label{
-  font-weight: 700;
-  color: #a21caf;
-}
-
-.love-card{
-  background: #fff;
-  border-radius: 18px;
-  padding: 18px 20px;
-  box-shadow: 0 12px 28px rgba(128, 20, 90, 0.1);
-}
-
-.love-card h2{
-  margin-top: 0;
-  margin-bottom: 8px;
-  font-size: 24px;
-}
-
-.love-subtitle{
-  margin-top: 0;
-  color: #6b3f61;
-}
-
-.love-note-card{
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.love-field-row{
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.love-field{
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 200px;
-  font-size: 14px;
-  color: #6b3f61;
-}
-
-.love-field select,
-.love-field input{
-  border-radius: 10px;
-  border: 1px solid #f0c3df;
-  padding: 8px 10px;
-  font-size: 14px;
-}
-
-.love-textarea{
-  width: 100%;
-  min-height: 160px;
-  border-radius: 14px;
-  border: 1px solid #f0c3df;
-  padding: 12px 14px;
-  font-size: 16px;
-  line-height: 1.4;
-  resize: vertical;
-  background: #fff7fb;
-}
-
-.love-button-row{
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.love-btn{
-  border: none;
-  border-radius: 999px;
-  padding: 8px 16px;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  background: linear-gradient(135deg, #fb7185, #db2777);
-  color: #fff;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.love-btn-secondary{
-  background: #fff;
-  color: #b42377;
-  border: 1px solid #f4b4d8;
-}
-
-.love-btn-ghost{
-  background: transparent;
-  color: #9d174d;
-  border: 1px dashed #f0a6ca;
-}
-
-.love-btn:hover{
-  filter: brightness(0.98);
-}
-
-.love-grid{
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 14px;
-}
-
-.love-mini-card{
-  border-radius: 16px;
-  border: 1px solid #f6c5dd;
-  padding: 14px;
-  background: #fff8fc;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.love-mini-card h3{
-  margin: 0;
-  font-size: 18px;
-}
-
-.love-mini-card p{
-  margin: 0;
-  color: #6b3f61;
-  font-size: 14px;
-}
-
-.love-mini-card .love-output{
-  font-weight: 600;
-  color: #4a2245;
-}
-
-.love-list{
-  list-style: none;
-  padding-left: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.love-list li{
-  padding: 10px 12px;
-  background: #fff0f7;
-  border-radius: 12px;
-  border: 1px solid #f7cfe5;
-  font-size: 14px;
-  color: #4a2245;
-}
-
-.love-meter{
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.love-meter input[type="range"]{
-  accent-color: #db2777;
-  width: 100%;
-}
-
-.love-restore-btn{
-  position: fixed;
-  top: 16px;
-  right: 16px;
-  z-index: 300600;
-  display: none;
-  border-radius: 999px;
-  padding: 8px 14px;
-  border: none;
-  font-weight: 700;
-  background: #fff;
-  color: #b42377;
-  box-shadow: 0 8px 18px rgba(120, 24, 80, 0.18);
-  cursor: pointer;
-}
-
-.love-restore-btn.is-active{
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-body.love-only #dashSheet,
-body.love-only #dashOverlay,
-body.love-only .floatingUtilityBtn,
-body.love-only #loveRestoreBtn{
-  display: none !important;
-}
-
-@media (max-width: 720px){
-  .sunday-love-overlay{
-    padding: 18px 14px 40px;
-  }
-
-  .sunday-love-title h1{
-    font-size: 26px;
-  }
-}
 </style>
-<script>
-  // Normalize viewport height on older mobile browsers that misreport vh units.
-  (function () {
-    var root = document.documentElement;
-    function updateViewportVars() {
-      var height = window.innerHeight || 0;
-      if (!height) return;
-      root.style.setProperty('--dash-open-h', height + 'px');
-    }
-    updateViewportVars();
-    window.addEventListener('resize', updateViewportVars);
-    window.addEventListener('orientationchange', updateViewportVars);
-  })();
-</script>
 </head>
 
-<body onload="loadAllHeatmaps()">
+
+
+<body>
   <!-- your dashboard stays under this -->
 <!-- Keep these elements once in your HTML -->
 
 
 <!-- Floating text-message trigger -->
-<button id="floatingRbEmailBtn" class="floatingUtilityBtn" aria-label="Send RB chip summary text" title="Send RB chip summary text">
-  <span aria-hidden="true">💬</span>
-  <span class="floatingUtilityLabel" aria-hidden="true">RB</span>
-</button>
 <button id="floatingEmailBtn" class="floatingUtilityBtn" aria-label="Send JB chip summary text" title="Send JB chip summary text">
   <span aria-hidden="true">💬</span>
-  <span class="floatingUtilityLabel" aria-hidden="true">JB</span>
 </button>
 
   <!-- Toast -->
   <div id="toast" role="status" aria-live="polite"></div>
 
-  <!-- Sunday Love Dashboard -->
-  <section id="sundayLoveDashboard" class="sunday-love-overlay" aria-hidden="true">
-    <div class="sunday-love-shell">
-      <header class="sunday-love-header">
-        <div class="sunday-love-title">
-          <span class="sunday-love-icon" aria-hidden="true">💘</span>
-          <div>
-            <h1>Sunday Love Dashboard</h1>
-            <p>Valentine’s Day-esque vibes for love notes, devotion, and sweet connection.</p>
-            <div class="love-date-label" id="loveDateLabel"></div>
-          </div>
-        </div>
-        <div class="sunday-love-actions">
-          <button id="loveDismissBtn" class="love-btn love-btn-secondary" type="button">Use regular dashboard</button>
-        </div>
-      </header>
 
-      <section class="love-card love-note-card">
-        <h2>Daily Love Note</h2>
-        <p class="love-subtitle">Write a heartfelt note (post-it, written, text, or email) so either of you can use it.</p>
-        <div class="love-field-row">
-          <label class="love-field">
-            <span>Writing as</span>
-            <select id="loveNoteVoice">
-              <option value="Me">Me</option>
-              <option value="Her">Her</option>
-              <option value="Us">Us together</option>
-            </select>
-          </label>
-          <label class="love-field">
-            <span>Delivery vibe</span>
-            <select id="loveNoteDelivery">
-              <option value="soft">Soft & warm</option>
-              <option value="playful">Playful & fun</option>
-              <option value="romantic">Romantic & poetic</option>
-              <option value="steady">Steady & committed</option>
-            </select>
-          </label>
-          <label class="love-field">
-            <span>Love meter</span>
-            <input id="loveMeterInput" type="range" min="1" max="10" value="8" />
-          </label>
-        </div>
-        <div class="love-meter">
-          <div id="loveMeterMessage">Love level: 8/10 — deep and devoted.</div>
-        </div>
-        <textarea id="loveNoteInput" class="love-textarea" placeholder="Start your love note here..."></textarea>
-        <div class="love-button-row">
-          <button id="loveInspireBtn" class="love-btn" type="button">Inspire me</button>
-          <button id="loveCopyBtn" class="love-btn love-btn-secondary" type="button">Copy note</button>
-          <a id="loveEmailBtn" class="love-btn love-btn-secondary" href="#" role="button">Email note</a>
-          <a id="loveTextBtn" class="love-btn love-btn-secondary" href="#" role="button">Text note</a>
-          <button id="loveSaveBtn" class="love-btn love-btn-secondary" type="button">Save to Sunday list</button>
-          <button id="loveClearBtn" class="love-btn love-btn-ghost" type="button">Clear</button>
-        </div>
-        <div>
-          <h3>Saved Sunday notes</h3>
-          <ul id="loveSavedList" class="love-list"></ul>
-        </div>
-      </section>
-
-      <section class="love-card love-grid">
-        <div class="love-mini-card">
-          <h3>Love note ideas</h3>
-          <p class="love-output" id="loveNoteIdeaOutput"></p>
-          <button class="love-btn love-btn-secondary" type="button" data-love-pick="noteIdeas">Shuffle idea</button>
-          <button class="love-btn love-btn-ghost" type="button" data-love-add="noteIdeas">Add to note</button>
-        </div>
-        <div class="love-mini-card">
-          <h3>Conversation starters</h3>
-          <p class="love-output" id="loveConversationOutput"></p>
-          <button class="love-btn love-btn-secondary" type="button" data-love-pick="conversationStarters">Shuffle starter</button>
-          <button class="love-btn love-btn-ghost" type="button" data-love-add="conversationStarters">Add to note</button>
-        </div>
-        <div class="love-mini-card">
-          <h3>Relationship therapy topics</h3>
-          <p class="love-output" id="loveTherapyOutput"></p>
-          <button class="love-btn love-btn-secondary" type="button" data-love-pick="therapyTopics">Shuffle topic</button>
-          <button class="love-btn love-btn-ghost" type="button" data-love-add="therapyTopics">Add to note</button>
-        </div>
-        <div class="love-mini-card">
-          <h3>100% in the relationship</h3>
-          <p class="love-output" id="loveCommitmentOutput"></p>
-          <button class="love-btn love-btn-secondary" type="button" data-love-pick="commitmentReminders">Shuffle reminder</button>
-          <button class="love-btn love-btn-ghost" type="button" data-love-add="commitmentReminders">Add to note</button>
-        </div>
-        <div class="love-mini-card">
-          <h3>Motivating encouragement</h3>
-          <p class="love-output" id="loveEncouragementOutput"></p>
-          <button class="love-btn love-btn-secondary" type="button" data-love-pick="encouragements">Shuffle boost</button>
-          <button class="love-btn love-btn-ghost" type="button" data-love-add="encouragements">Add to note</button>
-        </div>
-        <div class="love-mini-card">
-          <h3>Fun love challenge</h3>
-          <p class="love-output" id="loveChallengeOutput"></p>
-          <button class="love-btn love-btn-secondary" type="button" data-love-pick="loveChallenges">Shuffle challenge</button>
-          <button class="love-btn love-btn-ghost" type="button" data-love-add="loveChallenges">Add to note</button>
-        </div>
-        <div class="love-mini-card">
-          <h3>Ideas to improve the app</h3>
-          <p class="love-output" id="loveImprovementOutput"></p>
-          <button class="love-btn love-btn-secondary" type="button" data-love-pick="improvementIdeas">Shuffle idea</button>
-          <button class="love-btn love-btn-ghost" type="button" data-love-add="improvementIdeas">Add to note</button>
-        </div>
-        <div class="love-mini-card">
-          <h3>Sunday love rituals</h3>
-          <p class="love-output" id="loveRitualOutput"></p>
-          <button class="love-btn love-btn-secondary" type="button" data-love-pick="sundayRituals">Shuffle ritual</button>
-          <button class="love-btn love-btn-ghost" type="button" data-love-add="sundayRituals">Add to note</button>
-        </div>
-      </section>
-    </div>
-  </section>
   <!-- Overlay that slides; tab moves with it -->
   <!-- === DASHBOARD (Notes-style bottom sheet) ============================= -->
 <div id="dashOverlay" aria-hidden="true"></div>
 <div id="dashSheet" class="dashboard-closed" aria-hidden="true">
   <div id="dashHandle" role="button" aria-controls="dashSheet" aria-expanded="false">
-    <span id="dashHandleLabel">CHANGE VIEW</span>
-    <div id="dashHandleLoadingBar" aria-hidden="true"></div>
+     CHANGE VIEW
   </div>
 
   <div id="dashBody" role="region" aria-label="Dashboard content">
@@ -1317,10 +862,6 @@ document.getElementById('floatingEmailBtn')?.addEventListener('click', function(
   triggerTopClientsText();
 });
 
-document.getElementById('floatingRbEmailBtn')?.addEventListener('click', function(){
-  triggerRbTopClientsText();
-});
-
 // Initialize displays on load
 updateUsageDisplay();
 
@@ -1461,8 +1002,8 @@ function showToast(msg){
     if (e.key === 'Escape' && isOpen()) window.closeDashboard();
   });
 
-// initial state — default CLOSED so only the green CHANGE VIEW bar is visible
-let startOpen = false;
+// initial state — default OPEN (and still restore if previously saved)
+let startOpen = true;
 try {
   const saved = sessionStorage.getItem('v1.dashboardOpen');
   if (saved === 'true') startOpen = true;
@@ -1500,7 +1041,7 @@ function addNote(textOverride){
     return;
   }
 
-  const rawText = typeof textOverride === 'string' ? textOverride : (noteInput.value || '');
+ const rawText = typeof textOverride === 'string' ? textOverride : (noteInput.value || '');
   const txt = rawText.trim();
   if (!txt) {
     addStatus.textContent = '';
@@ -1514,7 +1055,7 @@ function addNote(textOverride){
   addNotePending = true;
 
   startLoading();
-  addStatus.textContent = 'Saving...';
+  addStatus.textContent = '';
   if (addBtn) {
     addBtn.disabled = true;
   }
@@ -1524,29 +1065,19 @@ function addNote(textOverride){
       if (noteInput) {
         noteInput.value = '';
       }
-      loadRecent(err => {
-        addNotePending = false;
-        stopLoading();
-        addStatus.textContent = '';
-        if (addBtn) {
-          addBtn.disabled = false;
-        }
-        if (err) {
-          showToast('Note added but could not refresh list');
-          return;
-        }
+   loadRecent(() => {
+        addBtn.disabled = false;
         showToast('Note added successfully');
       });
     })
     .withFailureHandler(err => {
       console.log(err);
       stopLoading();
-      addNotePending = false;
-      if (addBtn) {
-        addBtn.disabled = false;
-      }
-      addStatus.textContent = '';
-      showToast('Error adding note');
+   addNotePending = false;
+        if (addBtn) {
+          addBtn.disabled = false;
+        }
+              showToast('Error adding note');
     })
     .inboxAddNote(txt, preferredClient);
 }
@@ -1567,7 +1098,6 @@ function saveEditedNote(row, text, noteEl){
       if(noteEl){
         noteEl.dataset.originalText = text;
       }
-      refreshNoteViewsAfterEdit();
       showToast('Note updated');
     })
     .withFailureHandler(err=>{
@@ -1711,17 +1241,6 @@ function saveEditedNote(row, text, noteEl){
       .toLowerCase();
   }
 
-  function shouldHighlightRecentItem(noteText, assignedName, chipInfo) {
-    var trimmedNote = String(noteText || '').trim();
-    if (trimmedNote.toUpperCase() === 'DUPLICATE') return false;
-
-    var assigned = String(assignedName || '').trim();
-    if (!assigned) return true;
-
-    var chipDate = chipInfo && String(chipInfo.dateMMDDYY || '').trim();
-    return !chipDate;
-  }
-
   function renderRecent(payload){
     recentList.innerHTML='';
     const items=(payload&&payload.recent)?payload.recent:[];
@@ -1731,11 +1250,6 @@ function saveEditedNote(row, text, noteEl){
     items.forEach(it=>{
       const row=document.createElement('div');
       row.className='item';
-
-      const chipInfo = recentChipMap[normalizeClientKeyForChip(it.assigned)];
-      if (shouldHighlightRecentItem(it.note, it.assigned, chipInfo)) {
-        row.classList.add('inbox-highlight');
-      }
 
       // LEFT: note text
       const note=document.createElement('div');
@@ -1828,7 +1342,8 @@ function saveEditedNote(row, text, noteEl){
 
       const chipSlot = document.createElement('div');
       chipSlot.className = 'assigned-chip-slot';
-      if (it.assigned && chipInfo) {
+      const chipInfo = recentChipMap[normalizeClientKeyForChip(it.assigned)];
+      if (chipInfo && (chipInfo.initials || chipInfo.dateMMDDYY)) {
         const chipEl = createChipElement(it.assigned, chipInfo.initials, chipInfo.dateMMDDYY);
         chipEl.classList.add('chip--xs');
         chipSlot.appendChild(chipEl);
@@ -1863,21 +1378,9 @@ function loadRecent(done){
     .inboxGetRecent(100);
 }
 
-function refreshNoteViewsAfterEdit() {
-  if (typeof loadRecent === 'function') {
-    loadRecent();
-  }
-  if (typeof showClientNotes === 'function') {
-    showClientNotes();
-  }
-  if (typeof retriggerTopClientsFilter === 'function') {
-    retriggerTopClientsFilter();
-  }
-}
 
 
-
-  window.addEventListener('load', ()=>{ loadClientNames(); loadRecent(); initUserDefaultTopClientsFilter(); });
+  window.addEventListener('load', ()=>{ loadClientNames(); loadRecent(); });
 
 // Mobile textarea height fallback (enforce 50vh on load/resize)
 (function(){
@@ -1989,7 +1492,27 @@ function refreshNoteViewsAfterEdit() {
 
 
 
-<style>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+<!DOCTYPE html>
+<html>
+<head>
+    <base target="_top">
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+
+   <style>
   :root {
     --background-color: #E6F0FF; /* Default background color */
     --text-color: #000000; /* Default text color - black */
@@ -2130,7 +1653,7 @@ input, button, select {
   }
 
   #autocompleteSuggestions {
-    font-size: 0.7rem; /* doubled for easier reading */
+    font-size: 0.35rem; /* roughly 1/4 the previous size */
     line-height: 1.35;
   }
 
@@ -2361,7 +1884,7 @@ button:active {
     position: fixed;
     top: 0;
     left: 0;
-    z-index: 11000; /* Ensure the bar stays visible above sheets/overlays */
+    z-index: 1001; /* Increase z-index to stay above other elements */
 }
 
 /* === GREEN GRADIENT + SMOOTH WIDTH === */
@@ -2545,18 +2068,6 @@ button:active {
   transition: padding .2s ease, max-height .2s ease, border-width .2s ease;
 }
 
-.client-container.hide-recents .task-type-bar-row {
-  transform: translateY(-120%);
-  opacity: 0;
-  max-height: 0;
-  margin: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  border-width: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-
 
 body {
     margin-top: 0; /* Adjust the value to match the height of the fixed header */
@@ -2579,109 +2090,6 @@ input#clientAutocomplete, select#clientSelect {
   display: flex;
   width: 100%;
   align-items: flex-start;
-}
-
-:root {
-  --labels-font-size: 32px;
-}
-
-.task-type-bar-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 10px 0 8px;
-  padding: 6px 10px;
-  transition: transform .2s ease, opacity .2s ease, max-height .2s ease, margin .2s ease, padding .2s ease;
-  position: relative;
-  z-index: 1;
-  max-height: none;
-  overflow: visible;
-  overflow-x: auto;
-  max-width: 100%;
-  flex-wrap: nowrap;
-  min-width: 0;
-  background: #f7f9fc;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.04);
-}
-
-.task-type-bar {
-  display: flex;
-  flex: 1 1 auto;
-  gap: 6px;
-  align-items: center;
-  min-width: 0;
-}
-
-.task-type-button {
-  flex: 1 1 0;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  color: #fff;
-  font-weight: 800;
-  font-size: 0.9em;
-  line-height: 1.1;
-  padding: 6px 10px;
-  cursor: pointer;
-  min-height: 32px;
-  max-height: 100%;
-  position: relative;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  transition: transform .08s ease, box-shadow .12s ease;
-  white-space: nowrap;
-  min-width: 0;
-}
-
-.task-type-button:hover { box-shadow: 0 8px 18px rgba(0,0,0,0.16); z-index: 5; }
-.task-type-button:active { transform: translateY(1px); }
-
-.task-type-button.is-faded {
-  background: #f1f3f5 !important;
-  color: #6c757d !important;
-  border: 1px solid #ced4da !important;
-  box-shadow: none !important;
-  filter: grayscale(0.35);
-  opacity: 0.8;
-}
-
-.task-type-button.is-faded:hover { box-shadow: none; }
-.task-type-button.is-faded:active { transform: none; }
-
-.label-filter-row {
-  background: linear-gradient(180deg, #f4f7fb, #eef2f7);
-}
-
-.top-filter-row {
-  background: linear-gradient(180deg, #f6fff9, #edfdf3);
-}
-
-.label-filter-button {
-  background: linear-gradient(135deg, #9fb8ff, #4f7bff);
-  opacity: 0.35;
-  box-shadow: none;
-}
-
-.label-filter-button.is-active {
-  opacity: 1;
-  box-shadow: 0 8px 18px rgba(0,0,0,0.16);
-  filter: brightness(1.08) saturate(1.1);
-}
-
-.top-filter-button {
-  background: linear-gradient(135deg, #10b981, #22c55e);
-  opacity: 0.45;
-  box-shadow: none;
-}
-
-.top-filter-button.is-active {
-  opacity: 1;
-  box-shadow: 0 8px 18px rgba(0,0,0,0.16);
-  filter: brightness(1.08) saturate(1.1);
 }
 
   .labels-notes-left {
@@ -2707,7 +2115,7 @@ input#clientAutocomplete, select#clientSelect {
   }
 
 #labelsDisplay {
-  font-size: var(--labels-font-size);
+  font-size: 32px;
 }
 
   #labelsAdditionSection {
@@ -2794,12 +2202,6 @@ input#clientAutocomplete, select#clientSelect {
 
 .highlighted {
     background-color: yellow;
-}
-
-.inbox-highlight {
-  background-color: #fff59d;
-  border-radius: 10px;
-  padding: 6px;
 }
 
 /* ===== NAME LINKIFY + HOVER BUBBLE ===== */
@@ -2976,33 +2378,6 @@ input#clientAutocomplete, select#clientSelect {
 
 #topClientsDisplay .client-button {
   margin: 0 auto;
-}
-
-#topClientsDisplay .client-button.bday-eligible {
-  background: #2f9e44;
-  color: #fff;
-}
-
-#topClientsDisplay .client-button.bday-ineligible {
-  background: #fa5252;
-  color: #fff;
-}
-
-#topClientsDisplay .birthday-toggle-button {
-  margin-left: 8px;
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 0.7em;
-}
-
-#topClientsDisplay .birthday-toggle-button.is-add {
-  background: #2f9e44;
-  color: #fff;
-}
-
-#topClientsDisplay .birthday-toggle-button.is-remove {
-  background: #fa5252;
-  color: #fff;
 }
 
 
@@ -3349,38 +2724,6 @@ input#clientAutocomplete, select#clientSelect {
   margin-right: 0;
 }
 
-.birthday-month-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  justify-content: center;
-  align-items: center;
-  margin: 6px 0 10px;
-}
-
-.birthday-month-button {
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid #ced4da;
-  background: #f8f9fa;
-  font-size: 12px;
-  font-weight: 700;
-  color: #212529;
-  cursor: pointer;
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
-}
-
-.birthday-month-button:hover {
-  background: #e9ecef;
-}
-
-.birthday-month-button.birthday-month-selected {
-  background: linear-gradient(135deg, var(--green1), var(--green2));
-  color: #fff;
-  border-color: transparent;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
-}
-
 /* SNIPPET #2 (REPLACED): make filter dropdown look like a button and hide arrow */
 /* SNIPPET #2 (RESTORED): native select with arrow */
 #topClientsFilterDropdown {
@@ -3431,12 +2774,9 @@ input#clientAutocomplete, select#clientSelect {
 /* Colors: on top of yellow highlight */
 .chip.JB { background: #1E90FF; color: #fff; }   /* blue */
 .chip.RB { background: #28A745; color: #fff; }   /* green */
-.chip.MB { background: #17A2B8; color: #fff; }   /* teal */
 .chip.QC { background: #FF8C00; color: #fff; }   /* orange */
 .chip.TEAM { background: #800080; color: #fff; }   /* orange */
 .chip.BDAY { background: #FF8C00; color: #fff; }   /* orange */
-
-.chip.chip--overdue { color: #D92D20 !important; }
 
 
 .chip.EMPTY { background: #f0f0f0; color: #333; }/* placeholder neutral */
@@ -4097,10 +3437,10 @@ input#clientAutocomplete, select#clientSelect {
   padding: 10px 14px;
   background: #e7f6ed !important;
   border-color: #9ed6b8 !important;
-  flex: 1 1 auto;
+  flex: 1 1 0;
   width: 100%;
   min-width: 0;
-  max-width: 100%;
+  max-width: none;
 }
 
 .cat-pill {
@@ -4113,9 +3453,8 @@ input#clientAutocomplete, select#clientSelect {
   border-color: #9ed6b8;
   flex: 0 0 auto;
   width: fit-content;
-  min-width: 0;
-  max-width: 32vw;
-  white-space: nowrap;
+  min-width: fit-content;
+  max-width: 100%;
 }
 
 .cat-input {
@@ -4176,8 +3515,7 @@ input#clientAutocomplete, select#clientSelect {
 /* Modal */
 .modal {
   position: fixed; inset: 0; background: rgba(0,0,0,.4);
-  display: none; /* keep hidden until explicitly opened */
-  align-items: center; justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   z-index: 1000;
 }
 .modal-card {
@@ -4260,52 +3598,6 @@ input#clientAutocomplete, select#clientSelect {
   justify-content: center;
   padding: 0;
 }
-
-/* Keep appointment modal controls compact, readable, and on a single row. */
-#apptModal .modal-footer {
-  justify-content: flex-end;
-  gap: 6px;
-  flex-wrap: nowrap;
-}
-
-#apptModal .modal-footer #apptCancel,
-#apptModal .modal-footer #apptSave {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0;
-  text-transform: none;
-  letter-spacing: 0;
-  font-size: 8px;
-  height: 16px;
-  padding: 0 6px;
-  border-radius: 6px;
-  white-space: nowrap;
-}
-
-/* Prevent the close button from inheriting oversized global button styles. */
-#apptModal #apptClose {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border-radius: 999px;
-  background: transparent;
-  box-shadow: none;
-  font-size: 14px;
-  line-height: 1;
-  text-transform: none;
-}
-
-#apptModal #apptClose:hover,
-#apptModal #apptClose:focus {
-  background: #f1f5f9;
-  box-shadow: none;
-  filter: none;
-}
   /* === AUTOCOMPLETE: FULLY HIDE WHEN COLLAPSED === */
   /* Replace .AUTOCOMPLETE_BAR with your real selector (id or class) */
   .AUTOCOMPLETE_BAR.autocomplete-collapsed {
@@ -4368,6 +3660,8 @@ input#clientAutocomplete, select#clientSelect {
   </style>
 
 
+</head>
+<body onload="loadAllHeatmaps()">
     <!-- Loading Bar -->
 
   <div id="loadingBarContainer" style="display: none;">
@@ -4419,17 +3713,15 @@ input#clientAutocomplete, select#clientSelect {
 
   </div>
 
-    <select id="clientSelect" onchange="showClientNotes()" style="display: none;">
-      <option value="" disabled selected>Select a Client</option>
-    </select>
-
-  <div id="taskTypeBarRow" class="task-type-bar-row" style="display:none;">
-    <div id="taskTypeBar" class="task-type-bar" aria-label="Task type buttons"></div>
-  </div>
-  </div>
+  <select id="clientSelect" onchange="showClientNotes()" style="display: none;">
+    <option value="" disabled selected>Select a Client</option>
+  </select>
+</div>
 
 
-    <div class="labels-container">
+
+
+  <div class="labels-container">
     <div class="labels-notes-left">
       <div class="labels-top-row">
         <div id="labelsChipSlot" class="labels-chip-slot"></div>
@@ -4537,26 +3829,19 @@ input#clientAutocomplete, select#clientSelect {
         <select id="topClientsFilterDropdown">
             <option value="JB">JB</option>
             <option value="RB">RB</option>
-            <option value="MB">MB</option>
             <option value="QC">QC</option>
             <option value="TEAM">TEAM</option>
             <option value="BDAY">BDAY</option>
+            <option value="BRIEFCASE">💼</option>
+            <option value="STAR">⭐</option>
+            <option value="GRADCAP">🎓</option>
+            <option value="PHONE">📞</option>
         </select>
 
         <!-- NEW: SUGGESTIONS button inline with the dropdown -->
         <button id="suggestionsToggleBtn" type="button" class="secondary-button" onclick="toggleSuggestions()">
             💡
         </button>
-    </div>
-
-    <div id="birthdayMonthRow" class="birthday-month-row" style="display:none;"></div>
-
-    <div id="topFilterBarRow" class="task-type-bar-row top-filter-row" style="display:none;">
-      <div id="topFilterBar" class="task-type-bar" aria-label="Top client filters"></div>
-    </div>
-
-    <div id="labelFilterBarRow" class="task-type-bar-row label-filter-row" style="display:none;">
-      <div id="labelFilterBar" class="task-type-bar" aria-label="Bright label filters"></div>
     </div>
 
     <!-- Second Row: Top Clients Title and Add New Client Button -->
@@ -4627,7 +3912,7 @@ input#clientAutocomplete, select#clientSelect {
     </div>
     <div class="modal-footer">
       <button id="apptCancel" class="btn-secondary">Cancel</button>
-      <button id="apptSave" class="btn-primary">Add appointment</button>
+      <button id="apptSave" class="btn-primary">Save</button>
     </div>
   </div>
 </div>
@@ -4728,16 +4013,6 @@ input#clientAutocomplete, select#clientSelect {
 <script>
 
 /* === FIT-TO-ONE-LINE ENGINE (input + suggestions) === */
-function runWhenIdle(task, timeoutMs) {
-  if (typeof task !== 'function') return;
-  if (typeof requestIdleCallback === 'function') {
-    requestIdleCallback(function() {
-      task();
-    }, { timeout: timeoutMs || 1500 });
-  } else {
-    setTimeout(task, 0);
-  }
-}
 
 /* Shared, hidden measurer for input text (so we can accurately measure "Name (Category)" in an <input>) */
 (function initFitMeasurer(){
@@ -5070,335 +4345,22 @@ function toggleSuggestions() {
   applySuggestionsVisibility();
 }
 
-let __topClientsCache = [];
-
-window.__pastWorkDraftByClient = window.__pastWorkDraftByClient || {};
-
-function getCurrentClientNameForDraft() {
-  var clientSel = document.getElementById('clientSelect');
-  if (clientSel && clientSel.value) return String(clientSel.value).trim();
-  return '';
-}
-
-function cachePastWorkDraftForClient(clientName, textValue) {
-  var key = String(clientName || '').trim();
-  if (!key) return;
-  window.__pastWorkDraftByClient[key] = textValue == null ? '' : String(textValue);
-}
-
-function restorePastWorkDraftForClient(clientName) {
-  var pastWorkEl = document.getElementById('newPastWork');
-  if (!pastWorkEl) return;
-  var key = String(clientName || '').trim();
-  if (!key) {
-    pastWorkEl.value = '';
-    return;
-  }
-  var cached = Object.prototype.hasOwnProperty.call(window.__pastWorkDraftByClient, key)
-    ? window.__pastWorkDraftByClient[key]
-    : '';
-  pastWorkEl.value = cached;
-}
-
-
-document.addEventListener('DOMContentLoaded', function () {
-  var pastWorkEl = document.getElementById('newPastWork');
-  if (!pastWorkEl || pastWorkEl.dataset.draftWired === 'true') return;
-  pastWorkEl.dataset.draftWired = 'true';
-  pastWorkEl.addEventListener('input', function () {
-    cachePastWorkDraftForClient(getCurrentClientNameForDraft(), pastWorkEl.value || '');
-  });
-});
-
-const OWNER_INITIALS = ['JB', 'RB', 'MB', 'QC', 'TEAM', 'BDAY'];
-const TOP_CLIENTS_BASE_FILTERS = OWNER_INITIALS.map(function(value) {
-  return { value: value, label: value };
-});
-
-function getTopClientFilterLabels(clients) {
-  var labelSet = new Set();
-  (clients || []).forEach(function (client) {
-    (client.topFilters || []).forEach(function (label) {
-      if (label) labelSet.add(label);
-    });
-  });
-  return Array.from(labelSet).sort(function (a, b) { return a.localeCompare(b); });
-}
-
-function getBrightLabelsFromClient(client) {
-  var taskTypes = (client && client.taskTypes) || [];
-  var labels = [];
-
-  taskTypes.forEach(function (t) {
-    if ((t.brightness || 'bright') !== 'bright') return;
-
-    var label = (t.label || '').trim();
-
-    if (label) labels.push(label);
-  });
-
-  return labels;
-}
-
-function gatherBrightLabelFilters(clients) {
-  var labelSet = new Set();
-  (clients || []).forEach(function (c) {
-    getBrightLabelsFromClient(c).forEach(function (label) { labelSet.add(label); });
-  });
-  return Array.from(labelSet).sort(function (a, b) { return a.localeCompare(b); });
-}
-
-let __activeLabelFilter = '';
-let __userDefaultTopClientsFilter = 'JB';
-let __userDefaultTopClientsFilterApplied = false;
-
-function getDefaultTopClientsFilter() {
-  return __userDefaultTopClientsFilter || 'JB';
-}
-
-function applyUserDefaultTopClientsFilter(filterKey) {
-  var normalized = normalizeTopClientsFilter(filterKey || 'JB');
-  __userDefaultTopClientsFilter = normalized;
-  if (__userDefaultTopClientsFilterApplied) return;
-  __userDefaultTopClientsFilterApplied = true;
-
-  var dd = document.getElementById('topClientsFilterDropdown');
-  if (!dd) return;
-
-  clearLabelFilter();
-  dd.value = normalized;
-  syncClientsListToDropdown();
-  updateDropdownWidthToFit(dd);
-  fitTopClientsHeaderControls();
-}
-
-function initUserDefaultTopClientsFilter() {
-  if (!(window.google && google.script && google.script.run)) return;
-  google.script.run
-    .withSuccessHandler(function (filterKey) {
-      if (!filterKey) return;
-      applyUserDefaultTopClientsFilter(filterKey);
-    })
-    .withFailureHandler(function (err) {
-      console.warn('Failed to load user default filter', err);
-    })
-    .getUserDefaultTopClientsFilter();
-}
-
-function syncLabelFilterButtons() {
-  var bar = document.getElementById('labelFilterBar');
-  if (!bar) return;
-
-  bar.querySelectorAll('.label-filter-button').forEach(function (btn) {
-    var isActive = btn.dataset.label === __activeLabelFilter;
-    btn.classList.toggle('is-active', isActive);
-  });
-}
-
-function removeLabelPlaceholderOption(dd) {
-  if (!dd) return;
-  var placeholderOpt = dd.querySelector('option[data-placeholder="label"]');
-  if (placeholderOpt) dd.removeChild(placeholderOpt);
-}
-
-function setDropdownLabelPlaceholder(label) {
-  var dd = document.getElementById('topClientsFilterDropdown');
-  if (!dd || !label) return;
-
-  removeLabelPlaceholderOption(dd);
-
-  var placeholderOpt = document.createElement('option');
-  placeholderOpt.value = 'LABEL|' + label;
-  placeholderOpt.textContent = label;
-  placeholderOpt.disabled = false;
-  placeholderOpt.dataset.placeholder = 'label';
-  placeholderOpt.selected = true;
-
-  dd.insertBefore(placeholderOpt, dd.firstChild);
-  dd.value = placeholderOpt.value;
-}
-
-function clearLabelFilter(preserveDropdownValue) {
-  var dd = document.getElementById('topClientsFilterDropdown');
-  if (!__activeLabelFilter) {
-    removeLabelPlaceholderOption(dd);
-    return;
-  }
-
-  __activeLabelFilter = '';
-  if (dd) {
-    removeLabelPlaceholderOption(dd);
-    if (!preserveDropdownValue) dd.value = getDefaultTopClientsFilter();
-  }
-  syncLabelFilterButtons();
-}
-
-function applyLabelFilterSelection(label) {
-  if (__activeLabelFilter === label) {
-    clearLabelFilter();
-  } else {
-    __activeLabelFilter = label;
-    syncLabelFilterButtons();
-    setDropdownLabelPlaceholder(label);
-    if (typeof handleTopClientsFilterChange === 'function') {
-      handleTopClientsFilterChange('LABEL|' + label);
-    }
-  }
-  retriggerTopClientsFilter();
-}
-
-function renderTopClientsLabelFilters(clients) {
-  var row = document.getElementById('labelFilterBarRow');
-  var bar = document.getElementById('labelFilterBar');
-  if (Array.isArray(clients)) {
-    __topClientsCache = clients;
-  }
-  if (bar) bar.innerHTML = '';
-  if (row) row.style.display = 'none';
-  clearLabelFilter(true);
-}
-
-function syncTopFilterButtons(activeFilter) {
-  var bar = document.getElementById('topFilterBar');
-  if (!bar) return;
-
-  var normalized = normalizeTopClientsFilter(activeFilter || getCurrentTopClientsFilter());
-  bar.querySelectorAll('.top-filter-button').forEach(function (btn) {
-    var isActive = normalizeTopClientsFilter(btn.dataset.filter || '') === normalized;
-    btn.classList.toggle('is-active', isActive);
-  });
-}
-
-function renderTopClientsTopFilterBar(clients) {
-  var row = document.getElementById('topFilterBarRow');
-  var bar = document.getElementById('topFilterBar');
-  if (!row || !bar) return;
-
-  if (Array.isArray(clients)) {
-    __topClientsCache = clients;
-  }
-
-  var labels = getTopClientFilterLabels(clients || __topClientsCache);
-  bar.innerHTML = '';
-
-  if (!labels.length) {
-    row.style.display = 'none';
-    return;
-  }
-
-  row.style.display = 'flex';
-  labels.forEach(function (label) {
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'task-type-button top-filter-button';
-    btn.dataset.filter = label;
-    btn.textContent = label;
-    btn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      clearLabelFilter(true);
-      var dd = document.getElementById('topClientsFilterDropdown');
-      if (dd) dd.value = label;
-      if (typeof handleTopClientsFilterChange === 'function') {
-        handleTopClientsFilterChange(label);
-      }
-      retriggerTopClientsFilter();
-    });
-    bar.appendChild(btn);
-  });
-
-  syncTopFilterButtons();
-}
-
-function getCurrentTopClientsFilter() {
-  var dd = document.getElementById('topClientsFilterDropdown');
-  var selected = dd && dd.options ? dd.options[dd.selectedIndex] : null;
-  var usingLabelPlaceholder = selected && selected.dataset && selected.dataset.placeholder === 'label';
-
-  if (__activeLabelFilter) {
-    if (usingLabelPlaceholder || !dd) {
-      return normalizeTopClientsFilter('LABEL|' + __activeLabelFilter);
-    }
-    clearLabelFilter(true);
-  }
-
-  var raw = dd && dd.value ? dd.value.trim() : getDefaultTopClientsFilter();
-  return normalizeTopClientsFilter(raw);
-}
-
-function buildTopClientsFilterDropdown(clients) {
-  var dd = document.getElementById('topClientsFilterDropdown');
-  if (!dd) return;
-
-  var current = dd.value || getDefaultTopClientsFilter();
-  var labelPlaceholderValue = '';
-  if (__activeLabelFilter) {
-    labelPlaceholderValue = 'LABEL|' + __activeLabelFilter;
-    current = labelPlaceholderValue;
-  }
-  dd.innerHTML = '';
-
-  var frag = document.createDocumentFragment();
-
-  if (labelPlaceholderValue) {
-    var placeholderOpt = document.createElement('option');
-    placeholderOpt.value = labelPlaceholderValue;
-    placeholderOpt.textContent = __activeLabelFilter;
-    // Keep the placeholder selectable so users can switch to other filters without being stuck
-    placeholderOpt.disabled = false;
-    placeholderOpt.selected = true;
-    placeholderOpt.dataset.placeholder = 'label';
-    frag.appendChild(placeholderOpt);
-  }
-
-  TOP_CLIENTS_BASE_FILTERS.forEach(function (opt) {
-    var node = document.createElement('option');
-    node.value = opt.value;
-    node.textContent = opt.label;
-    frag.appendChild(node);
-  });
-
-  getTopClientFilterLabels(clients).forEach(function (label) {
-    var node = document.createElement('option');
-    node.value = label;
-    node.textContent = label;
-    frag.appendChild(node);
-  });
-
-  dd.appendChild(frag);
-
-  if (labelPlaceholderValue) {
-    dd.value = labelPlaceholderValue;
-  } else if (Array.prototype.some.call(dd.options, function (opt) { return opt.value === current; })) {
-    dd.value = current;
-  }
-
-  if (!dd.value && TOP_CLIENTS_BASE_FILTERS.length) {
-    dd.value = TOP_CLIENTS_BASE_FILTERS[0].value;
-  }
-}
-
 
 // ===== REQUEST TOKEN to prevent stale paints =====
 let __topClientsRenderToken = 0;
 
 function fetchAndRenderTopClientsFromDropdown() {
-  const wantedFilter = getCurrentTopClientsFilter();
+  const dd = document.getElementById('topClientsFilterDropdown');
+  const wantedFilter = dd && dd.value ? dd.value.trim() : 'JB';
   const token = ++__topClientsRenderToken;
 
   google.script.run
     .withSuccessHandler(function (clients) {
       if (token !== __topClientsRenderToken) return;
 
-      __topClientsCache = Array.isArray(clients) ? clients : [];
-      buildTopClientsFilterDropdown(clients);
-      renderTopClientsLabelFilters(clients);
-      renderTopClientsTopFilterBar(clients);
-
       // Read again then NORMALIZE before render
       const dd2 = document.getElementById('topClientsFilterDropdown');
-      const raw = __activeLabelFilter
-        ? 'LABEL|' + __activeLabelFilter
-        : (dd2 && dd2.value ? dd2.value.trim() : wantedFilter);
+      const raw = dd2 && dd2.value ? dd2.value.trim() : wantedFilter;
       const currentFilter = normalizeTopClientsFilter(raw);
 
      if (typeof showTopClients === 'function') {
@@ -5491,9 +4453,9 @@ function scheduleSuggestionTextareaFit(textarea) {
 
 
 function applySuggestionsVisibility() {
-  var visible = !!window.__suggestionsVisible;
   var blocks = document.querySelectorAll('.toplist-suggestion');
   blocks.forEach(function(b) {
+    var visible = !!window.__suggestionsVisible;
     b.style.display = visible ? 'flex' : 'none';
     if (visible) {
       var ta = b.querySelector('textarea');
@@ -5501,18 +4463,14 @@ function applySuggestionsVisibility() {
     }
   });
 
-  var labelRow = document.getElementById('labelFilterBarRow');
-  if (labelRow) {
-    labelRow.style.display = 'none';
-  }
-
   // after visibility flips, re-enforce the single-left-bulb layout
   sanitizeSuggestionBulbs();
 }
 
 // === SINGLE SOURCE OF TRUTH: list <- dropdown value ===
 function syncClientsListToDropdown(){
-  var val = getCurrentTopClientsFilter();
+  var dd = document.getElementById('topClientsFilterDropdown');
+  var val = dd && dd.value ? dd.value : 'JB';
   // Persist current choice + currently-open client (if any)
   try {
     saveUIState({
@@ -5531,7 +4489,6 @@ function syncClientsListToDropdown(){
   })();
 
   fitTopClientsHeaderControls();
-  updateBirthdayMonthRowVisibility();
 
 // Drive the render using a single, token-protected fetch
 fetchAndRenderTopClientsFromDropdown();
@@ -5548,16 +4505,15 @@ function retriggerTopClientsFilter() {
 function setFilterAndSync(value) {
   var dd = document.getElementById('topClientsFilterDropdown');
   if (!dd) return;
-  clearLabelFilter();
   dd.value = (value || '').trim();
   syncClientsListToDropdown();
 }
 
-// On boot, if nothing is chosen yet, default to the user owner and immediately sync the list.
+// On boot, if nothing is chosen yet, default to JB and immediately sync the list.
 (function setInitialTopClientsFilter(){
   var dd = document.getElementById('topClientsFilterDropdown');
   if (!dd) return;
-  if (!dd.value) dd.value = getDefaultTopClientsFilter();
+  if (!dd.value) dd.value = 'JB';
   syncClientsListToDropdown();
 })();
 
@@ -5702,10 +4658,8 @@ function applyDefaultJBFilter() {
   var dd = document.getElementById('topClientsFilterDropdown');
   if (!dd) return;
 
-  clearLabelFilter();
-
-  // Select the default owner in the dropdown
-  dd.value = getDefaultTopClientsFilter();
+  // Select JB in the dropdown (this makes the visible label "JB")
+  dd.value = 'JB';
 
   // Seed the date header and title immediately
   (function seedHeaders(){
@@ -5720,7 +4674,7 @@ function applyDefaultJBFilter() {
 
   fitTopClientsHeaderControls();
 
-setFilterAndSync(getDefaultTopClientsFilter()); // uses the canonical path
+setFilterAndSync('JB'); // uses the canonical path
 
 }
 
@@ -5730,14 +4684,12 @@ setFilterAndSync(getDefaultTopClientsFilter()); // uses the canonical path
 function refreshTopClientsPreservingScroll() {
   try {
     const y = window.scrollY || 0;
-    const currentFilter = getCurrentTopClientsFilter();
+    const dd = document.getElementById('topClientsFilterDropdown');
+    const currentFilter = (dd && dd.value) ? dd.value : 'JB';
 
     google.script.run
       .withSuccessHandler(function (clients) {
-        buildTopClientsFilterDropdown(clients);
-        renderTopClientsLabelFilters(clients);
-        renderTopClientsTopFilterBar(clients);
-        showTopClients(clients, normalizeTopClientsFilter(currentFilter));
+showTopClients(clients, normalizeTopClientsFilter(currentFilter));
 
 // sanitize bulbs right after re-render
 sanitizeSuggestionBulbs();
@@ -5829,9 +4781,6 @@ function wireToplistSuggestionTextareas() {
         return;
       }
 
-      if (typeof updateInProgressDom === 'function') {
-        updateInProgressDom(clientName, pendingValue);
-      }
 
       if (typeof showLoadingBar === 'function') showLoadingBar();
 
@@ -5851,12 +4800,9 @@ function wireToplistSuggestionTextareas() {
         })
         .withFailureHandler(function (err) {
           alert('Error saving In Progress: ' + (err && err.message ? err.message : err));
-          if (typeof updateInProgressDom === 'function') {
-            updateInProgressDom(clientName, baseline);
-          }
           ta.value = baseline; // revert
           dirty = false;
-          ta.setAttribute('data-last-saved', baseline || '');
+                    ta.setAttribute('data-last-saved', baseline || '');
 
           if (typeof hideLoadingBar === 'function') hideLoadingBar();
         })
@@ -5905,28 +4851,6 @@ var __nameTokens = [];            // Unique tokens from names (first/last/etc., 
 var __nameUnionRegex = null;      // Combined regex (longest-first) of full names + tokens
 var __hideBubbleTimer = null;
 
-const DEFAULT_TASK_COLOR_ORDER = ['Red','Orange','Yellow','Green','Blue','Purple','Violet','Brown','Pink','Black','Black (White Font)','White','Grey'];
-  const TASK_TYPE_COLOR_MAP = {
-    red:    { bright: '#ff4d4f', faded: '#f8c4c6', text: '#fff' },
-    orange: { bright: '#ffa94d', faded: '#ffe8cc', text: '#7f4a12' },
-    yellow: { bright: '#ffd43b', faded: '#fff3bf', text: '#7f5f01' },
-    green:  { bright: '#51cf66', faded: '#d3f9d8', text: '#0b4f2b' },
-    blue:   { bright: '#339af0', faded: '#d0ebff', text: '#0b487a' },
-    purple: { bright: '#845ef7', faded: '#e5dbff', text: '#3f2f74' },
-    violet: { bright: '#7950f2', faded: '#eae4ff', text: '#3f2c7a' },
-    brown:  { bright: '#aa7a55', faded: '#f1e0d1', text: '#3d2b1f' },
-    pink:   { bright: '#ff6b81', faded: '#ffdce5', text: '#7d2336' },
-    black:  { bright: '#000000', faded: '#666666', text: '#ffffff' },
-    blackwhitefont: { bright: '#000000', faded: '#666666', text: '#ffffff' },
-    white:  { bright: '#ffffff', faded: '#f8f9fa', text: '#212529' },
-    grey:   { bright: '#868e96', faded: '#dee2e6', text: '#1f2226' },
-  default: { bright: '#adb5bd', faded: '#e9ecef', text: '#212529' }
-};
-
-var taskTypeTemplate = [];
-var currentClientTaskTypes = [];
-var currentTaskTypeClientName = '';
-
 function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -5949,200 +4873,6 @@ function tokenizeNameParts(name) {
     .map(t => t.trim())
     .filter(t => t.length > 3); // only >3 chars per your rule
 }
-
-  function normalizeTaskColorKey(name){
-    var key = (name || '').toLowerCase().replace(/[^a-z]/g,'');
-    if (key === 'blackwhitefont') return 'black';
-    return key;
-  }
-
-function ensureTaskTemplateLocal(template){
-  var map = {};
-  var allowed = DEFAULT_TASK_COLOR_ORDER.map(normalizeTaskColorKey);
-  (template || []).forEach(function(t){
-    var key = normalizeTaskColorKey(t.baseColor || t.color || '');
-    if (!key) return;
-    if (allowed.indexOf(key) === -1) return;
-    map[key] = { baseColor: t.baseColor || t.color || '', label: t.label || '' };
-  });
-
-  var ordered = DEFAULT_TASK_COLOR_ORDER.map(function(color){
-    var key = normalizeTaskColorKey(color);
-    return map[key] ? map[key] : { baseColor: color, label: '' };
-  });
-
-  return ordered;
-}
-
-function mergeTemplateWithBrightnessLocal(template, clientTaskTypes){
-  var brightnessMap = {};
-  (clientTaskTypes || []).forEach(function(t){
-    brightnessMap[normalizeTaskColorKey(t.baseColor)] = (t.brightness === 'faded') ? 'faded' : 'bright';
-  });
-
-  return ensureTaskTemplateLocal(template).map(function(t){
-    var key = normalizeTaskColorKey(t.baseColor);
-    return {
-      baseColor: t.baseColor,
-      label: t.label || '',
-      brightness: brightnessMap[key] || 'bright'
-    };
-  });
-}
-
-function updateTopClientsCacheTaskTypes(clientName, taskTypes) {
-  if (!clientName || !Array.isArray(__topClientsCache)) return false;
-
-  var matched = false;
-  __topClientsCache.forEach(function(client) {
-    var name = String(client.clientName || client.name || '').trim();
-    if (name && name.toLowerCase() === String(clientName).trim().toLowerCase()) {
-      client.taskTypes = Array.isArray(taskTypes) ? taskTypes : [];
-      matched = true;
-    }
-  });
-
-  return matched;
-}
-
-function repaintTopClientsPreservingScroll() {
-  var display = document.getElementById('topClientsDisplay');
-  var scrollTop = display ? display.scrollTop : 0;
-
-  if (typeof repaintTopClientsWithCurrentFilter === 'function') {
-    repaintTopClientsWithCurrentFilter(__topClientsCache);
-  }
-
-  if (display) display.scrollTop = scrollTop;
-}
-
-function getTaskTypeButtonStyle(entry){
-  var key = normalizeTaskColorKey(entry.baseColor);
-  var palette = TASK_TYPE_COLOR_MAP[key] || TASK_TYPE_COLOR_MAP.default;
-  var isBright = entry.brightness !== 'faded';
-  if (!isBright) {
-    return {
-      backgroundColor: '#f1f3f5',
-      color: '#6c757d',
-      border: '1px solid #ced4da',
-      boxShadow: 'none'
-    };
-  }
-
-  return {
-    backgroundColor: palette.bright,
-    color: palette.text || '#fff',
-    border: '1px solid transparent',
-    boxShadow: ''
-  };
-}
-
-
-function toggleTaskTypeBrightness(baseColor){
-  if (!currentTaskTypeClientName) return;
-  var match = (currentClientTaskTypes || []).find(function(t){ return normalizeTaskColorKey(t.baseColor) === normalizeTaskColorKey(baseColor); });
-  var willBeBright = !(match && match.brightness === 'faded');
-
-  showLoadingBar();
-  google.script.run
-    .withSuccessHandler(function(res){
-      var template = ensureTaskTemplateLocal((res && res.template) || taskTypeTemplate);
-      taskTypeTemplate = template;
-      currentClientTaskTypes = mergeTemplateWithBrightnessLocal(template, (res && res.taskTypes) || currentClientTaskTypes);
-      renderTaskTypeBar(currentClientTaskTypes);
-      // Keep the Top Clients button text in sync with emoji highlights.
-      if (updateTopClientsCacheTaskTypes(currentTaskTypeClientName, currentClientTaskTypes)) {
-        repaintTopClientsPreservingScroll();
-      }
-      hideLoadingBar();
-    })
-    .withFailureHandler(function(err){
-      console.error('Failed to toggle brightness', err);
-      hideLoadingBar();
-      showToast('Could not update task button');
-    })
-    .setTaskTypeBrightnessForClient(currentTaskTypeClientName, baseColor, !willBeBright);
-}
-
-// Keep the task type bar aligned with the autocomplete + category width
-// and shrink text/padding as buttons grow.
-function adjustTaskTypeBarSizing(row, bar){
-  var autoInput = document.getElementById('clientAutocomplete');
-  var catWrap = document.getElementById('catCalWrap');
-  var autoWidth = autoInput ? autoInput.getBoundingClientRect().width : 0;
-  var categoryWidth = catWrap ? catWrap.getBoundingClientRect().width : 0;
-  var maxWidth = autoWidth + categoryWidth;
-
-  if (maxWidth > 0) {
-    row.style.maxWidth = maxWidth + 'px';
-    bar.style.maxWidth = maxWidth + 'px';
-  } else {
-    row.style.maxWidth = '';
-    bar.style.maxWidth = '';
-  }
-
-  var buttons = bar.querySelectorAll('.task-type-button');
-  var count = buttons.length;
-  if (!count) return;
-
-  var fontSize = Math.max(0.62, 0.9 - (count - 1) * 0.05);
-  var horizontalPadding = Math.max(6, 10 - (count - 1));
-
-  buttons.forEach(function(btn){
-    btn.style.fontSize = fontSize + 'em';
-    btn.style.padding = '6px ' + horizontalPadding + 'px';
-  });
-}
-
-function renderTaskTypeBar(taskTypes){
-  var row = document.getElementById('taskTypeBarRow');
-  var bar = document.getElementById('taskTypeBar');
-  if (!row || !bar) return;
-
-  var seen = {};
-  var visible = [];
-  (taskTypes || []).forEach(function(t){
-    var label = (t.label || '').trim();
-    var key = normalizeTaskColorKey(t.baseColor);
-    if (!label || !key) return;
-    if (seen[key]) return; // avoid duplicate buttons for the same base color
-    seen[key] = true;
-    visible.push(t);
-  });
-
-  bar.innerHTML = '';
-
-  if (!currentTaskTypeClientName || visible.length === 0) {
-    row.style.display = 'none';
-    return;
-  }
-
-  row.style.display = 'flex';
-  visible.forEach(function(entry){
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'task-type-button';
-    btn.textContent = entry.label;
-    btn.dataset.baseColor = entry.baseColor;
-    btn.dataset.brightness = entry.brightness;
-    var styles = getTaskTypeButtonStyle(entry);
-    Object.keys(styles).forEach(function(k){ btn.style[k] = styles[k]; });
-    btn.classList.toggle('is-faded', entry.brightness === 'faded');
-    btn.addEventListener('click', function(e){ e.stopPropagation(); toggleTaskTypeBrightness(entry.baseColor); });
-    bar.appendChild(btn);
-  });
-
-  adjustTaskTypeBarSizing(row, bar);
-}
-
-function setTaskTypesForClient(clientName, taskTypes, template){
-  currentTaskTypeClientName = clientName || '';
-  var baseTemplate = ensureTaskTemplateLocal(template && template.length ? template : taskTypeTemplate);
-  taskTypeTemplate = baseTemplate;
-  currentClientTaskTypes = mergeTemplateWithBrightnessLocal(baseTemplate, taskTypes || currentClientTaskTypes);
-  renderTaskTypeBar(currentClientTaskTypes);
-}
-
 
 /** Build the master arrays + union regex from clientsData (Column A). */
 function rebuildClientNameIndex() {
@@ -6491,10 +5221,10 @@ document.getElementById('scrollBottomBtn').style.display = 'inline-block';
     google.script.run.withSuccessHandler(populateLabelsDropdown).getAllLabels();
     handleUserSelectionChange();
     updateCategoryLabel(); // Initialize the category label
-    runWhenIdle(displayTable); // Call displayTable here instead of using window.onload
-    runWhenIdle(function() {
-      initializeClientCategoryAndLabels({ category: __currentCategory || '', labels: [] });
-    });
+    displayTable(); // Call displayTable here instead of using window.onload
+        google.script.run.withSuccessHandler(function(categories) {
+        populateCategoryDropdown(categories);
+    }).getUniqueCategories();
 
 
   if (typeof fitRecentRowOneLine === 'function') fitRecentRowOneLine();
@@ -7159,7 +5889,7 @@ function selectButton(buttonId, selectedColor, clientFilter) {
 document.addEventListener('DOMContentLoaded', function fastFirstPaint() {
   // Ensure a default in the dropdown, then reuse the canonical fetch+render
   var dd = document.getElementById('topClientsFilterDropdown');
-  if (dd && !dd.value) dd.value = getDefaultTopClientsFilter();
+  if (dd && !dd.value) dd.value = 'JB';
 
   // Wire the change handler immediately so user changes take effect
   initTopClientsFilterAfterList();
@@ -7242,11 +5972,6 @@ function initTopClientsFilterAfterList(){
   if (!dd) return;
   if (!dd._wired) {
     dd.addEventListener('change', function(){
-      var selected = dd.options[dd.selectedIndex];
-      var isLabelPlaceholder = selected && selected.dataset && selected.dataset.placeholder === 'label';
-      if (__activeLabelFilter && !isLabelPlaceholder) {
-        clearLabelFilter(true);
-      }
       // Single source of truth: always go through syncClientsListToDropdown
       syncClientsListToDropdown();
     });
@@ -7268,12 +5993,8 @@ function initTopClientsFilterAfterList(){
     google.charts.load('current', {packages: ['corechart']});
 
     // Set a callback to run when the Google Visualization API is loaded.
-    google.charts.setOnLoadCallback(function() {
-        runWhenIdle(getAndDrawHeatmapData);
-    });
-        google.charts.setOnLoadCallback(function() {
-        runWhenIdle(drawScatterPlot);
-    });
+    google.charts.setOnLoadCallback(getAndDrawHeatmapData);
+        google.charts.setOnLoadCallback(drawScatterPlot);
 
 
     // ... rest of your JavaScript functions ...
@@ -7360,80 +6081,23 @@ function updateDaySettings(value) {
 function setClientDropdownVisibility(hasClient) {
   var autoRow = document.getElementById('clientAutocompleteRow');
   var catWrap = document.getElementById('catCalWrap');
-  var categorySelect = document.getElementById('categorySelect');
   if (autoRow) autoRow.classList.toggle('has-client', !!hasClient);
   if (catWrap) catWrap.style.display = hasClient ? 'flex' : 'none';
-  if (categorySelect) categorySelect.disabled = !hasClient;
-}
-
-function resolveClientNameFromSelection(rawName) {
-  var normalizedRaw = String(rawName || '').trim();
-  if (!normalizedRaw) return '';
-
-  var normalizedRawLower = normalizedRaw.toLowerCase();
-  var clientSelect = document.getElementById('clientSelect');
-  var directOptions = [];
-
-  if (clientSelect && clientSelect.options) {
-    for (var i = 0; i < clientSelect.options.length; i++) {
-      var optionValue = String(clientSelect.options[i].value || '').trim();
-      if (optionValue) directOptions.push(optionValue);
-    }
-  }
-
-  // 1) Prefer exact matches from dropdown options.
-  for (var j = 0; j < directOptions.length; j++) {
-    if (directOptions[j].toLowerCase() === normalizedRawLower) {
-      return directOptions[j];
-    }
-  }
-
-  // 2) Allow decorated strings ("Name (Category) • labels") to resolve to a real client option.
-  for (var k = 0; k < directOptions.length; k++) {
-    var optionLower = directOptions[k].toLowerCase();
-    if (normalizedRawLower.indexOf(optionLower) === 0 || optionLower.indexOf(normalizedRawLower) === 0) {
-      return directOptions[k];
-    }
-  }
-
-  // 3) Fallback to loaded client data names.
-  if (Array.isArray(clientsData)) {
-    for (var m = 0; m < clientsData.length; m++) {
-      var candidateName = String((clientsData[m] && clientsData[m].clientName) || '').trim();
-      if (!candidateName) continue;
-      var candidateLower = candidateName.toLowerCase();
-      if (candidateLower === normalizedRawLower || normalizedRawLower.indexOf(candidateLower) === 0 || candidateLower.indexOf(normalizedRawLower) === 0) {
-        return candidateName;
-      }
-    }
-  }
-
-  return normalizedRaw;
 }
 
 function showClientNotes() {
+      var clientName = document.getElementById('clientSelect').value;
+      // NOTE: recent chips no longer update here (only on hide).
       var clientSelect = document.getElementById('clientSelect');
       var clientAutocomplete = document.getElementById('clientAutocomplete');
-      var clientName = clientSelect ? clientSelect.value : '';
-
-      // Ensure the task status bar (columns R+) is restored for clients loaded via autocomplete.
-      if (!clientName && clientAutocomplete && clientAutocomplete.value) {
-        clientName = clientAutocomplete.value.trim();
-      }
-
-      clientName = resolveClientNameFromSelection(clientName);
-      if (clientName && clientSelect) clientSelect.value = clientName;
-      // NOTE: recent chips no longer update here (only on hide).
       // SNIPPET: CLEAR LOADED IN-PROGRESS AREA
 
       // So we don't see old text while the new client data is loading
-  document.getElementById('loadedInProgressArea').value = '';
+      document.getElementById('loadedInProgressArea').value = '';
 
-  setClientDropdownVisibility(!!clientName);
+      setClientDropdownVisibility(!!clientName);
 
-  setTaskTypesForClient(clientName, [], taskTypeTemplate);
-
-  requestAnimationFrame(fitClientAndCategoryRow);
+      requestAnimationFrame(fitClientAndCategoryRow);
 
       // Set the autocomplete value based on the dropdown selection
       clientAutocomplete.value = clientName || '';
@@ -7451,7 +6115,7 @@ function showClientNotes() {
         currentClientName = '';
     }
 // Reset values and set displays based on selection
-restorePastWorkDraftForClient(clientName);
+document.getElementById('newPastWork').value = '';
 document.getElementById('categorySelect').value = '';
 setCategoryPlaceholderText('');
 hideCategoryOverlay();
@@ -7483,16 +6147,7 @@ var appointmentBtn = document.getElementById('addAppointmentBtn');
 if (appointmentBtn) {
   appointmentBtn.style.display = displayStyle;
 }
-// Emoji labels are now managed in the spreadsheet only.
-var labelsAdditionSection = document.getElementById('labelsAdditionSection');
-if (labelsAdditionSection) {
-  labelsAdditionSection.style.display = displayStyle;
-}
-var labelsDropdown = document.getElementById('labelsDropdown');
-if (labelsDropdown) {
-  labelsDropdown.style.display = displayStyle;
-  labelsDropdown.disabled = !clientName;
-}
+document.getElementById('labelsAdditionSection').style.display = displayStyle;
 var hideClientNotesBtn = document.getElementById('hideClientNotesBtn');
 if (hideClientNotesBtn) {
   hideClientNotesBtn.style.display = 'none';
@@ -7525,50 +6180,42 @@ document.getElementById('notesDisplay').style.display = 'block';
     // Start asynchronous operation to populate labels dropdown
     google.script.run
       .withSuccessHandler(function(labels) {
-        try {
-          populateLabelsDropdown(labels);
-        } catch (err) {
-          console.error('populateLabelsDropdown failed', err);
-        } finally {
-          markOpComplete();
-        }
+        populateLabelsDropdown(labels);
+        markOpComplete();
       })
       .withFailureHandler(function(err){ markOpFailed('Failed to load labels', err); })
       .getAllLabels();
 
     // Fetch client details and handle them with a success handler
     google.script.run.withSuccessHandler(function(data) {
-        try {
-            // After successful fetch, set up the dropdowns and display data
-            setupColumnDropdowns(data);
+        // After successful fetch, set up the dropdowns and display data
+     // After successful fetch, set up the dropdowns and display data
+setupColumnDropdowns(data);
 
-            // ⭐ Set chip cache FIRST (so displayNotes sees it)
-            window.__chipForCurrentClient = {
-              initials: (data.chipInitials || "").toUpperCase(),
-              date: data.chipDate || ""   // already MM/DD/YY per our server plan
-            };
+// ⭐ Set chip cache FIRST (so displayNotes sees it)
+window.__chipForCurrentClient = {
+  initials: (data.chipInitials || "").toUpperCase(),
+  date: data.chipDate || ""   // already MM/DD/YY per our server plan
+};
 
-            displayClientDetails(data);
+displayClientDetails(data);
 
-            setTaskTypesForClient(clientName, data.taskTypes, data.taskTypeTemplate);
+// Update the category select value based on fetched client data
+updateCategorySelectValue(data.category);
+        setCategoryPlaceholderText(data.category || __currentCategory || '');
+        positionCategoryDropdownOverAutocomplete();
 
-            initializeClientCategoryAndLabels(data);
-        } catch (err) {
-            console.error('displayClientDetails pipeline failed', err);
-            showToast('Unable to load client');
-        } finally {
-            markOpComplete();
-        }
+        markOpComplete();
     })
     .withFailureHandler(function(err){
         markOpFailed('Failed to load client details', err);
         showToast('Unable to load client');
-  })
+    })
     .getClientDetails(clientName);
 
     // Persist "which client is open" along with current filter
 saveUIState({
-  filter: getCurrentTopClientsFilter(),
+  filter: (document.getElementById('topClientsFilterDropdown')||{}).value || '',
   client: (document.getElementById('clientSelect')||{}).value || ''
 });
 
@@ -7582,14 +6229,12 @@ function setupColumnDropdowns(data) {
 
 function normalizeTopClientsFilter(val) {
   const raw = (val || '').toString().trim();
-  if (/^LABEL\|/i.test(raw)) {
-    return 'LABEL|' + raw.slice(6);
-  }
-  const upper = raw.toUpperCase();
+  // Map emojis/aliases to canonical keys your renderer understands
   const map = {
-    'JB':'JB', 'RB':'RB', 'MB':'MB', 'QC':'QC', 'TEAM':'TEAM', 'BDAY':'BDAY'
+    'JB':'JB', 'RB':'RB', 'QC':'QC', 'TEAM':'TEAM', 'BDAY':'BDAY',
+    '💼':'BRIEFCASE', '⭐':'STAR', '🎓':'GRADCAP', '📞':'PHONE'
   };
-  return map.hasOwnProperty(upper) ? map[upper] : raw;
+  return map.hasOwnProperty(raw) ? map[raw] : raw.toUpperCase();
 }
 
 // === CATEGORY CHANGE GUARDS ===
@@ -7597,45 +6242,6 @@ let __suppressCategoryChange = false;     // don't fire when we set value in cod
 let __categoryReqToken = 0;               // ignore stale success/failure
 let __categoryInFlight = false;           // optional: disable UI while saving
 let __currentCategory = '';               // last category we know is applied
-let __categoryOptionsReqToken = 0;        // ignore stale category-option responses
-let __categoryOptionsCache = [];          // last non-empty category list from server
-
-function normalizeFlatStringList(values, debugLabel) {
-  var flattened = [];
-
-  (Array.isArray(values) ? values : []).forEach(function (value) {
-    if (Array.isArray(value)) {
-      value.forEach(function (inner) { flattened.push(inner); });
-      return;
-    }
-    flattened.push(value);
-  });
-
-  var byKey = new Map();
-  flattened.forEach(function (raw) {
-    var trimmed = String(raw || '').trim();
-    if (!trimmed) return;
-    var key = trimmed.toLocaleLowerCase();
-    if (!byKey.has(key)) byKey.set(key, trimmed);
-  });
-
-  var normalized = Array.from(byKey.values()).sort(function (a, b) {
-    return a.localeCompare(b, undefined, { sensitivity: 'base' });
-  });
-
-  console.log((debugLabel || 'normalizeFlatStringList') + ' normalized', normalized);
-  return normalized;
-}
-
-function normalizeCategoryList(categories) {
-  return normalizeFlatStringList(categories, 'normalizeCategoryList');
-}
-
-function getCategoriesFromClientsData() {
-  return normalizeCategoryList((clientsData || []).map(function (client) {
-    return client && client.category ? client.category : '';
-  }));
-}
 
 function wireCategorySelectChange(){
   const sel = document.getElementById('categorySelect');
@@ -7656,86 +6262,19 @@ function wireCategorySelectChange(){
 
 /* Call this to programmatically set the dropdown value WITHOUT triggering save */
 function updateCategorySelectValue(newValue){
-  const sel = document.getElementById('categorySelect'); // Locate category dropdown element.
-  if (!sel) return; // Exit early if category dropdown is unavailable.
-  const normalizedValue = String(newValue || '').trim(); // Normalize incoming category value.
-
-  if (normalizedValue) { // Ensure non-empty category value exists in dropdown options.
-    const exists = Array.from(sel.options).some(function (opt) { // Check option list for case-insensitive match.
-      return String(opt.value || '').toLowerCase() === normalizedValue.toLowerCase(); // Compare current option to requested category.
-    });
-
-    if (!exists) { // Insert missing category to keep UI selectable.
-      const opt = document.createElement('option'); // Build option for missing category.
-      opt.value = normalizedValue; // Set missing category as option value.
-      opt.textContent = normalizedValue; // Show missing category text in dropdown.
-      const sentinel = sel.querySelector('option[value="__NEW__"]'); // Locate sentinel new-category option.
-      sel.add(opt, sentinel || null); // Insert missing category before sentinel when present.
-    }
-  }
-
-  __suppressCategoryChange = true; // Prevent change listeners from saving while we set value programmatically.
-  sel.value = normalizedValue; // Apply category value to dropdown control.
-  sel.dataset.prevValue = normalizedValue; // Cache value as previous valid category.
-  __currentCategory = normalizedValue;  // Keep in-memory category state synchronized.
-  setCategoryPlaceholderText(__currentCategory || ''); // Update placeholder/overlay text to match selected category.
-  positionCategoryDropdownOverAutocomplete(); // Reposition category UI overlay after value update.
-  // release on next tick so real user changes still work
-  setTimeout(() => { __suppressCategoryChange = false; }, 0); // Re-enable normal change handling after this call stack.
-}
-
-function fetchAndPopulateCategoryOptions(currentCategory, clientNameOverride) {
   const sel = document.getElementById('categorySelect');
-  const clientNameAtRequest = String((document.getElementById('clientSelect') || {}).value || '').trim();
   if (!sel) return;
-
-  const token = ++__categoryOptionsReqToken;
-  sel.disabled = true;
-
-  const finishCategoryOptionsRequest = function () {
-    if (token === __categoryOptionsReqToken) sel.disabled = false;
-  };
-
-  google.script.run
-    .withSuccessHandler(function (cats) {
-      try {
-        // Latest request wins + client guard to avoid stale overwrites when switching quickly.
-        const activeClient = (document.getElementById('clientSelect') || {}).value || '';
-        if (token !== __categoryOptionsReqToken) return;
-        if (clientNameAtRequest && activeClient && activeClient !== clientNameAtRequest) return;
-
-        console.log("fetchAndPopulateCategoryOptions raw categories", cats);
-        let categories = normalizeCategoryList(cats);
-        categories = categories.filter(function (c) { return c && c.trim().length; });
-        console.log('fetchAndPopulateCategoryOptions normalized categories', categories);
-        if (categories.length) __categoryOptionsCache = categories.slice();
-
-        populateCategoryDropdown(categories, currentCategory || __currentCategory || '');
-        updateCategorySelectValue(currentCategory || __currentCategory || '');
-
-        console.log('fetchAndPopulateCategoryOptions categorySelect option count', sel.options.length);
-      } finally {
-        finishCategoryOptionsRequest();
-      }
-    })
-    .withFailureHandler(function (err) {
-      try {
-        const activeClient = (document.getElementById('clientSelect') || {}).value || '';
-        if (token !== __categoryOptionsReqToken) return;
-        if (clientNameAtRequest && activeClient && activeClient !== clientNameAtRequest) return;
-        console.error('Failed to load categories:', err);
-
-        populateCategoryDropdown([], currentCategory || __currentCategory || '');
-        updateCategorySelectValue(currentCategory || __currentCategory || '');
-      } finally {
-        finishCategoryOptionsRequest();
-      }
-    })
-    .getUniqueCategories();
+  __suppressCategoryChange = true;
+  sel.value = (newValue || '');
+  __currentCategory = (newValue || '');  // keep our local notion in sync
+  setCategoryPlaceholderText(__currentCategory || '');
+  positionCategoryDropdownOverAutocomplete();
+  // release on next tick so real user changes still work
+  setTimeout(() => { __suppressCategoryChange = false; }, 0);
 }
 
 /* Single, tokened pipeline to update category on the server */
-function requestCategoryChange(newCategory, onSuccess){
+function requestCategoryChange(newCategory){
   const clientName = (document.getElementById('clientSelect')||{}).value || '';
   if (!clientName || !newCategory) return;
 
@@ -7751,11 +6290,7 @@ function requestCategoryChange(newCategory, onSuccess){
       __categoryInFlight = false;
       setCategoryPlaceholderText(__currentCategory || '');
       positionCategoryDropdownOverAutocomplete();
-      if (typeof updateCategoryLabel === 'function') updateCategoryLabel();
-      if (typeof retriggerTopClientsFilter === 'function') retriggerTopClientsFilter();
-      if (typeof onSuccess === 'function') onSuccess();
       try { if (typeof hideLoadingBar === 'function') hideLoadingBar(); } catch(_){}
-
       // Optional toast near the select
       try {
         const sel = document.getElementById('categorySelect');
@@ -7791,11 +6326,9 @@ function requestCategoryChange(newCategory, onSuccess){
 /* === HELPER: repaint Top Clients using the CURRENT dropdown filter === */
 function repaintTopClientsWithCurrentFilter(clients) {
   // Read the dropdown safely
-  var currentFilter = getCurrentTopClientsFilter();
-
-  buildTopClientsFilterDropdown(clients);
-  renderTopClientsLabelFilters(clients);
-  renderTopClientsTopFilterBar(clients);
+  var dd = document.getElementById('topClientsFilterDropdown');
+  var raw = (dd && dd.value) ? dd.value : 'JB';
+  var currentFilter = normalizeTopClientsFilter(raw);
 
   // Use your standard renderer, passing the filter explicitly
   if (typeof showTopClients === 'function') {
@@ -7807,30 +6340,6 @@ function repaintTopClientsWithCurrentFilter(clients) {
   // Re-wire suggestion textareas + keep visibility state
   if (typeof wireToplistSuggestionTextareas === 'function') wireToplistSuggestionTextareas();
   if (typeof applySuggestionsVisibility === 'function') applySuggestionsVisibility();
-}
-
-function toggleBirthdayCakeLabel(clientName, hasCakeLabel) {
-  if (!clientName) return;
-  var label = '🎂';
-  var onSuccess = function() {
-    showToast(hasCakeLabel ? 'Label removed successfully!' : 'Label added successfully!');
-    if (typeof refreshTopClientsPreservingScroll === 'function') {
-      refreshTopClientsPreservingScroll();
-    } else if (typeof retriggerTopClientsFilter === 'function') {
-      retriggerTopClientsFilter();
-    }
-  };
-  var onFailure = function(err) {
-    console.error('Failed to toggle birthday label', err);
-    showToast('Unable to update birthday label');
-  };
-
-  var runner = google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onFailure);
-  if (hasCakeLabel) {
-    runner.removeLabelFromClient(clientName, label);
-  } else {
-    runner.addLabelToClient(clientName, label);
-  }
 }
 
 
@@ -7865,13 +6374,12 @@ function setupColumnDDropdown(data) {
 }
 
 function displayClientDetails(data) {
-    console.log("displayClientDetails payload", data);
     var labelsDisplay = document.getElementById('labelsDisplay');
     labelsDisplay.innerHTML = '';
     if (data.notes) {
         displayNotes(data.notes);
     }
-renderClientLabels(data ? data.labels : []);
+displayLabels(Array.isArray(data.labels) ? data.labels : []);
 
 // SNIPPET #4: Ensure the loaded "In Progress:" is set from data.columnL
 // Seed the In Progress textarea and remember the last-saved value
@@ -7921,136 +6429,83 @@ loadedInProgressArea.setAttribute('data-last-saved', seed);
     e.stopPropagation();
   }, true);
 });
+// === Paste this as the LAST line inside your "client notes are ready" function ===
+loadCategoriesForClientAfterNotes();
+
+
 }
 
 
 
 
-function normalizeClientLabelsForRender(input) {
-    var flattened = [];
+function labelContainsEmoji(labelText) {
+    if (!labelText) return false;
+    return /[\p{Extended_Pictographic}]/u.test(labelText);
+}
 
-    function visit(value, inheritedBlue) {
-      if (value == null || value === '') return;
 
-      if (Array.isArray(value)) {
-        value.forEach(function(item) { visit(item, inheritedBlue); });
-        return;
-      }
 
-      if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-        String(value)
-          .split(/\s*•\s*|\r?\n|\s*,\s*/)
-          .map(function(part) { return String(part || '').trim(); })
-          .filter(Boolean)
-          .forEach(function(part) {
-            flattened.push({ label: part, isBlue: !!inheritedBlue });
-          });
-        return;
-      }
+function displayLabels(labelsArray) {
+    var labelsDisplay = document.getElementById('labelsDisplay');
 
-      if (typeof value === 'object') {
-        var resolvedBlue = (typeof value.isBlue === 'boolean') ? value.isBlue : inheritedBlue;
-        if (value.label != null) visit(value.label, resolvedBlue);
-        ['labels', 'values', 'items', 'data', 'payload', 'result', 'results', 'children'].forEach(function(key) {
-          if (value[key] != null) visit(value[key], resolvedBlue);
-        });
-      }
+    var addLabelDropdown = document.getElementById('labelsDropdown');
+    if (addLabelDropdown) {
+        addLabelDropdown.classList.add('label-box', 'add-label-dropdown');
+        addLabelDropdown.selectedIndex = 0; // Keep placeholder visible after refresh
     }
 
-    visit(input, false);
+    labelsDisplay.innerHTML = '';
+    
+    var emojiLabels = [];
+    var nonEmojiLabels = [];
 
-    var seen = {};
-    var ordered = [];
-    flattened.forEach(function(entry) {
-      var text = String(entry && entry.label ? entry.label : '').trim();
-      if (!text) return;
 
-      var key = text.toLowerCase();
-      if (seen[key] == null) {
-        seen[key] = ordered.length;
-        ordered.push({ label: text, isBlue: !!entry.isBlue });
-      } else if (entry.isBlue) {
-        ordered[seen[key]].isBlue = true;
-      }
+    labelsArray.forEach(function(labelObj) {
+              if (labelContainsEmoji(labelObj.label)) {
+            emojiLabels.push(labelObj);
+        } else {
+            nonEmojiLabels.push(labelObj);
+        }
     });
 
-    return ordered;
+    var orderedLabels = emojiLabels.concat(nonEmojiLabels);
+
+    orderedLabels.forEach(function(labelObj) {
+        var labelDiv = document.createElement('div');
+        labelDiv.className = 'label-box';
+        labelDiv.textContent = labelObj.label;
+
+        // Apply light blue background and black text to labels from columns H-K
+        if (labelObj.isBlue) {
+            labelDiv.style.backgroundColor = 'lightblue';
+            labelDiv.style.color = 'black';
+        } else {
+            // Set the background to light green for labels that are not light blue
+            labelDiv.style.backgroundColor = 'lightgreen';
+
+            // Only add onclick event if the background is not blue
+            labelDiv.onclick = function() {
+                confirmAndRemoveLabel(labelObj.label);
+            };
+        }
+
+        labelsDisplay.appendChild(labelDiv);
+    });
 }
 
-function renderClientLabels(labels) {
-  var labelsDisplay = document.getElementById('labelsDisplay');
-  if (!labelsDisplay) return;
 
-  labelsDisplay.innerHTML = '';
 
-  var addLabelDropdown = document.getElementById('labelsDropdown');
-  if (addLabelDropdown) {
-    addLabelDropdown.classList.add('label-box', 'add-label-dropdown');
-    addLabelDropdown.selectedIndex = 0;
-  }
 
-  var normalized = normalizeClientLabelsForRender(labels);
-  if (!normalized.length) return;
 
-  normalized.forEach(function(labelObj) {
-    var chip = document.createElement('div');
-    chip.className = 'label-box';
-    chip.textContent = labelObj.label;
-    chip.style.cursor = 'default';
-    chip.style.backgroundColor = labelObj.isBlue ? 'lightblue' : 'lightgreen';
-    chip.style.color = 'black';
-    chip.title = labelObj.label;
-    labelsDisplay.appendChild(chip);
-  });
-}
-
-function getCachedGlobalCategoriesForUI(selectedCategory) {
-  var fromClients = normalizeCategoryList((clientsData || []).map(function (client) {
-    return client && client.category ? client.category : '';
-  }));
-
-  var selected = String(selectedCategory || __currentCategory || '').trim();
-  if (selected && !fromClients.some(function (cat) {
-    return String(cat || '').toLowerCase() === selected.toLowerCase();
-  })) {
-    fromClients.push(selected);
-    fromClients = normalizeCategoryList(fromClients);
-  }
-
-  return fromClients;
-}
-
-function loadGlobalCategoriesForUI(selectedCategory) {
-  var fallbackCategories = getCachedGlobalCategoriesForUI(selectedCategory);
-
-  google.script.run
-    .withSuccessHandler(function(categories) {
-      var merged = normalizeCategoryList([].concat(categories || [], fallbackCategories || []));
-      populateGlobalCategoryDropdown(merged, selectedCategory);
-    })
-    .withFailureHandler(function(err) {
-      console.error('Failed to load global categories from server; using clientsData fallback.', err);
-      populateGlobalCategoryDropdown(fallbackCategories, selectedCategory);
-    })
-    .getGlobalCategories_();
-}
-
-function initializeClientCategoryAndLabels(clientData) {
-  var selectedCategory = String((clientData && clientData.category) || __currentCategory || '').trim();
-
-  __currentCategory = selectedCategory;
-  renderClientLabels(clientData ? clientData.labels : []);
-  loadGlobalCategoriesForUI(selectedCategory);
-}
 
 function confirmAndRemoveLabel(label) {
     var clientName = document.getElementById('clientSelect').value;
     if (confirm('Are you sure you want to remove the label "' + label + '" from ' + clientName + '?')) {
         google.script.run.withSuccessHandler(function() {
-            showToast('Label removed successfully!');
+            alert('Label removed successfully!');
             showClientNotes(); // Assuming this function refreshes client details
         }).withFailureHandler(function(error) {
-            showToast('Error removing label: ' + error.message);
+            alert('Error removing label: ' + error.message);
         }).removeLabelFromClient(clientName, label);
     }
 }
@@ -8068,7 +6523,7 @@ function closeNewCategoryModal() {
   if (m) m.style.display = 'none';
 }
 
-// When user confirms a new category: set dropdown to it, persist, then refresh clients/categories.
+// When user confirms a new category: set dropdown to it and persist via updateCategory()
 function confirmNewCategory() {
   var input = document.getElementById('newCategoryInput');
   var name = (input ? String(input.value || '').trim() : '');
@@ -8077,30 +6532,47 @@ function confirmNewCategory() {
     return;
   }
 
+  // Set the dropdown to the new value, close modal, then save
+  var sel = document.getElementById('categorySelect');
   closeNewCategoryModal();
-  updateCategorySelectValue(name);
 
-  requestCategoryChange(name, function () {
-    initializeClientCategoryAndLabels({ category: name, labels: [] });
-
-    google.script.run
-      .withSuccessHandler(function(data){
-        var clientSelect = document.getElementById('clientSelect');
-        var selectedClient = clientSelect ? String(clientSelect.value || '').trim() : '';
-        clientsData = Array.isArray(data) ? data : [];
-        rebuildClientNameIndex();
-        populateClientDropdown(clientsData);
-        if (clientSelect && selectedClient) {
-          clientSelect.value = selectedClient;
+  // Add it to the dropdown immediately for this session
+  // (it will be truly "permanent" after we save it to the client and re-pull unique categories)
+  if (sel) {
+    var exists = Array.from(sel.options).some(function(opt){ return opt.value.toLowerCase() === name.toLowerCase(); });
+    if (!exists) {
+      var opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      // insert alphabetically before the sentinel NEW CATEGORY…
+      var inserted = false;
+      for (var i = 0; i < sel.options.length; i++) {
+        var o = sel.options[i];
+        if (o.value && o.value !== '__NEW__' && o.value.localeCompare(name, 'en', {sensitivity:'base'}) > 0) {
+          sel.add(opt, o);
+          inserted = true;
+          break;
         }
-      })
-      .withFailureHandler(function(err){
-        console.error('Failed to refresh clients after category save:', err);
-      })
-      .getAllClientsData();
-  });
+      }
+      if (!inserted) sel.add(opt, sel.querySelector('option[value="__NEW__"]') || null);
+    }
+    sel.value = name;
+  }
 
+  // Persist: assign this new category to the currently loaded client
+  // Your existing updateCategory() reads #categorySelect and #clientSelect
+  updateCategory();
   updateCategoryLabel();
+
+  // Refresh master list so the new category appears next time (pulls Column F uniques)
+  google.script.run
+    .withSuccessHandler(function(categories){
+      populateCategoryDropdown(categories);
+      // keep the just-saved value selected
+      var sel2 = document.getElementById('categorySelect');
+      if (sel2) sel2.value = name;
+    })
+    .getUniqueCategories();
 }
 
 /* Save the selected dropdown category to Column F for the currently loaded client. */
@@ -8121,18 +6593,91 @@ function updateCategory() {
     return;
   }
 
-  requestCategoryChange(category);
+  // Visual feedback (optional)
+  if (typeof showLoadingBar === 'function') showLoadingBar();
+
+google.script.run
+  .withSuccessHandler(function(res){
+    if (typeof hideLoadingBar === 'function') hideLoadingBar();
+
+    if (typeof updateCategoryLabel === 'function') updateCategoryLabel();
+
+    // ⬇️ re-run the Top Clients filter now
+    retriggerTopClientsFilter();
+
+    google.script.run
+      .withSuccessHandler(function(categories){
+        if (typeof populateCategoryDropdown === 'function') {
+          populateCategoryDropdown(categories);
+          var sel = document.getElementById('categorySelect');
+          if (sel) sel.value = category;
+        }
+      })
+      .getUniqueCategories();
+
+          // Refresh the autocomplete + dropdown data so the updated category appears immediately.
+    if (typeof refreshUIWithNewCategory === 'function') {
+      refreshUIWithNewCategory(clientName, category);
+    }
+  })
+
+    .withFailureHandler(function(err){
+      if (typeof hideLoadingBar === 'function') hideLoadingBar();
+      alert('Failed to save category: ' + (err && err.message ? err.message : err));
+    })
+    .updateClientCategory(clientName, category);
 }
 
 
 
 function loadCategoriesForClientAfterNotes() {
-  initializeClientCategoryAndLabels({
-    category: __currentCategory || '',
-    labels: []
-  });
+  // Ensure the select exists (it's okay if the section is hidden at first)
+  var sel = document.getElementById('categorySelect');
+  if (!sel) {
+    console.warn('loadCategoriesForClientAfterNotes: #categorySelect not found in DOM yet.');
+    return;
+  }
+
+  if (!(window.google && google.script && google.script.run)) {
+    console.error('google.script.run is not available yet.');
+    return;
+  }
+
+  google.script.run
+    .withSuccessHandler(function (cats) {
+      // Populate the dropdown, but DO NOT unhide the section here.
+      // Visibility is controlled strictly by showClientNotes() when a client is loaded.
+      populateCategoryDropdown(Array.isArray(cats) ? cats : []);
+      // Intentionally do NOT do:
+      //   document.getElementById('categoryChangeSection').style.display = 'block';
+    })
+    .withFailureHandler(function (err) {
+      console.error('Failed to load categories:', err);
+    })
+    .getUniqueCategories();
 }
 
+
+function updateCategorySelectValue(currentCategory) {
+  var sel = document.getElementById('categorySelect');
+  if (!sel) return;
+
+  if (currentCategory) {
+    // If the current category isn't yet in the dropdown (e.g., just created),
+    // temporarily insert it before the sentinel so it's selectable.
+    var exists = Array.from(sel.options)
+      .some(function (o) { return o.value.toLowerCase() === String(currentCategory).toLowerCase(); });
+
+    if (!exists) {
+      var opt = document.createElement('option');
+      opt.value = currentCategory;
+      opt.textContent = currentCategory;
+      var sentinel = sel.querySelector('option[value="__NEW__"]');
+      sel.add(opt, sentinel); // insert before NEW CATEGORY…
+    }
+  }
+  sel.value = currentCategory || '';
+}
 
 function sanitizeSuggestionBulbs() {
   document.querySelectorAll('.toplist-suggestion').forEach(card => {
@@ -8323,27 +6868,71 @@ function extractDateFromLine(line) {
   return new Date(year, month - 1, day);
 }
 
-function updateDashHandleChip(clientId, chipInfo) {
-  var chipSlot = document.getElementById('dashHandleChipSlot');
-  if (!chipSlot) return;
-  chipSlot.innerHTML = '';
-  if (!clientId) return;
-
-  var info = chipInfo || { initials: "", date: "" };
-  var chipEl = createChipElement(
-    clientId,
-    (info.initials || "").toUpperCase(),
-    info.date || ""
-  );
-  chipEl.classList.add('chip--xs');
-  chipSlot.appendChild(chipEl);
-}
 
 
 
 
+function displayNotes(notes) {
+  var notesDisplay = document.getElementById('notesDisplay');
+  notesDisplay.innerHTML = '';
 
-function renderNotesActionButtons(container, editText, displayStyle) {
+  // Toggle note action visibility based on whether a client is selected
+  var hasClient = !!((document.getElementById('clientSelect') || {}).value);
+  var displayStyle = hasClient ? 'flex' : 'none';
+
+  if (!notes || notes.length === 0) {
+    notesDisplay.innerHTML = '<p>No notes to display.</p>';
+    return;
+  }
+
+  // Collect lines from Column C only (ignore Column E)
+  var allLines = [];
+  notes.forEach(function(n) {
+    if (n.note && n.note !== 'N/A') {
+      n.note.split('\n').forEach(function(line) {
+        // Keep all lines (including blank) — groupLinesIntoBlocks will collapse 2+ blanks.
+        allLines.push(String(line || ""));
+      });
+    }
+  });
+
+  if (allLines.length === 0) {
+    notesDisplay.innerHTML = '<p>No notes to display.</p>';
+    return;
+  }
+
+  // Build dated blocks with inheritance + blank-line collapsing
+  var blocks = groupLinesIntoBlocks(allLines);
+
+  // Container
+  var container = document.createElement('div');
+  container.style.display = 'flex';
+  container.style.flexDirection = 'column';
+  container.style.alignItems = 'stretch';
+  container.style.width = '100%';
+  container.style.position = 'relative';
+
+  // === UNHIGHLIGHTED (older blocks, hidden by default) ===
+  var unhighlightedWrap = document.createElement('div');
+  unhighlightedWrap.id = 'unhighlightedNotes';
+  unhighlightedWrap.style.display = 'flex';
+  unhighlightedWrap.style.flexDirection = 'column';
+  unhighlightedWrap.style.gap = '5px';
+  container.appendChild(unhighlightedWrap);
+
+  var toggleBtn = document.createElement('button');
+  toggleBtn.id = 'toggleNotesButton';
+  toggleBtn.onclick = toggleNotesVisibility;
+  toggleBtn.innerText = '+';
+
+  var toggleRow = document.createElement('div');
+  toggleRow.style.display = 'flex';
+  toggleRow.style.justifyContent = 'center';
+  toggleRow.style.margin = '0';
+  toggleRow.appendChild(toggleBtn);
+  container.appendChild(toggleRow);
+
+  // === BUTTON ROW (moved beside the label dropdown) ===
   var buttonRow = document.createElement('div');
   buttonRow.className = 'labels-buttons-row';
   buttonRow.style.flexDirection = 'column';
@@ -8360,7 +6949,15 @@ function renderNotesActionButtons(container, editText, displayStyle) {
   editBtn.innerHTML = '✏️';
   editBtn.onclick = function (e) {
     e.stopPropagation();
-    editCombinedNotes(container, editText || '');
+    // Flatten blocks back to the user's raw lines (join with \n)
+    var flattened = [];
+    blocks.forEach(function(b){
+      b.lines.forEach(function(line){
+        // Turn the collapsed "" back into a blank line on edit
+        flattened.push(line === "" ? "" : line);
+      });
+    });
+    editCombinedNotes(container, flattened.join('\n'));
   };
 
   var apptBtn = document.getElementById('addAppointmentBtn');
@@ -8389,90 +6986,14 @@ function renderNotesActionButtons(container, editText, displayStyle) {
   } else {
     container.appendChild(buttonRow);
   }
-}
-
-function displayNotes(notes) {
-  var notesDisplay = document.getElementById('notesDisplay');
-  notesDisplay.innerHTML = '';
-
-  // Toggle note action visibility based on whether a client is selected
-  var hasClient = !!((document.getElementById('clientSelect') || {}).value);
-  var displayStyle = hasClient ? 'flex' : 'none';
-  var currentClientId = document.getElementById('clientSelect').value || "";
-  var chipInfo = window.__chipForCurrentClient || { initials: "", date: "" };
-
-  // Keep the CHANGE VIEW handle chip in sync with current client chip data.
-  updateDashHandleChip(currentClientId, chipInfo);
-
-  // Container
-  var container = document.createElement('div');
-  container.style.display = 'flex';
-  container.style.flexDirection = 'column';
-  container.style.alignItems = 'stretch';
-  container.style.width = '100%';
-  container.style.position = 'relative';
-  notesDisplay.appendChild(container);
-
-  if (!notes || notes.length === 0) {
-    container.innerHTML = '<p>No notes to display.</p>';
-    renderNotesActionButtons(container, '', displayStyle);
-    return;
-  }
-
-  // Collect lines from Column C only (ignore Column E)
-  var allLines = [];
-  notes.forEach(function(n) {
-    if (n.note && n.note !== 'N/A') {
-      n.note.split('\n').forEach(function(line) {
-        // Keep all lines (including blank) — groupLinesIntoBlocks will collapse 2+ blanks.
-        allLines.push(String(line || ""));
-      });
-    }
-  });
-
-  if (allLines.length === 0) {
-    container.innerHTML = '<p>No notes to display.</p>';
-    renderNotesActionButtons(container, '', displayStyle);
-    return;
-  }
-
-  // Build dated blocks with inheritance + blank-line collapsing
-  var blocks = groupLinesIntoBlocks(allLines);
-
-  // === UNHIGHLIGHTED (older blocks, hidden by default) ===
-  var unhighlightedWrap = document.createElement('div');
-  unhighlightedWrap.id = 'unhighlightedNotes';
-  unhighlightedWrap.style.display = 'flex';
-  unhighlightedWrap.style.flexDirection = 'column';
-  unhighlightedWrap.style.gap = '5px';
-  container.appendChild(unhighlightedWrap);
-
-  var toggleBtn = document.createElement('button');
-  toggleBtn.id = 'toggleNotesButton';
-  toggleBtn.onclick = toggleNotesVisibility;
-  toggleBtn.innerText = '+';
-
-  var toggleRow = document.createElement('div');
-  toggleRow.style.display = 'flex';
-  toggleRow.style.justifyContent = 'center';
-  toggleRow.style.margin = '0';
-  toggleRow.appendChild(toggleBtn);
-  container.appendChild(toggleRow);
-
-  var flattened = [];
-  blocks.forEach(function(b){
-    b.lines.forEach(function(line){
-      // Turn the collapsed "" back into a blank line on edit
-      flattened.push(line === "" ? "" : line);
-    });
-  });
-  renderNotesActionButtons(container, flattened.join('\n'), displayStyle);
 
   var chipSlot = document.getElementById('labelsChipSlot');
   if (chipSlot) {
     chipSlot.innerHTML = '';
   }
 
+  var chipInfo = window.__chipForCurrentClient || { initials: "", date: "" };
+  var currentClientId = document.getElementById('clientSelect').value || "";
   var noteChipEl = null;
   if (currentClientId) {
     noteChipEl = createChipElement(
@@ -8553,9 +7074,10 @@ buttonRow.style.display = 'flex'; // keep the row visible so ✏️ stays
 const UI_STATE_KEY = 'uiState.v1';
 
 function getCurrentUIState() {
+  const dd = document.getElementById('topClientsFilterDropdown');
   const sel = document.getElementById('clientSelect');
   return {
-    filter: getCurrentTopClientsFilter(),
+    filter: dd ? dd.value : '',
     client: sel ? sel.value : ''
   };
 }
@@ -8567,17 +7089,16 @@ function saveUIState(state) {
 }
 
 function restoreUIState() {
-  // Always start in the default owner filter on a fresh load
+  // Always start in JB on a fresh load
   const dd = document.getElementById('topClientsFilterDropdown');
   if (dd) {
-    clearLabelFilter();
-    dd.value = getDefaultTopClientsFilter();
+    dd.value = 'JB';
     if (typeof handleTopClientsFilterChange === 'function') {
-      handleTopClientsFilterChange(getDefaultTopClientsFilter());
+      handleTopClientsFilterChange('JB');
     }
   }
 
-  // Optionally restore the last open client (but keep the default owner filter)
+  // Optionally restore the last open client (but keep JB filter)
   let raw = null, st = null;
   try { raw = localStorage.getItem(UI_STATE_KEY); } catch (_){}
   if (!raw) return;
@@ -8609,22 +7130,12 @@ function reloadPreservingState() {
 
 // REPLACE EVERYTHING in editCombinedNotes(...) with this version
 function editCombinedNotes(contentElement, existingText) {
-  var editorWrap = document.createElement('div');
-  editorWrap.style.display = 'flex';
-  editorWrap.style.flexDirection = 'column';
-  editorWrap.style.gap = '10px';
-
   // Create a textarea with the existing text (all Column C lines)
   var textarea = document.createElement('textarea');
   textarea.value = existingText;
   textarea.style.width = '100%';
   textarea.style.boxSizing = 'border-box';
   textarea.style.resize = 'vertical';
-  // Keep the editor height stable to avoid page jumps while typing.
-  textarea.style.minHeight = '240px';
-  textarea.style.height = '40vh';
-  textarea.style.maxHeight = '65vh';
-  textarea.style.overflow = 'auto';
 
   // === Mirror the client notes font exactly ===
   // Try to read computed styles from a rendered .note-line (the same look as client notes).
@@ -8648,86 +7159,44 @@ function editCombinedNotes(contentElement, existingText) {
     }
   })();
 
-  var actions = document.createElement('div');
-  actions.style.display = 'flex';
-  actions.style.gap = '8px';
-  actions.style.flexWrap = 'wrap';
-
-  var saveBtn = document.createElement('button');
-  saveBtn.className = 'secondary-button inline-button';
-  saveBtn.type = 'button';
-  saveBtn.textContent = 'Save';
-
-  var cancelBtn = document.createElement('button');
-  cancelBtn.className = 'secondary-button inline-button';
-  cancelBtn.type = 'button';
-  cancelBtn.textContent = 'Cancel';
-
-  actions.appendChild(saveBtn);
-  actions.appendChild(cancelBtn);
-  editorWrap.appendChild(textarea);
-  editorWrap.appendChild(actions);
-
-  // Replace the contentElement with the editor wrapper
+  // Replace the contentElement with the textarea
   var parent = contentElement.parentNode;
-  parent.replaceChild(editorWrap, contentElement);
+  parent.replaceChild(textarea, contentElement);
 
-  function exitEditor() {
-    showClientNotes();
-  }
+  // Ensure proper height
+  setTimeout(function(){ adjustTextareaHeight(textarea); }, 0);
+  textarea.addEventListener('input', function(){ adjustTextareaHeight(this); });
 
-  function saveEdits() {
+  textarea.addEventListener('blur', function() {
     var newText = textarea.value;
-    if (newText === existingText) {
-      exitEditor();
-      return;
-    }
+    if (newText !== existingText) {
+      if (confirm('Save changes to NOTES (Column C)?')) {
+        var clientName = document.getElementById('clientSelect').value;
+        showLoadingBar();
+        google.script.run
+          .withSuccessHandler(function() {
+            hideLoadingBar();
+            alert('Notes updated successfully.');
+            // Refresh the client view + top clients
+            showClientNotes();
+retriggerTopClientsFilter();
 
-    if (!confirm('Save changes to NOTES (Column C)?')) {
-      exitEditor();
-      return;
-    }
-
-    var clientName = document.getElementById('clientSelect').value;
-    showLoadingBar();
-    google.script.run
-      .withSuccessHandler(function() {
-        hideLoadingBar();
-        alert('Notes updated successfully.');
-        // Refresh both the dashboard view + notes inbox.
-        refreshNoteViewsAfterEdit();
-
-        google.script.run.sendEditSummaryEmail(clientName, 'pastWork', existingText, newText);
-      })
-      .withFailureHandler(function(error) {
-        hideLoadingBar();
-        alert('Error saving edits: ' + error.message);
-        // Rebuild the UI (without changes)
+            google.script.run.sendEditSummaryEmail(clientName, 'pastWork', existingText, newText);
+          })
+          .withFailureHandler(function(error) {
+            hideLoadingBar();
+            alert('Error saving edits: ' + error.message);
+            // Rebuild the UI (without changes)
+            showClientNotes();
+          })
+          .updateNotes(clientName, 'pastWork', newText, existingText); // <-- COLUMN C ONLY
+      } else {
+        // Rebuild the UI (no changes)
         showClientNotes();
-      })
-      .updateNotes(clientName, 'pastWork', newText, existingText); // <-- COLUMN C ONLY
-  }
-
-  saveBtn.addEventListener('click', function(event) {
-    event.preventDefault();
-    saveEdits();
-  });
-
-  cancelBtn.addEventListener('click', function(event) {
-    event.preventDefault();
-    exitEditor();
-  });
-
-  textarea.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      exitEditor();
-      return;
-    }
-
-    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
-      event.preventDefault();
-      saveEdits();
+      }
+    } else {
+      // No changes; rebuild
+      showClientNotes();
     }
   });
 
@@ -8735,6 +7204,11 @@ function editCombinedNotes(contentElement, existingText) {
   textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
 }
 
+
+function adjustTextareaHeight(textarea) {
+    textarea.style.height = 'auto'; // Reset height
+    textarea.style.height = textarea.scrollHeight + 'px'; // Set new height
+}
 
 /**
  * highlightLatestDate(lines, element, style, chipInfo)
@@ -8833,10 +7307,7 @@ function logPastWorkSubmissionToInbox(noteText, clientName) {
 
 function submitPastWork() {
     var clientName = document.getElementById('clientSelect').value;
-    var pastWorkEl = document.getElementById('newPastWork');
-    var pastWorkContent = pastWorkEl ? pastWorkEl.value : '';
-
-    cachePastWorkDraftForClient(clientName, pastWorkContent);
+    var pastWorkContent = document.getElementById('newPastWork').value;
 
     // Show the loading bar
     showLoadingBar();
@@ -8871,8 +7342,7 @@ google.script.run
         } else {
             alert('Failed to update past work. Please try again.');
         }
-        cachePastWorkDraftForClient(clientName, '');
-        if (pastWorkEl) pastWorkEl.value = ''; // Clear only after submission
+        document.getElementById('newPastWork').value = ''; // Clear the textarea
 
         // Hide the loading bar after processing is complete
         hideLoadingBar();
@@ -8887,8 +7357,14 @@ google.script.run
 
 // Re-apply the current dropdown filter after any category change/save
 function retriggerTopClientsFilter(){
-  // Keep the dropdown and label chips unified
-  syncClientsListToDropdown();
+  var dd = document.getElementById('topClientsFilterDropdown');
+  var current = (dd && dd.value) ? dd.value : 'JB';
+  if (typeof handleTopClientsFilterChange === 'function') {
+    handleTopClientsFilterChange(current);
+  } else if (typeof syncClientsListToDropdown === 'function') {
+    // Fallback: full sync
+    syncClientsListToDropdown();
+  }
 }
 
 
@@ -9148,191 +7624,48 @@ document.getElementById('topClientsTitle').style.display = 'none';
     }).getTopClients(); // Your server-side function to fetch top clients
 }
 
-function clientHasBirthdayFields(client) {
-  if (!client) return false;
-  return Boolean(client.birthdayActive || client.birthdayMonth || client.birthdayDay || client.birthday);
-}
-
-function clientHasBirthdayChipOrCake(client) {
-  if (!client) return false;
-
-  var initials = (client.chipInitials || client.initials || '').toUpperCase();
-  if (initials === 'BDAY') return true;
-
-  var labelsText = '';
-  if (Array.isArray(client.labels)) {
-    labelsText = client.labels
-      .map(function (l) { return (l && l.label) ? l.label : l; })
-      .join(' ');
-  }
-  if (!labelsText) {
-    labelsText = String(client.labelsText || client.labelsRaw || '');
-  }
-  if (labelsText.indexOf('🎂') !== -1 || client.hasCakeLabel) return true;
-
-  return (client.taskTypes || []).some(function (t) {
-    var brightness = (t.brightness || 'bright').toLowerCase();
-    if (brightness !== 'bright') return false;
-
-    var label = (t.label || '').trim();
-
-    return label.indexOf('🎂') !== -1;
-  });
-}
-
-function clientHasBirthdayIndicator(client) {
-  return clientHasBirthdayFields(client) || clientHasBirthdayChipOrCake(client);
-}
-
-var __birthdayMonthSelection = new Date().getMonth() + 1;
-
-function getActiveBirthdayMonth() {
-  var month = Number(__birthdayMonthSelection);
-  if (!month || month < 1 || month > 12) {
-    month = new Date().getMonth() + 1;
-    __birthdayMonthSelection = month;
-  }
-  return month;
-}
-
-function resetBirthdayMonthSelection() {
-  __birthdayMonthSelection = new Date().getMonth() + 1;
-  syncBirthdayMonthButtons();
-}
-
-function buildBirthdayMonthButtons() {
-  var row = document.getElementById('birthdayMonthRow');
-  if (!row) return;
-
-  var months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-  row.innerHTML = '';
-
-  months.forEach(function(label, idx) {
-    var month = idx + 1;
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'birthday-month-button';
-    btn.dataset.month = month;
-    btn.textContent = label;
-    btn.addEventListener('click', function() {
-      if (month === getActiveBirthdayMonth()) return;
-      __birthdayMonthSelection = month;
-      syncBirthdayMonthButtons();
-      retriggerTopClientsFilter();
-    });
-    row.appendChild(btn);
-  });
-
-  syncBirthdayMonthButtons();
-}
-
-function syncBirthdayMonthButtons() {
-  var row = document.getElementById('birthdayMonthRow');
-  if (!row) return;
-
-  var selected = getActiveBirthdayMonth();
-  row.querySelectorAll('button').forEach(function(btn) {
-    var isActive = Number(btn.dataset.month) === selected;
-    btn.classList.toggle('birthday-month-selected', isActive);
-    btn.setAttribute('aria-pressed', isActive);
-  });
-}
-
-function updateBirthdayMonthRowVisibility(currentFilter) {
-  var row = document.getElementById('birthdayMonthRow');
-  if (!row) return;
-
-  var isBirthdayFilter = (currentFilter || getCurrentTopClientsFilter()) === 'BDAY';
-  if (isBirthdayFilter) {
-    if (!row.dataset.built) {
-      buildBirthdayMonthButtons();
-      row.dataset.built = 'true';
-    } else {
-      syncBirthdayMonthButtons();
-    }
-    row.style.display = 'flex';
-  } else {
-    row.style.display = 'none';
-  }
-}
-
-function getClientBirthdayMonth(client) {
-  if (!client) return null;
-
-  var month = Number(client.birthdayMonth || client.month);
-  if (!Number.isNaN(month) && month > 0) return month;
-
-  var raw = client.birthday || client.birthdayRaw || client.birthdayDisplay || '';
-  var match = String(raw).match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
-  if (match) {
-    return parseInt(match[1], 10);
-  }
-
-  return null;
-}
-
-function birthdayFilterAllowsClient(client, currentMonth) {
-  if (!clientHasBirthdayIndicator(client)) return false;
-
-  var month = getClientBirthdayMonth(client);
-  var targetMonth = currentMonth || getActiveBirthdayMonth();
-  return month === targetMonth;
-}
-
-function clientMatchesTopFilter(client, filter) {
-  var tags = (client && client.topFilters) || [];
-  return tags.some(function (tag) { return tag === filter; });
-}
-
 /**********************************************
   (A) The "OLD" function (for updates/reloading)
 **********************************************/function showTopClients(clients, filterKey) {
   // Keep dropdown visually in sync
   var dd = document.getElementById('topClientsFilterDropdown');
-  if (dd && filterKey && !/^LABEL\|/.test(filterKey)) dd.value = filterKey;
+  if (dd && filterKey) dd.value = filterKey;
 
-  buildTopClientsFilterDropdown(clients);
-  renderTopClientsLabelFilters(clients);
-  renderTopClientsTopFilterBar(clients);
-  if (/^LABEL\|/.test(filterKey || '')) syncLabelFilterButtons();
-
-  var filter = normalizeTopClientsFilter(filterKey || getDefaultTopClientsFilter()); // you already have this helper
-  var labelFilter = filter.startsWith('LABEL|') ? filter.slice(6) : '';
-  window.__currentTopClientsFilter = filter;
-  updateBirthdayMonthRowVisibility(filter);
+  var filter = normalizeTopClientsFilter(filterKey || 'JB'); // you already have this helper
   var out = document.getElementById('topClientsDisplay');
   if (!out) return;
   out.innerHTML = '';
 
-  // OWNER filters (JB/RB/MB/QC/TEAM/BDAY)
-  var OWNER_KEYS = OWNER_INITIALS.slice();
-  var isBirthdayFilter = filter === 'BDAY';
-  var selectedBirthdayMonth = getActiveBirthdayMonth();
+  // Map emojis → actual emoji to look for
+  var emojiMap = {
+    BRIEFCASE: '💼',
+    STAR: '⭐',
+    GRADCAP: '🎓',
+    PHONE: '📞'
+  };
+
+  // Robust emoji checker for various label shapes
+  function hasEmojiLabel(c, emoji) {
+    if (!emoji) return false;
+    const L = String(c.columnLContent || c.suggestion || '');
+    return L.includes(emoji);
+  }
+
+  // OWNER filters (JB/RB/QC/TEAM)
+  var OWNER_KEYS = ['JB','RB','QC','TEAM','BDAY'];
 
   var filtered = clients.filter(function(c){
-    if (labelFilter) {
-      return getBrightLabelsFromClient(c).some(function (label) { return label === labelFilter; });
-    }
-    if (isBirthdayFilter) {
-      return birthdayFilterAllowsClient(c, selectedBirthdayMonth);
-    }
     if (OWNER_KEYS.includes(filter)) {
       var initials = (c.chipInitials || c.initials || '').toUpperCase();
       return initials === filter;
     }
-    return clientMatchesTopFilter(c, filter);
+    // ICON filters
+    var emoji = emojiMap[filter];
+    return emoji ? hasEmojiLabel(c, emoji) : true;
   });
 
-  var startMonthForBirthdays = selectedBirthdayMonth;
-
-  // Sort: for birthdays use DOB cadence, otherwise chipDate (valid earliest first), blanks LAST; then name
+  // Sort: chipDate (valid earliest first), blanks LAST; then name
   filtered.sort(function(a, b){
-    if (isBirthdayFilter) {
-      var ba = birthdaySortValue(a, startMonthForBirthdays);
-      var bb = birthdaySortValue(b, startMonthForBirthdays);
-      if (ba !== bb) return ba - bb;
-    }
-
     var ta = chipDateToTimeForSort(a && a.chipDate);
     var tb = chipDateToTimeForSort(b && b.chipDate);
     if (ta !== tb) return ta - tb;
@@ -9360,15 +7693,6 @@ function chipDateToTimeForSort(chipDateStr){
   return isNaN(d) ? Number.POSITIVE_INFINITY : d.getTime();
 }
 
-function birthdaySortValue(client, startMonth){
-  var month = Number(client && client.birthdayMonth);
-  var day = Number(client && client.birthdayDay);
-  if (!month || !day) return Number.POSITIVE_INFINITY;
-
-  var offset = ((month - startMonth) % 12 + 12) % 12; // rotate so startMonth is first
-  return offset * 100 + day;
-}
-
 
 /**********************************************
   (B) The "NEW" function (for initial page load)
@@ -9385,55 +7709,39 @@ function birthdaySortValue(client, startMonth){
 
   fitTopClientsHeaderControls();
 
-  // 2) Resolve filter from dropdown if not passed; default to the user owner
+  // 2) Resolve filter from dropdown if not passed; default to JB
   var dd = document.getElementById('topClientsFilterDropdown');
-  var chosen = filterKey || (dd && dd.value) || getDefaultTopClientsFilter();
+  var chosen = filterKey || (dd && dd.value) || 'JB';
   var filter = normalizeTopClientsFilter(chosen); // you already have this helper
-  var labelFilter = filter.startsWith('LABEL|') ? filter.slice(6) : '';
-  window.__currentTopClientsFilter = filter;
-  updateBirthdayMonthRowVisibility(filter);
 
   // Keep dropdown visually in sync with what we render
-  if (dd && !labelFilter) dd.value = filter;
-
-  buildTopClientsFilterDropdown(clients);
-  renderTopClientsLabelFilters(clients);
-  renderTopClientsTopFilterBar(clients);
-  if (labelFilter) syncLabelFilterButtons();
+  if (dd) dd.value = filter;
 
   var out = document.getElementById('topClientsDisplay');
   if (!out) return;
   out.innerHTML = '';
 
-  // 3) Filtering: owners OR column R-AB filters
-  var OWNER_KEYS = OWNER_INITIALS.slice();
-  var isBirthdayFilter = filter === 'BDAY';
-  var currentMonth = getActiveBirthdayMonth();
+  // 3) Filtering: owners OR emoji labels only
+  var OWNER_KEYS = ['JB','RB','QC','TEAM','BDAY'];
+  var emojiMap = { BRIEFCASE:'💼', STAR:'⭐', GRADCAP:'🎓', PHONE:'📞' };
+
+  function hasEmojiLabel(c, emoji) {
+    if (!emoji) return false;
+    const L = String(c.columnLContent || c.suggestion || '');
+    return L.includes(emoji);
+  }
 
   var filtered = (clients || []).filter(function(c){
-    if (labelFilter) {
-      return getBrightLabelsFromClient(c).some(function (label) { return label === labelFilter; });
-    }
-    if (isBirthdayFilter) {
-      return birthdayFilterAllowsClient(c, currentMonth);
-    }
     if (OWNER_KEYS.includes(filter)) {
       var initials = (c.chipInitials || c.initials || '').toUpperCase();
       return initials === filter;
     }
-    return clientMatchesTopFilter(c, filter);
+    var emoji = emojiMap[filter];
+    return emoji ? hasEmojiLabel(c, emoji) : true;
   });
 
-  var startMonthForBirthdays = currentMonth;
-
-  // 4) Sort: chipDate ascending (or DOB cadence for birthday filter); blanks/invalids LAST; then name
+  // 4) Sort: chipDate ascending; blanks/invalids LAST; then name
   filtered.sort(function(a, b){
-    if (isBirthdayFilter) {
-      var ba = birthdaySortValue(a, startMonthForBirthdays);
-      var bb = birthdaySortValue(b, startMonthForBirthdays);
-      if (ba !== bb) return ba - bb;
-    }
-
     var ta = chipDateToTimeForSort(a && a.chipDate);
     var tb = chipDateToTimeForSort(b && b.chipDate);
     if (ta !== tb) return ta - tb;
@@ -9452,6 +7760,16 @@ function birthdaySortValue(client, startMonth){
   if (typeof wireToplistSuggestionTextareas === 'function') wireToplistSuggestionTextareas();
   if (typeof applySuggestionsVisibility === 'function') applySuggestionsVisibility();
 }
+
+/* Helper used above: push blank/invalid chip dates to BOTTOM */
+function chipDateToTimeForSort(chipDateStr){
+  if (!chipDateStr) return Number.POSITIVE_INFINITY;
+  var d = new Date(chipDateStr);
+  return isNaN(d) ? Number.POSITIVE_INFINITY : d.getTime();
+}
+
+
+
 
 function updateColumnB(clientName, columnBValue) {
     // Show the loading bar when the update process begins
@@ -9975,21 +8293,13 @@ function handleCalendarTaskSelection(taskName) {
 
 
 var loadingBarHideTimer = null;
-var loadingBarActiveCount = 0;
-var loadingBarWatchdog = null;
-var loadingBarIdleTimer = null;
-var loadingBarLastActivity = 0;
-var loadingBarMutationObserver = null;
-var LOADING_BAR_IDLE_MS = 400;
 
 function showLoadingBar() {
     var loadingBarContainer = document.getElementById('loadingBarContainer');
     var loadingBar = document.getElementById('loadingBar');
-    var dashHandleLoadingBar = document.getElementById('dashHandleLoadingBar');
     if (!loadingBarContainer || !loadingBar) return;
 
     clearTimeout(loadingBarHideTimer);
-    loadingBarActiveCount = Math.max(0, loadingBarActiveCount) + 1;
     loadingBarContainer.style.display = 'block';
     loadingBar.classList.add('indeterminate');
     loadingBar.style.width = '0';
@@ -9999,213 +8309,25 @@ function showLoadingBar() {
         loadingBar.style.width = '100%';
     });
 
-    if (dashHandleLoadingBar) {
-        dashHandleLoadingBar.classList.add('indeterminate');
-        dashHandleLoadingBar.style.width = '100%';
-    }
-
     // Fallback auto-hide to prevent a stuck bar if a caller forgets to stop it
-    clearTimeout(loadingBarWatchdog);
-    loadingBarWatchdog = setTimeout(function(){
-      loadingBarActiveCount = 0;
-      hideLoadingBar();
-    }, 12000);
+    loadingBarHideTimer = setTimeout(function(){
+        hideLoadingBar();
+    }, 8000);
 }
 
 function hideLoadingBar() {
     var loadingBarContainer = document.getElementById('loadingBarContainer');
     var loadingBar = document.getElementById('loadingBar');
-    var dashHandleLoadingBar = document.getElementById('dashHandleLoadingBar');
     if (!loadingBarContainer || !loadingBar) return;
 
-    if (loadingBarActiveCount > 0) loadingBarActiveCount--;
-    if (loadingBarActiveCount > 0) return;
-
     clearTimeout(loadingBarHideTimer);
-    clearTimeout(loadingBarWatchdog);
     loadingBar.classList.remove('indeterminate');
     loadingBar.style.width = '0';
     loadingBarHideTimer = setTimeout(function() {
         loadingBar.style.opacity = '0';
         loadingBarContainer.style.display = 'none';
     }, 450);
-
-    if (dashHandleLoadingBar) {
-        dashHandleLoadingBar.classList.remove('indeterminate');
-        dashHandleLoadingBar.style.width = '0';
-    }
 }
-
-// Ensure every server call automatically shows/hides the loading bar.
-(function installScriptRunLoadingProxy(){
-  var attempts = 0;
-  var maxAttempts = 60;
-
-  function createLoadingProxy(baseRun){
-    var state = {
-      successHandler: null,
-      failureHandler: null,
-      userObject: null
-    };
-
-    var proxy = new Proxy({}, {
-      get: function(_, prop){
-        if (prop === '__loadingProxy') return true;
-        if (prop === '__baseRun') return baseRun;
-
-        if (prop === 'withSuccessHandler') {
-          return function(handler){
-            state.successHandler = handler;
-            return proxy;
-          };
-        }
-
-        if (prop === 'withFailureHandler') {
-          return function(handler){
-            state.failureHandler = handler;
-            return proxy;
-          };
-        }
-
-        if (prop === 'withUserObject') {
-          return function(userObj){
-            state.userObject = userObj;
-            return proxy;
-          };
-        }
-
-        return function(){
-          showLoadingBar();
-
-          var successHandler = state.successHandler;
-          var failureHandler = state.failureHandler;
-          var userObject = state.userObject;
-
-          state.successHandler = null;
-          state.failureHandler = null;
-          state.userObject = null;
-
-          var runner = baseRun
-            .withSuccessHandler(function(){
-              try {
-                if (successHandler) successHandler.apply(this, arguments);
-              } finally {
-                hideLoadingBar();
-              }
-            })
-            .withFailureHandler(function(){
-              try {
-                if (failureHandler) failureHandler.apply(this, arguments);
-              } finally {
-                hideLoadingBar();
-              }
-            });
-
-          if (userObject !== null) {
-            runner = runner.withUserObject(userObject);
-          }
-
-          return runner[prop].apply(runner, arguments);
-        };
-      }
-    });
-
-    return proxy;
-  }
-
-  function tryInstall(){
-    attempts++;
-
-    if (!(window.google && google.script && google.script.run)) {
-      if (attempts < maxAttempts) setTimeout(tryInstall, 200);
-      return;
-    }
-
-    var baseRun = google.script.run;
-    if (baseRun.__loadingProxyInstalled) return;
-
-    baseRun.__loadingProxyInstalled = true;
-    google.script.run = createLoadingProxy(baseRun);
-  }
-
-  tryInstall();
-})();
-
-// When the UI stops changing (e.g., user stops typing or suggestions settle),
-// force the loading bar to disappear so it never stays stuck from autocomplete noise.
-(function installLoadingBarIdleWatcher(){
-  let attempts = 0;
-  const maxAttempts = 50;
-
-  function markActivity(){
-    loadingBarLastActivity = Date.now();
-
-    clearTimeout(loadingBarIdleTimer);
-    loadingBarIdleTimer = setTimeout(function(){
-      // Only hide if nothing has changed during the idle window
-      if (Date.now() - loadingBarLastActivity >= LOADING_BAR_IDLE_MS) {
-        if (typeof window.forceHideLoadingBar === 'function') {
-          window.forceHideLoadingBar();
-        } else if (typeof window.hideLoadingBar === 'function') {
-          try { window.hideLoadingBar(); } catch (_) {}
-        }
-      }
-    }, LOADING_BAR_IDLE_MS);
-  }
-
-  function ensureMutationObserver(){
-    if (loadingBarMutationObserver || !('MutationObserver' in window)) return;
-
-    const targets = [
-      document.getElementById('clientAutocompleteRow'),
-      document.getElementById('autocompleteSuggestions'),
-      document.getElementById('recentClientsBar')
-    ].filter(Boolean);
-
-    if (!targets.length) return;
-
-    loadingBarMutationObserver = new MutationObserver(markActivity);
-    targets.forEach(function(node){
-      loadingBarMutationObserver.observe(node, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        characterData: true
-      });
-    });
-
-    window.addEventListener('resize', markActivity, { passive: true });
-  }
-
-  function tryWrap(){
-    attempts++;
-
-    if (window.showLoadingBar && window.hideLoadingBar && !window.showLoadingBar.__idleWrapped) {
-      const originalShow = window.showLoadingBar;
-      const originalHide = window.hideLoadingBar;
-
-      window.showLoadingBar = function(){
-        originalShow.apply(this, arguments);
-        ensureMutationObserver();
-        markActivity();
-      };
-      window.showLoadingBar.__idleWrapped = true;
-
-      window.hideLoadingBar = function(){
-        clearTimeout(loadingBarIdleTimer);
-        originalHide.apply(this, arguments);
-      };
-
-      return;
-    }
-
-    if (attempts < maxAttempts) {
-      setTimeout(tryWrap, 120);
-    }
-  }
-
-  tryWrap();
-})();
 
 
 
@@ -10321,9 +8443,7 @@ function toggleDateInput() {
 
 
   google.charts.load('current', {'packages':['corechart']});
-  google.charts.setOnLoadCallback(function() {
-    runWhenIdle(drawChart);
-  });
+  google.charts.setOnLoadCallback(drawChart);
   
 function drawChart() {
   google.script.run.withSuccessHandler(function(chartData) {
@@ -10431,10 +8551,8 @@ function drawFutureHeatmap(weekdayCounts) {
 }
 
 function loadAllHeatmaps() {
-    runWhenIdle(function() {
-      getAndDrawHeatmapData();
-      getAndDrawFutureHeatmapData();
-    });
+    getAndDrawHeatmapData();
+    getAndDrawFutureHeatmapData();
 }
 
 
@@ -10525,9 +8643,7 @@ function displayTable() {
 
 
 
-  window.onload = function() {
-    runWhenIdle(displayData);
-  };
+  window.onload = displayData;
 
 function displayBirthdays() {
   var topClientsTitle = document.getElementById('topClientsTitle');
@@ -10863,19 +8979,20 @@ function positionCategoryDropdownOverAutocomplete() {
 
 
 function populateLabelsDropdown(labels) {
-    var dropdown = document.getElementById('labelsDropdown'); // Find the label dropdown element in the DOM.
-    if (!dropdown) return; // Safely stop if the label dropdown is not rendered yet.
+    var dropdown = document.getElementById('labelsDropdown');
+    dropdown.innerHTML = ''; // Clear existing options
 
-    dropdown.innerHTML = ''; // Clear existing label options before repopulating.
+    // Add a disabled and selected placeholder option at the beginning
+    var placeholderOption = document.createElement('option');
+    placeholderOption.value = "";
+    placeholderOption.textContent = "ADD";
+    placeholderOption.disabled = true;
+    placeholderOption.selected = true;
+    dropdown.appendChild(placeholderOption);
+    // Define the only label options that should be available
+    var fixedLabels = ["NEW LABEL", "🎂", "💻"];
 
-    var placeholderOption = document.createElement('option'); // Build placeholder option shown before any label choice.
-    placeholderOption.value = ""; // Keep placeholder value empty so it is not treated as a real label.
-    placeholderOption.textContent = "ADD"; // Show ADD prompt text in the dropdown UI.
-    placeholderOption.disabled = true; // Prevent users from submitting the placeholder as a real selection.
-    placeholderOption.selected = true; // Make placeholder the default selected option after each refresh.
-    dropdown.appendChild(placeholderOption); // Insert placeholder at the top of the dropdown.
-
-    ["🎂", "NEW LABEL"].forEach(function(label) { // Intentionally keep picker limited to supported label actions.
+    fixedLabels.forEach(function(label) {
         var option = document.createElement('option');
         option.value = label;
         option.textContent = label;
@@ -10884,45 +9001,29 @@ function populateLabelsDropdown(labels) {
 }
 
 
+
+
+
 function addLabelToClient(label) {
-    var clientSelect = document.getElementById('clientSelect'); // Reference the currently selected client control.
-    var clientName = resolveClientNameFromSelection(clientSelect ? clientSelect.value : ''); // Resolve canonical client name for label writes.
-    var selectedLabel = String(label || '').trim(); // Normalize requested label from dropdown input.
+    var clientSelect = document.getElementById('clientSelect');
+    var clientName = clientSelect.value;
 
-    if (!clientName || !selectedLabel) return; // Require both a valid client and a valid label.
-    if (clientSelect) clientSelect.value = clientName; // Keep UI selection aligned to resolved client name.
-
-    if (selectedLabel === "NEW LABEL") { // Handle custom label creation path.
+    if (label === "NEW LABEL") {
         // Prompt user to enter the new label name
-        var newLabel = prompt("Please enter the new label name:"); // Ask the user for custom label text.
-        newLabel = (newLabel || '').trim(); // Normalize custom label input.
-        if (newLabel) { // Continue only if custom label has non-empty text.
+        var newLabel = prompt("Please enter the new label name:");
+        if (newLabel) {
             // Call server-side function to add the new label to the client
-            google.script.run // Invoke Apps Script server method to persist the new label.
-              .withSuccessHandler(function() {
-                showToast("New label added successfully!"); // Confirm successful label creation to the user.
-                var dropdown = document.getElementById('labelsDropdown'); // Re-fetch label dropdown node.
-                if (dropdown) dropdown.selectedIndex = 0; // Reset dropdown back to ADD placeholder.
-                showClientNotes(); // Refresh client details so new label chip appears immediately.
-              })
-              .withFailureHandler(function(error) {
-                showToast('Error adding label: ' + (error && error.message ? error.message : error)); // Surface label-save failure details.
-              })
-              .addLabelToClient(clientName, newLabel); // Send selected client + custom label to backend.
+            google.script.run.withSuccessHandler(function() {
+                alert("New label added successfully!");
+                showClientNotes(); // Refresh to show the new label
+            }).addLabelToClient(clientName, newLabel);
         }
     } else {
         // Existing logic to add existing label to client
-        google.script.run // Invoke Apps Script server method for fixed label add.
-          .withSuccessHandler(function() {
-            showToast("Label added successfully!"); // Confirm successful fixed-label add.
-            var dropdown = document.getElementById('labelsDropdown'); // Re-fetch label dropdown node.
-            if (dropdown) dropdown.selectedIndex = 0; // Reset labels dropdown to placeholder after add.
-            showClientNotes(); // Refresh client notes/chips so label UI updates immediately.
-          })
-          .withFailureHandler(function(error) {
-            showToast('Error adding label: ' + (error && error.message ? error.message : error)); // Show backend error when label add fails.
-          })
-          .addLabelToClient(clientName, selectedLabel); // Send selected fixed label to backend.
+        google.script.run.withSuccessHandler(function() {
+            alert("Label added successfully!");
+            showClientNotes(); // Refresh to show the added label
+        }).addLabelToClient(clientName, label);
     }
 }
 
@@ -10959,29 +9060,19 @@ function displayTodayNotes(notes) {
 }
 
 
-// REPLACEMENT: populateCategoryDropdown — fills #categorySelect with robust fallbacks.
-function populateGlobalCategoryDropdown(categories, selectedCategory) {
+// REPLACEMENT: populateCategoryDropdown — fills #categorySelect with unique Column F values (A→Z)
+function populateCategoryDropdown(categories) {
   var sel = document.getElementById('categorySelect');
   if (!sel) return;
 
-  var selected = String(selectedCategory || __currentCategory || '').trim();
-  var normalized = normalizeCategoryList(categories).filter(Boolean);
-
-  if (selected && !normalized.some(function(cat) {
-    return String(cat || '').toLowerCase() === selected.toLowerCase();
-  })) {
-    normalized.push(selected);
-    normalized = normalizeCategoryList(normalized);
-  }
-
   sel.innerHTML = '';
 
-  var placeholder = document.createElement('option');
-  placeholder.value = '';
-  placeholder.textContent = selected || 'Select category';
-  sel.appendChild(placeholder);
+  var ph = document.createElement('option');
+  ph.value = '';
+  ph.textContent = __currentCategory || '';
+  sel.appendChild(ph);
 
-  normalized.forEach(function(cat) {
+  (categories || []).forEach(function (cat) {
     var opt = document.createElement('option');
     opt.value = cat;
     opt.textContent = cat;
@@ -10990,41 +9081,28 @@ function populateGlobalCategoryDropdown(categories, selectedCategory) {
 
   var newOpt = document.createElement('option');
   newOpt.value = '__NEW__';
-  newOpt.textContent = 'New Category';
+  newOpt.textContent = 'NEW CATEGORY…';
   sel.appendChild(newOpt);
 
-  updateCategorySelectValue(selected);
-
-  if (!sel.__globalCategoryWired) {
-    sel.addEventListener('change', function() {
-      if (__suppressCategoryChange) return;
-
-      var nextValue = String(this.value || '').trim();
-
-      if (nextValue === '__NEW__') {
-        updateCategorySelectValue(this.dataset.prevValue || __currentCategory || '');
+  // 🔧 One unified handler for both cases
+  if (!sel._wiredChange) {
+    sel.addEventListener('change', function () {
+      if (this.value === '__NEW__') {
+        this.value = '';
         openNewCategoryModal();
         return;
       }
-
-      if (!nextValue) return;
-      if (nextValue === (__currentCategory || '')) return;
-
-      this.dataset.prevValue = nextValue;
-      requestCategoryChange(nextValue);
+      if (this.value) {
+        updateCategory();                 // <- saves to sheet
+        if (typeof updateCategoryLabel === 'function') updateCategoryLabel();
+      }
     });
-
-    sel.__globalCategoryWired = true;
+    sel._wiredChange = true;
   }
-
-  setCategoryPlaceholderText(selected || '');
-  positionCategoryDropdownOverAutocomplete();
 }
 
-// Legacy alias retained for compatibility; new global dropdown path is authoritative.
-function populateCategoryDropdown(categories, selectedValue) {
-  populateGlobalCategoryDropdown(categories, selectedValue);
-}
+
+
 
 // Call the function at the end of the script to automatically execute it on page load
 // displayTopClients();
@@ -11211,11 +9289,6 @@ function hideClientNotes() {
       if (typeof renderRecentClientsBar === 'function') renderRecentClientsBar();
     }
   }
-
-  // Clear the task type bar when leaving the client view
-  if (typeof currentTaskTypeClientName !== 'undefined') currentTaskTypeClientName = '';
-  if (typeof currentClientTaskTypes !== 'undefined') currentClientTaskTypes = [];
-  if (typeof renderTaskTypeBar === 'function') renderTaskTypeBar([]);
 }
 
 
@@ -11374,38 +9447,13 @@ function displayClient(client, container) {
 
   var baseClientName = client.clientName || client.name || '';
   var clientCategory = client.category || '';
-  var brightLabels = getBrightLabelsFromClient(client);
-  var isBirthdayFilter = window.__currentTopClientsFilter === 'BDAY';
-  var birthdayLabel = client.birthdayDisplay || client.birthday || client.birthdayRaw || '';
-  var labelsText = String(client.labelsText || client.labelsRaw || '');
-  var hasCakeLabel = labelsText.indexOf('🎂') !== -1 || client.hasCakeLabel;
-  var labelParts = brightLabels.slice();
-  var hasBirthdayFields = clientHasBirthdayFields(client);
-  var hasBirthdayChipOrCake = clientHasBirthdayChipOrCake(client);
-
-  if (isBirthdayFilter && hasCakeLabel) {
-    var cakeIdx = labelParts.indexOf('🎂');
-    var decoratedCake = birthdayLabel ? ('🎂 (DOB: ' + birthdayLabel + ')') : '🎂';
-    if (cakeIdx !== -1) {
-      labelParts[cakeIdx] = decoratedCake;
-    } else {
-      labelParts.push(decoratedCake);
-    }
-  }
-
-  var labelText = labelParts.length ? ' • ' + labelParts.join(' • ') : '';
 
   var clientButton = document.createElement('button');
   clientButton.className = 'inline-button client-button';
   clientButton.dataset.client = baseClientName;
   clientButton.dataset.category = clientCategory;
-  clientButton.innerText = baseClientName + (clientCategory ? ' (' + clientCategory + ')' : '') + labelText;
+  clientButton.innerText = baseClientName + (clientCategory ? ' (' + clientCategory + ')' : '');
   clientButton.style.cssText = "display:inline-flex; align-items:center;";
-  if (isBirthdayFilter) {
-    var birthdayColorClass = hasBirthdayFields ? 'bday-eligible' : 'bday-ineligible';
-    if (!hasBirthdayChipOrCake) birthdayColorClass = 'bday-ineligible';
-    clientButton.classList.add(birthdayColorClass);
-  }
   clientButton.addEventListener('click', function () {
     var btnClient = this.getAttribute('data-client') || baseClientName || this.innerText || '';
 
@@ -11417,20 +9465,6 @@ function displayClient(client, container) {
     selectClientFromButton(btnClient);
   });
   topRow.appendChild(clientButton);
-
-  if (isBirthdayFilter) {
-    var cakeToggle = document.createElement('button');
-    cakeToggle.type = 'button';
-    cakeToggle.className = 'birthday-toggle-button ' + (hasCakeLabel ? 'is-remove' : 'is-add');
-    cakeToggle.textContent = '🎂';
-    cakeToggle.title = hasCakeLabel ? 'Remove cake label' : 'Add cake label';
-    cakeToggle.setAttribute('aria-label', cakeToggle.title);
-    cakeToggle.addEventListener('click', function(event) {
-      event.stopPropagation();
-      toggleBirthdayCakeLabel(baseClientName, hasCakeLabel);
-    });
-    topRow.appendChild(cakeToggle);
-  }
 
   clientDiv.appendChild(topRow);
 
@@ -11555,6 +9589,45 @@ function displayClient(client, container) {
 
 
 
+function updateCategorySelectValue(clientCategory) {
+    var categorySelect = document.getElementById('categorySelect');
+    if (!categorySelect) return;
+
+    var normalizedCategory = (clientCategory || '').trim();
+
+    // Ensure the category exists in the dropdown
+    if (normalizedCategory) {
+        var optionExists = Array.from(categorySelect.options).some(function(option) {
+            return option.value === normalizedCategory;
+        });
+
+        // If not, add it to the dropdown
+        if (!optionExists) {
+            var newOption = document.createElement('option');
+            newOption.value = normalizedCategory;
+            newOption.textContent = normalizedCategory;
+            categorySelect.appendChild(newOption);
+        }
+
+        __suppressCategoryChange = true;
+        categorySelect.value = normalizedCategory;
+        __suppressCategoryChange = false;
+
+        __currentCategory = normalizedCategory;
+        setCategoryPlaceholderText(__currentCategory);
+        positionCategoryDropdownOverAutocomplete();
+    } else {
+        __suppressCategoryChange = true;
+        categorySelect.value = '';
+        __suppressCategoryChange = false;
+
+        __currentCategory = '';
+        setCategoryPlaceholderText(__currentCategory);
+        hideCategoryOverlay();
+    }
+}
+
+
 function displayTopClientsByCategory() {
     showLoadingBar(); // Optional: show loading indicator
 
@@ -11646,22 +9719,7 @@ function triggerTopClientsText() {
       hideLoadingBar();
       alert("Failed to send JB chip text. Error: " + err.message);
     })
-    .sendJbChipTasksEmailToButton();
-}
-
-function triggerRbTopClientsText() {
-  showLoadingBar();
-
-  google.script.run
-    .withSuccessHandler(function() {
-      hideLoadingBar();
-      alert("RB chip text sent for today.");
-    })
-    .withFailureHandler(function(err) {
-      hideLoadingBar();
-      alert("Failed to send RB chip text. Error: " + err.message);
-    })
-    .sendRbChipTasksEmail();
+    .sendJbChipTasksEmail();
 }
 
 // This function creates a big star overlay, shows it for ~5s, then removes it
@@ -11721,11 +9779,6 @@ function onInProgressLoadedBlur(valueFromUI) {
   var oldVal = String(ta.getAttribute('data-last-saved') || '');
   if (newVal.trim() === oldVal.trim()) return;
 
-  var previousValue = oldVal;
-  if (typeof updateInProgressDom === 'function') {
-    updateInProgressDom(clientName, newVal);
-  }
-
   // Optional: tiny spinner cue at field level (keep your global bar too if you like)
   if (typeof showLoadingBar === 'function') showLoadingBar();
 
@@ -11749,9 +9802,6 @@ function onInProgressLoadedBlur(valueFromUI) {
     })
     .withFailureHandler(function (err) {
       alert('Error saving In Progress: ' + (err && err.message ? err.message : err));
-      if (typeof updateInProgressDom === 'function') {
-        updateInProgressDom(clientName, previousValue);
-      }
       // Revert UI to the last saved text
       ta.value = oldVal;
       if (typeof hideLoadingBar === 'function') hideLoadingBar();
@@ -11783,11 +9833,8 @@ var selectEl = document.getElementById('clientSelect');
 
   // 2) Update the “In Progress:” textareas in the top clients list
   //    (They have .className = "inProgressArea" plus a data-client attribute)
-  var normalizedClientName = String(clientName || '').trim().toLowerCase();
-  var allAreas = document.querySelectorAll('.inProgressArea[data-client]');
+  var allAreas = document.querySelectorAll('.inProgressArea[data-client="' + clientName + '"]');
   allAreas.forEach(function(area) {
-    var areaClient = String(area.getAttribute('data-client') || '').trim().toLowerCase();
-    if (areaClient !== normalizedClientName) return;
     if (area.value !== normalizedValue) {
       area.value = normalizedValue;
     }
@@ -11800,40 +9847,58 @@ var selectEl = document.getElementById('clientSelect');
 
 function handleTopClientsFilterChange(selectedFilter) {
   var titleEl = document.getElementById('topClientsTitle');
-  var val = normalizeTopClientsFilter(selectedFilter);
-  var labelFilter = val.startsWith('LABEL|') ? val.slice(6) : '';
-  var previousFilter = window.__currentTopClientsFilter;
-  window.__currentTopClientsFilter = val;
-
-  if (val === 'BDAY' && previousFilter !== 'BDAY') {
-    resetBirthdayMonthSelection();
-  }
-  updateBirthdayMonthRowVisibility(val);
-
-  if (labelFilter) {
-    __activeLabelFilter = labelFilter;
-    setDropdownLabelPlaceholder(labelFilter);
-  } else {
-    clearLabelFilter(true);
-    var dd = document.getElementById('topClientsFilterDropdown');
-    if (dd) dd.value = val;
-  }
-  syncLabelFilterButtons();
-  syncTopFilterButtons(val);
+  var val = normalizeFilterValue(selectedFilter);
 
   // Title updates (owners & ALL only)
-  if (OWNER_INITIALS.includes(val)) {
+  if (['JB','RB','QC','TEAM','BDAY'].includes(val)) {
     titleEl.innerText = val;
   } else if (val === 'ALL') {
     titleEl.innerText = 'TOP CLIENTS';
-  } else if (titleEl) {
-    // For text filters we keep the date-only header per your current UI
-    titleEl.innerText = '';
-    titleEl.style.display = 'none';
+  } else {
+    // For text or emoji filters we keep the date-only header per your current UI
+    if (titleEl) { titleEl.innerText = ''; titleEl.style.display = 'none'; }
   }
 
-  // Drive filtering through the unified dropdown path so buttons and dropdown stay in sync
-  syncClientsListToDropdown();
+  // Always pull the latest list, then filter client-side
+  showLoadingBar();
+  google.script.run
+    .withSuccessHandler(function(clients){
+      var filtered = clients || [];
+      var emoji = asEmojiOrNull(val);
+
+      if (val === 'ALL') {
+        // no-op
+      } else if (isOwnerKey(val)) {
+        // Owner filter = exact initials match
+        var target = val.toUpperCase();
+        filtered = filtered.filter(function(c){
+          return String(c.chipInitials || c.initials || '').toUpperCase() === target;
+        });
+      } else if (emoji) {
+        // Emoji filter = look inside Column L (suggestions/lightbulb)
+        filtered = filtered.filter(function(c){
+          return suggestionsContainEmoji(c, emoji);
+        });
+      } else {
+        // Text filter = look inside Column P (chip text)
+        var needle = val.toLowerCase();
+        filtered = filtered.filter(function(c){
+          return chipSearchString(c).includes(needle);
+        });
+      }
+
+      showTopClients(filtered, 'all');
+      hideLoadingBar();
+
+      // Keep the dropdown visually in sync
+      var dd = document.getElementById('topClientsFilterDropdown');
+      if (dd) dd.value = selectedFilter;
+    })
+    .withFailureHandler(function(err){
+      hideLoadingBar();
+      alert('Failed to filter top clients: ' + (err && err.message ? err.message : err));
+    })
+    .getTopClients();
 }
 
 
@@ -12324,10 +10389,6 @@ function createChipElement(clientName, initials, mmddyy) {
   var chip = document.createElement('span');
   chip.className = 'chip ' + (safeInitials ? safeInitials : 'EMPTY');
 
-  if (isChipDateInPast(safeDate)) {
-    chip.classList.add('chip--overdue');
-  }
-
   // If both initials and date are empty, show a neutral placeholder
   if (!safeInitials && !safeDate) {
     var ph = document.createElement('span');
@@ -12371,10 +10432,6 @@ function createChipElementReadOnly(clientName, initials, mmddyy) {
 
   var chip = document.createElement('span');
   chip.className = 'chip ' + (safeInitials ? safeInitials : 'EMPTY');
-
-  if (isChipDateInPast(safeDate)) {
-    chip.classList.add('chip--overdue');
-  }
 
   if (!safeInitials && !safeDate) {
     var ph = document.createElement('span');
@@ -12426,7 +10483,7 @@ function openChipEditor(anchorEl, clientName, initials, mmddyy) {
 
   // initials dropdown
   var sel = document.createElement('select');
-  [''].concat(OWNER_INITIALS).forEach(function(opt){
+  ['','RB','JB','QC','TEAM','BDAY'].forEach(function(opt){
     var o = document.createElement('option');
     o.value = opt; o.textContent = opt || '(none)';
     if (opt === (initials || '')) o.selected = true;
@@ -12562,15 +10619,6 @@ function chipDateToTime(raw) {
   return isNaN(d3.getTime()) ? Number.NEGATIVE_INFINITY : d3.getTime();
 }
 
-function isChipDateInPast(raw) {
-  var ts = chipDateToTime(raw);
-  if (ts === Number.NEGATIVE_INFINITY) return false;
-
-  var today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return ts < today.getTime();
-}
-
 function onToplistSuggestionBlur(clientName, newValue) {
   if (!clientName) return;
   if (typeof showLoadingBar === 'function') showLoadingBar();
@@ -12635,6 +10683,31 @@ document.addEventListener('DOMContentLoaded', ensureSuggestionsButtonInToolbar);
     };
   }
 })();
+
+// Wire #categorySelect change to handle normal updates vs. NEW CATEGORY modal
+(function wireCategorySelectChange(){
+  var sel = document.getElementById('categorySelect');
+  if (!sel || sel._wiredForNewCat) return;
+  sel.addEventListener('change', function() {
+    var v = sel.value;
+
+    if (v === '__NEW__') {
+      // Open modal and revert select to prior value to avoid accidental save
+      sel.value = '';
+      openNewCategoryModal();
+      return;
+    }
+
+    // Normal path: save the chosen category for the current client
+    if (v) {
+      updateCategory();       // already defined in your file
+      updateCategoryLabel();  // already defined in your file
+    }
+  });
+  sel._wiredForNewCat = true;
+})();
+
+
 
   // Example renderer (adapt to your UI)
   function renderRecentBar(items) {
@@ -12706,18 +10779,16 @@ document.addEventListener('DOMContentLoaded', ensureSuggestionsButtonInToolbar);
 
 // Re-run the Top Clients filter as if the dropdown changed (even if value didn’t)
 function retriggerTopClientsFilter() {
-  if (typeof syncClientsListToDropdown === 'function') {
-    syncClientsListToDropdown();
-    return;
-  }
-
   var dd = document.getElementById('topClientsFilterDropdown');
   if (!dd) return;
   try {
     dd.dispatchEvent(new Event('change', { bubbles: true }));
   } catch (_) {
-    if (typeof handleTopClientsFilterChange === 'function') {
-      handleTopClientsFilterChange(getCurrentTopClientsFilter());
+    // Fallback if the listener ignores synthetic events
+    if (typeof syncClientsListToDropdown === 'function') {
+      syncClientsListToDropdown();
+    } else if (typeof handleTopClientsFilterChange === 'function') {
+      handleTopClientsFilterChange(dd.value || 'JB');
     }
   }
 }
@@ -12728,7 +10799,21 @@ function retriggerTopClientsFilter() {
 
 // --- helpers for the unified dropdown behavior ---
 function isOwnerKey(v) {
-  return OWNER_INITIALS.includes(String(v || '').toUpperCase());
+  return ['JB','RB','QC','TEAM','BDAY'].includes(String(v || '').toUpperCase());
+}
+
+function normalizeFilterValue(v) {
+  return String(v || '').trim();
+}
+
+// Accept both tokens (BRIEFCASE/STAR/GRADCAP/PHONE) and the actual emoji
+function asEmojiOrNull(v) {
+  const s = normalizeFilterValue(v).toUpperCase();
+  const map = { BRIEFCASE:'💼', STAR:'⭐', GRADCAP:'🎓', PHONE:'📞' };
+  if (map[s]) return map[s];
+  // if they actually chose an emoji, pass it through
+  const isEmoji = /[\u{1F300}-\u{1FAFF}]/u.test(v || '');
+  return isEmoji ? v : null;
 }
 
 // Build a safe chip "search string" from Column P (free text or initials)
@@ -12738,6 +10823,12 @@ function chipSearchString(client) {
   const pText = client.chipText || client.chipLabel || '';
   const initials = client.chipInitials || client.initials || '';
   return (pText + ' ' + initials).trim().toLowerCase();
+}
+
+// True if Column L (lightbulb/suggestions) contains the emoji
+function suggestionsContainEmoji(client, emoji) {
+  const L = client.columnLContent || client.suggestion || '';
+  return String(L).includes(emoji);
 }
 
 
@@ -12779,8 +10870,24 @@ function chipSearchString(client) {
   }
   function populateDatalist(list) {
     categories = list || [];
-    // Keep categories cached for this legacy bar workflow, but do not rewrite #categorySelect.
-    // The main category pipeline owns #categorySelect population via populateCategoryDropdown().
+    const sel = catList();
+    if (!sel) return;
+
+    sel.innerHTML = '';
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = currentCategory || 'Select category';
+    placeholder.disabled = !currentCategory;
+    placeholder.selected = true;
+    sel.appendChild(placeholder);
+
+    categories.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c;
+      opt.textContent = c;
+      sel.appendChild(opt);
+    });
   }
   function refreshCategoryUI(cat) {
     currentCategory = cat || '';
@@ -12936,346 +11043,6 @@ function chipSearchString(client) {
 
   // OPTIONAL: If your autocomplete already has a “selection” handler,
   // just call window.onClientSelectedForBar(name, label) from there.
-})();
-
-/* === Sunday Love Dashboard ============================================ */
-(function initSundayLoveDashboard(){
-  const overlay = document.getElementById('sundayLoveDashboard');
-  const restoreBtn = document.getElementById('loveRestoreBtn');
-  const dismissBtn = document.getElementById('loveDismissBtn');
-  const noteInput = document.getElementById('loveNoteInput');
-  const noteVoice = document.getElementById('loveNoteVoice');
-  const noteDelivery = document.getElementById('loveNoteDelivery');
-  const meterInput = document.getElementById('loveMeterInput');
-  const meterMessage = document.getElementById('loveMeterMessage');
-  const dateLabel = document.getElementById('loveDateLabel');
-  const inspireBtn = document.getElementById('loveInspireBtn');
-  const copyBtn = document.getElementById('loveCopyBtn');
-  const emailBtn = document.getElementById('loveEmailBtn');
-  const textBtn = document.getElementById('loveTextBtn');
-  const saveBtn = document.getElementById('loveSaveBtn');
-  const clearBtn = document.getElementById('loveClearBtn');
-  const savedList = document.getElementById('loveSavedList');
-
-  if (!overlay) return;
-
-  const storageKey = 'sundayLove.dashboardDisabled';
-  const notesStorageKey = 'sundayLove.savedNotes';
-
-  const lovePrompts = {
-    noteIdeas: [
-      'Write a “three tiny moments” note: three small things she did this week that made you love her more.',
-      'Create a “love playlist” note: explain why each song reminds you of her and one memory tied to it.',
-      'Offer a future memory: describe a date night you want to plan, with sensory details and a sweet promise.',
-      'List five ways she makes you feel safe, seen, and wanted—and why those are rare and precious.',
-      'Write a “thank you for choosing us” note that highlights her effort when things were hard.',
-      'Give a “sunrise to sunset” note: how your love shows up at each part of the day.',
-      'Draft a “love receipt”: the little things she gives that add up to a big, lasting love.',
-      'Write a “soft brag” note about her strengths and how they inspire you to be better.'
-    ],
-    conversationStarters: [
-      'What part of our story feels most sacred to you right now, and how can I honor it this week?',
-      'When do you feel most loved by me lately—and what can I do more of in that moment?',
-      'What’s one new ritual we could try to deepen our connection on busy weeks?',
-      'If our love was a color, what shade would it be today and why?',
-      'What’s a memory you want to relive together, and how can we recreate it?',
-      'How can we make conflict feel safer and more tender when it shows up?',
-      'What do you need from me to feel fully supported this month?',
-      'What’s a dream you want us to build toward together in the next year?'
-    ],
-    therapyTopics: [
-      'Attachment check-in: share what makes each of you feel secure, and design one small daily reassurance.',
-      'Conflict repair plan: pick one phrase that helps you de-escalate and practice it together.',
-      'Love languages audit: name one way you can give each language (words, time, touch, acts, gifts) this week.',
-      'Emotional bids: note the tiny moments you each reach for connection and agree to respond softly.',
-      'Values alignment: talk about the top 3 values guiding your relationship right now.',
-      'Boundaries with care: identify one boundary that protects the relationship and how you’ll honor it.',
-      'Appreciation ritual: commit to a nightly 60-second appreciation share.',
-      'Stress support map: list signs you’re overwhelmed and the specific support that helps.'
-    ],
-    commitmentReminders: [
-      'Show up even when it’s hard: pause, breathe, and respond with love before reacting.',
-      'Choose the relationship in the small moments—kind words, quick check-ins, and gentle touches.',
-      'We’re a team: no scorekeeping, just honest repair and genuine care.',
-      'Stay curious about each other; ask questions even after long days.',
-      'Hold the line on respect: calm tone, soft start, and sincere listening.',
-      'Protect the bond: speak about each other with pride and loyalty.',
-      'Make time sacred: even 15 minutes of “just us” counts.',
-      'Let love lead: prioritize empathy, not ego.'
-    ],
-    encouragements: [
-      'We are stronger than the tough moments because we keep choosing each other.',
-      'I believe in us, and I love how we keep growing together.',
-      'Even on messy days, our love is steady and safe.',
-      'You are my peace and my favorite person to come home to.',
-      'Every day with you makes me softer, stronger, and more grateful.',
-      'We’re building something lasting—and I’m proud of us.',
-      'You are loved loudly in my heart, even when the world is quiet.',
-      'We can do hard things and still stay kind.'
-    ],
-    loveChallenges: [
-      'Send a midday voice note sharing one thing you admire about her right now.',
-      'Plan a tiny surprise: her favorite snack, a sticky note, or a playlist.',
-      'Give her a “five-minute sanctuary” where you take over her chores.',
-      'Write a one-sentence vow and place it where she’ll see it.',
-      'Do a 10-minute slow dance in the living room—no phones.',
-      'Ask her to pick a song and say why it feels like your love.',
-      'Trade gratitude lists: each share three things you’re grateful for today.',
-      'Create a shared photo or memory folder for this month.'
-    ],
-    improvementIdeas: [
-      'Add a “weekly love recap” section that stores favorite moments or photos.',
-      'Let her choose a daily mood and auto-suggest matching note tones.',
-      'Create a shared “date jar” generator that picks low-effort, high-love ideas.',
-      'Include a “repair ritual” checklist for tough conversations.',
-      'Add reminders for love languages with mini prompts for each.',
-      'Build a gratitude streak tracker for daily love notes.',
-      'Add a “relationship goals” board with gentle progress check-ins.',
-      'Include an anniversary countdown with surprise planning prompts.'
-    ],
-    sundayRituals: [
-      'Sunday soft reset: share one thing you’re releasing and one thing you’re choosing together.',
-      'Weekly love check-in: highs, lows, and one ask for support.',
-      'Write a “next week love intention” and stick it on the fridge.',
-      'Create a 10-minute cuddle and talk window with phones away.',
-      'Swap “best part of you this week” compliments.',
-      'Plan one tiny date for the week, even if it’s just coffee together.',
-      'Share a favorite photo from the week and why it matters.',
-      'Map one shared goal and one personal goal you’ll cheer each other on for.'
-    ]
-  };
-
-  const outputMap = {
-    noteIdeas: 'loveNoteIdeaOutput',
-    conversationStarters: 'loveConversationOutput',
-    therapyTopics: 'loveTherapyOutput',
-    commitmentReminders: 'loveCommitmentOutput',
-    encouragements: 'loveEncouragementOutput',
-    loveChallenges: 'loveChallengeOutput',
-    improvementIdeas: 'loveImprovementOutput',
-    sundayRituals: 'loveRitualOutput'
-  };
-
-  function loveToast(message){
-    if (typeof showToast === 'function') {
-      showToast(message);
-      return;
-    }
-    alert(message);
-  }
-
-  function pickRandom(list){
-    return list[Math.floor(Math.random() * list.length)];
-  }
-
-  function setOutput(type){
-    const targetId = outputMap[type];
-    const el = document.getElementById(targetId);
-    if (!el) return;
-    el.textContent = pickRandom(lovePrompts[type]);
-  }
-
-  function refreshAllOutputs(){
-    Object.keys(outputMap).forEach(type => setOutput(type));
-  }
-
-  function getNoteText(){
-    return (noteInput && noteInput.value ? noteInput.value.trim() : '');
-  }
-
-  function appendToNote(text){
-    if (!noteInput) return;
-    const existing = noteInput.value.trim();
-    noteInput.value = existing ? `${existing}\n\n${text}` : text;
-    noteInput.focus();
-  }
-
-  function updateMeterMessage(){
-    if (!meterInput || !meterMessage) return;
-    const value = Number(meterInput.value || 0);
-    const label = value >= 9 ? 'absolutely head-over-heels'
-      : value >= 7 ? 'deep and devoted'
-        : value >= 5 ? 'steady and warm'
-          : value >= 3 ? 'gentle and growing'
-            : 'tender and rebuilding';
-    meterMessage.textContent = `Love level: ${value}/10 — ${label}.`;
-  }
-
-  function buildInspiration(){
-    const voice = noteVoice ? noteVoice.value : 'Me';
-    const delivery = noteDelivery ? noteDelivery.value : 'soft';
-    const idea = pickRandom(lovePrompts.noteIdeas);
-    const encouragement = pickRandom(lovePrompts.encouragements);
-    const commitment = pickRandom(lovePrompts.commitmentReminders);
-    const conversation = pickRandom(lovePrompts.conversationStarters);
-    const deliveryLine = delivery === 'playful'
-      ? 'Here’s a playful little love note from the heart:'
-      : delivery === 'romantic'
-        ? 'Here’s a romantic, poetic note just for you:'
-        : delivery === 'steady'
-          ? 'Here’s a steady, committed love note:'
-          : 'Here’s a soft, warm love note:';
-
-    return [
-      `${voice} →`,
-      deliveryLine,
-      idea,
-      encouragement,
-      `We stay 100% in this together: ${commitment}`,
-      `Conversation starter for us: ${conversation}`
-    ].join('\n\n');
-  }
-
-  function updateCommunicationLinks(){
-    const noteText = getNoteText();
-    if (!emailBtn || !textBtn) return;
-    const subject = encodeURIComponent('A love note for you');
-    const body = encodeURIComponent(noteText);
-    emailBtn.href = `mailto:?subject=${subject}&body=${body}`;
-    textBtn.href = `sms:?&body=${body}`;
-  }
-
-  function renderSavedNotes(){
-    if (!savedList) return;
-    const notes = JSON.parse(localStorage.getItem(notesStorageKey) || '[]');
-    savedList.innerHTML = '';
-    if (!notes.length) {
-      const empty = document.createElement('li');
-      empty.textContent = 'No saved Sunday notes yet. Save one to start your love archive.';
-      savedList.appendChild(empty);
-      return;
-    }
-    notes.slice(0, 6).forEach(entry => {
-      const li = document.createElement('li');
-      li.textContent = `${entry.date} — ${entry.text}`;
-      savedList.appendChild(li);
-    });
-  }
-
-  function saveNote(){
-    const text = getNoteText();
-    if (!text) {
-      loveToast('Write a love note first.');
-      return;
-    }
-    const notes = JSON.parse(localStorage.getItem(notesStorageKey) || '[]');
-    notes.unshift({
-      date: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-      text
-    });
-    localStorage.setItem(notesStorageKey, JSON.stringify(notes.slice(0, 12)));
-    renderSavedNotes();
-    loveToast('Saved to Sunday list.');
-  }
-
-  function setLoveVisibility(show){
-    overlay.classList.toggle('is-active', show);
-    overlay.setAttribute('aria-hidden', show ? 'false' : 'true');
-    if (restoreBtn) restoreBtn.classList.toggle('is-active', !show);
-    document.body.classList.toggle('sunday-love-active', show);
-    document.body.classList.toggle('love-only', show);
-  }
-
-  function updateDateLabel(){
-    if (!dateLabel) return;
-    dateLabel.textContent = new Date().toLocaleDateString(undefined, {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric'
-    });
-  }
-
-  function initializeSundayView(){
-    const isDisabled = sessionStorage.getItem(storageKey) === 'true';
-    setLoveVisibility(!isDisabled);
-    if (dismissBtn) dismissBtn.hidden = false;
-    if (restoreBtn && !isDisabled) restoreBtn.classList.remove('is-active');
-  }
-
-  inspireBtn?.addEventListener('click', () => {
-    const text = buildInspiration();
-    if (noteInput) {
-      noteInput.value = text;
-    }
-    updateCommunicationLinks();
-    loveToast('Inspired note ready.');
-  });
-
-  copyBtn?.addEventListener('click', async () => {
-    const text = getNoteText();
-    if (!text) {
-      loveToast('Nothing to copy yet.');
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(text);
-      loveToast('Copied love note.');
-    } catch (err) {
-      console.error(err);
-      loveToast('Copy failed. Try selecting the text manually.');
-    }
-  });
-
-  emailBtn?.addEventListener('click', () => {
-    updateCommunicationLinks();
-    if (!getNoteText()) {
-      loveToast('Write a note first so the email has content.');
-    }
-  });
-
-  textBtn?.addEventListener('click', () => {
-    updateCommunicationLinks();
-    if (!getNoteText()) {
-      loveToast('Write a note first so the text has content.');
-    }
-  });
-
-  saveBtn?.addEventListener('click', saveNote);
-
-  clearBtn?.addEventListener('click', () => {
-    if (noteInput) noteInput.value = '';
-    updateCommunicationLinks();
-  });
-
-  dismissBtn?.addEventListener('click', () => {
-    sessionStorage.setItem(storageKey, 'true');
-    setLoveVisibility(false);
-    loveToast('Sunday love view hidden for this session.');
-  });
-
-  restoreBtn?.addEventListener('click', () => {
-    sessionStorage.removeItem(storageKey);
-    setLoveVisibility(true);
-  });
-
-  meterInput?.addEventListener('input', updateMeterMessage);
-
-  document.querySelectorAll('[data-love-pick]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const type = btn.getAttribute('data-love-pick');
-      if (type && lovePrompts[type]) {
-        setOutput(type);
-      }
-    });
-  });
-
-  document.querySelectorAll('[data-love-add]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const type = btn.getAttribute('data-love-add');
-      if (type && lovePrompts[type]) {
-        appendToNote(pickRandom(lovePrompts[type]));
-        updateCommunicationLinks();
-      }
-    });
-  });
-
-  noteInput?.addEventListener('input', updateCommunicationLinks);
-
-  updateDateLabel();
-  updateMeterMessage();
-  refreshAllOutputs();
-  renderSavedNotes();
-  initializeSundayView();
 })();
 
 </script>
