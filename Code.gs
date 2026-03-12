@@ -1,4 +1,36 @@
-// Version 1.0.60 | c13e5d6
+// Version 1.0.61 | c237bf2
+
+function normalizeHeaderName_(value) {
+  return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]+/g, '');
+}
+
+function getHeaderMap_(sheet) {
+  var headerRow = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getDisplayValues()[0] || [];
+  var map = {};
+  headerRow.forEach(function (name, idx) {
+    var normalized = normalizeHeaderName_(name);
+    if (normalized) map[normalized] = idx;
+  });
+  return map;
+}
+
+function col_(headerMap, headerName) {
+  var idx = headerMap[normalizeHeaderName_(headerName)];
+  if (idx == null) {
+    throw new Error('Missing required header: ' + headerName);
+  }
+  return idx;
+}
+
+function colOptional_(headerMap, headerNames, fallbackIndex) {
+  var names = Array.isArray(headerNames) ? headerNames : [headerNames];
+  for (var i = 0; i < names.length; i++) {
+    var normalized = normalizeHeaderName_(names[i]);
+    if (headerMap.hasOwnProperty(normalized)) return headerMap[normalized];
+  }
+  return fallbackIndex;
+}
+
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -410,113 +442,122 @@ function normalizeGreenLabelStrings_(input) {
 ////////////////////////////////////////////////////////
 function getClientDetails(clientName) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
-  var data = sheet.getDataRange().getValues();
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    return {
+      notes: null,
+      labels: [],
+      category: '',
+      columnB: '',
+      columnD: '',
+      columnL: '',
+      taskTypes: [],
+      taskTypeTemplate: [],
+      chipInitials: '',
+      chipDate: ''
+    };
+  }
+
+  var headerMap = getHeaderMap_(sheet);
+  var rows = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getDisplayValues();
+  var rawRows = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
+
+  var clientNameIdx = colOptional_(headerMap, ['CLIENT NAME', 'CLIENTNAME', 'NAME'], 0);
+  var categoryIdx = col_(headerMap, 'CATEGORY');
+  var labelIdx = col_(headerMap, 'LABEL');
+  var colBIdx = 1;
+  var colDIdx = 3;
+  var colLIdx = 11;
+  var colNIdx = 13;
+  var colPIdx = 15;
+  var colQIdx = 16;
+
   var clientNotes = [];
   var clientLabels = [];
-  var columnB = "";
-  var columnD = "";
-  var columnLValue = "";
+  var columnB = '';
+  var columnD = '';
+  var columnLValue = '';
   var tz = Session.getScriptTimeZone();
   var sharedTaskTemplate = getTaskTypeTemplateForSheet(sheet);
   var taskTypeTemplate = sharedTaskTemplate.length ? sharedTaskTemplate : toTemplateOnly(parseTaskTypeCell(DEFAULT_TASK_TYPE_TEXT));
-  var headerMap = getTaskStatusHeaderMap_(sheet);
+  var taskHeaderMap = getTaskStatusHeaderMap_(sheet);
   var clientTaskTypes = [];
+  var chipInitials = '';
+  var chipDate = '';
 
-  // NEW: chip fields (P/Q)
-  var chipInitials = ""; // Column P (index 15)
-  var chipDateRaw = "";  // Column Q (index 16)
+  rows.forEach(function (row, i) {
+    var rawName = row[clientNameIdx];
+    var normalizedName = String(rawName || '').replace(/\d+$/, '').trim();
+    if (!normalizedName || normalizedName.toLowerCase() !== String(clientName || '').trim().toLowerCase()) {
+      return;
+    }
 
-  data.forEach(function(row) {
-    var thisClientName = row[0];
-    if (thisClientName) {
-      thisClientName = thisClientName.replace(/\d+$/, '').trim();
-      if (thisClientName.toLowerCase() === clientName.toLowerCase()) {
-        var thisCategory = row[5] ? row[5].toString().trim() : "N/A";
-        var thisNoteDate = row[1] ? Utilities.formatDate(new Date(row[1]), tz, "MM/dd/yy") : "N/A";
-        var thisFollowUpDate = row[3] ? Utilities.formatDate(new Date(row[3]), tz, "MM/dd/yy") : "N/A";
-        var thisNote = row[2] ? row[2].toString().trim() : "N/A";
-        var thisFollowUp = row[4] ? row[4].toString().trim() : "N/A";
+    var thisCategory = String(row[categoryIdx] || '').trim() || 'N/A';
+    var thisNoteDate = row[colBIdx] ? row[colBIdx] : 'N/A';
+    var thisFollowUpDate = row[colDIdx] ? row[colDIdx] : 'N/A';
+    var thisNote = row[2] ? String(row[2]).trim() : 'N/A';
+    var thisFollowUp = row[4] ? String(row[4]).trim() : 'N/A';
 
-        columnB = row[1];
-        columnD = row[3];
-        columnLValue = row[11];
-        clientTaskTypes = buildTaskTypesFromRow_(row, taskTypeTemplate, headerMap);
+    columnB = row[colBIdx] || '';
+    columnD = row[colDIdx] || '';
+    columnLValue = row[colLIdx] || '';
+    clientTaskTypes = buildTaskTypesFromRow_(rawRows[i], taskTypeTemplate, taskHeaderMap);
 
-        // Capture P/Q (may be blank)
-        chipInitials = row[15] ? row[15].toString().trim() : "";
-        chipDateRaw  = row[16] ? row[16] : ""; // may be Date or string
+    chipInitials = String(row[colPIdx] || '').trim();
+    var chipDateDisplay = String(row[colQIdx] || '').trim();
+    chipDate = chipDateDisplay || chipDate;
 
-        clientNotes.push({
-          clientName: thisClientName,
-          noteDate: thisNoteDate,
-          note: thisNote,
-          followUpDate: thisFollowUpDate,
-          followUp: thisFollowUp,
-          category: thisCategory
-        });
+    clientNotes.push({
+      clientName: normalizedName,
+      noteDate: thisNoteDate,
+      note: thisNote,
+      followUpDate: thisFollowUpDate,
+      followUp: thisFollowUp,
+      category: thisCategory
+    });
 
-        // Build labels once for the first matching row, regardless of whether G is empty.
-        if (clientLabels.length === 0) {
-          var mergedLabels = [];
+    if (clientLabels.length === 0) {
+      var mergedLabels = [];
+      mergedLabels = mergedLabels.concat(normalizeLabelEntries_(row[labelIdx], false));
 
-          // Column G (green, removable) supports legacy delimiters and nested payloads.
-          mergedLabels = mergedLabels.concat(normalizeLabelEntries_(row[6], false));
-
-          // Columns H–K (blue, read-only)
-          for (var i = 7; i <= 10; i++) {
-            mergedLabels = mergedLabels.concat(normalizeLabelEntries_(row[i], true));
-          }
-
-          // Column N (DOB, blue, read-only)
-          if (row[13] && String(row[13]).trim() !== '') {
-            var dobText = '';
-            if (row[13] instanceof Date) {
-              dobText = Utilities.formatDate(row[13], tz, 'M/d/yyyy');
-            } else {
-              dobText = String(row[13]).trim();
-            }
-            if (dobText) {
-              mergedLabels.push({ label: 'DOB: ' + dobText, isBlue: true });
-            }
-          }
-
-          clientLabels = normalizeLabelEntries_(mergedLabels, false);
-        }
-
+      for (var blueIdx = 7; blueIdx <= 10; blueIdx++) {
+        mergedLabels = mergedLabels.concat(normalizeLabelEntries_(row[blueIdx], true));
       }
+
+      if (row[colNIdx] && String(row[colNIdx]).trim() !== '') {
+        mergedLabels.push({ label: 'DOB: ' + String(row[colNIdx]).trim(), isBlue: true });
+      }
+
+      clientLabels = normalizeLabelEntries_(mergedLabels, false);
     }
   });
 
-  clientNotes.sort(function(a, b) {
-    var date1 = new Date(a.noteDate);
-    var date2 = new Date(b.noteDate);
-    return date1 - date2;
+  clientNotes.sort(function (a, b) {
+    return new Date(a.noteDate) - new Date(b.noteDate);
   });
 
-  // If chipDateRaw is a Date, format to MM/dd/yy; if string, try to parse; else blank.
-  var chipDate = "";
-  if (chipDateRaw) {
-    var asDate = (chipDateRaw instanceof Date) ? chipDateRaw : new Date(chipDateRaw);
-    if (!isNaN(asDate.getTime())) {
-      chipDate = Utilities.formatDate(asDate, Session.getScriptTimeZone(), "MM/dd/yy");
-    } else {
-      chipDate = chipDateRaw.toString();
-    }
-  }
-
-  return {
-    notes:  clientNotes.length > 0 ? clientNotes : null,
+  var resolvedCategory = clientNotes.length ? String(clientNotes[0].category || '').trim() : '';
+  var payload = {
+    notes: clientNotes.length > 0 ? clientNotes : null,
     labels: clientLabels,
+    category: resolvedCategory,
     columnB: columnB,
     columnD: columnD,
     columnL: columnLValue,
-    taskTypes: clientTaskTypes.length ? clientTaskTypes : buildTaskTypesFromRow_([], taskTypeTemplate, headerMap),
+    taskTypes: clientTaskTypes.length ? clientTaskTypes : buildTaskTypesFromRow_([], taskTypeTemplate, taskHeaderMap),
     taskTypeTemplate: toTemplateOnly(taskTypeTemplate),
-    chipInitials: chipInitials, // Column P
-    chipDate: chipDate          // Column Q -> "MM/dd/yy" or ""
+    chipInitials: chipInitials,
+    chipDate: chipDate
   };
-}
 
+  Logger.log('getClientDetails payload for ' + clientName + ': ' + JSON.stringify({
+    notesCount: payload.notes ? payload.notes.length : 0,
+    category: payload.category,
+    labels: payload.labels
+  }));
+
+  return payload;
+}
 
 
 // Extract and sort by date functions remain the same
@@ -1795,29 +1836,44 @@ function getTomorrowsCalendarEvents() {
 
 
 function getAllLabels() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0'); // Open the sheet containing label data.
-  var dataRange = sheet.getDataRange(); // Grab the full used range.
-  var data = dataRange.getValues(); // Convert all rows to a 2D array.
-  var labelsSet = new Set(); // Use a Set so duplicate labels collapse automatically.
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
+  if (!sheet) return [];
 
-  data.forEach(function(row, index) { // Scan every row to gather distinct labels.
-    if (index === 0) return; // Ignore header row.
-    normalizeGreenLabelStrings_(row[6]).forEach(function (label) { // Parse Column G labels (green/removable labels).
-      labelsSet.add(label); // Add each parsed label into the unique set.
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+
+  var headerMap = getHeaderMap_(sheet);
+  var labelIdx = col_(headerMap, 'LABEL');
+  var values = sheet.getRange(2, labelIdx + 1, lastRow - 1, 1).getDisplayValues();
+  var labelsSet = {};
+  var labels = [];
+
+  values.forEach(function (row) {
+    splitLabelText_(row[0]).forEach(function (label) {
+      var normalized = String(label || '').trim();
+      if (!normalized) return;
+      var key = normalized.toLowerCase();
+      if (labelsSet[key]) return;
+      labelsSet[key] = true;
+      labels.push(normalized);
     });
   });
 
-  var labelsArray = Array.from(labelsSet); // Convert unique labels back into an array for the client.
-  labelsArray.sort(); // Sort labels alphabetically for predictable dropdown order.
-  return labelsArray; // Return the sorted label options for the UI.
+  labels.sort(function (a, b) {
+    return a.localeCompare(b, undefined, { sensitivity: 'base' });
+  });
+
+  Logger.log('getAllLabels returning ' + labels.length + ' labels');
+  return labels;
 }
-
-
 
 
 function addLabelToClient(clientName, label) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0'); // Open target sheet where labels are stored.
   var data = sheet.getDataRange().getValues(); // Read current sheet values for lookup and update.
+  var headerMap = getHeaderMap_(sheet);
+  var clientNameIdx = colOptional_(headerMap, ['CLIENT NAME', 'CLIENTNAME', 'NAME'], 0);
+  var labelIdx = col_(headerMap, 'LABEL');
   var clientFound = false; // Track whether we found at least one matching client row.
   var normalizedClientName = String(clientName || '').trim().toLowerCase(); // Normalize selected client name from UI.
   var normalizedLabel = String(label || '').trim(); // Normalize requested label text.
@@ -1830,11 +1886,11 @@ function addLabelToClient(clientName, label) {
   }
 
   for (var i = 1; i < data.length; i++) { // Walk each data row to find the selected client.
-    var thisClientName = data[i][0]; // Client names are in Column A.
+    var thisClientName = data[i][clientNameIdx]; // Client names are resolved by header.
     var normalizedRowClient = String(thisClientName || '').replace(/\d+$/, '').trim().toLowerCase(); // Normalize sheet value to same comparison format.
     if (normalizedRowClient && normalizedRowClient === normalizedClientName) { // Match selected client case-insensitively.
       clientFound = true; // Mark as found so we can throw proper error if never matched.
-      var labelList = normalizeGreenLabelStrings_(data[i][6]); // Parse existing green labels from Column G.
+      var labelList = normalizeGreenLabelStrings_(data[i][labelIdx]); // Parse existing green labels from LABEL column.
       var hasMatch = labelList.some(function (existing) { // Check whether label already exists to prevent duplicates.
         return existing.toLowerCase() === normalizedLabel.toLowerCase(); // Compare existing label and requested label case-insensitively.
       });
@@ -1842,7 +1898,7 @@ function addLabelToClient(clientName, label) {
         labelList.push(normalizedLabel); // Add new label to this client's label list.
       }
       var newLabels = labelList.join(' • '); // Serialize labels back to the expected delimiter format.
-      sheet.getRange(i + 1, 7).setValue(newLabels); // Save updated labels into Column G.
+      sheet.getRange(i + 1, labelIdx + 1).setValue(newLabels); // Save updated labels into LABEL column.
       return newLabels; // Return the saved label string for immediate UI refresh.
     }
   }
@@ -1855,6 +1911,9 @@ function addLabelToClient(clientName, label) {
 function removeLabelFromClient(clientName, labelToRemove) {
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0'); // Open the dashboard sheet where labels are stored.
     var data = sheet.getDataRange().getValues(); // Read all rows so we can find the requested client.
+    var headerMap = getHeaderMap_(sheet);
+    var clientNameIdx = colOptional_(headerMap, ['CLIENT NAME', 'CLIENTNAME', 'NAME'], 0);
+    var labelIdx = col_(headerMap, 'LABEL');
     var normalizedClientName = String(clientName || '').trim().toLowerCase(); // Normalize selected client name.
     var normalizedLabelToRemove = String(labelToRemove || '').trim(); // Normalize the label requested for removal.
 
@@ -1863,13 +1922,13 @@ function removeLabelFromClient(clientName, labelToRemove) {
     }
 
     for (var i = 1; i < data.length; i++) { // Iterate data rows to locate the selected client.
-        var rowClientName = String(data[i][0] || '').replace(/\d+$/, '').trim().toLowerCase(); // Normalize row client name for matching.
+        var rowClientName = String(data[i][clientNameIdx] || '').replace(/\d+$/, '').trim().toLowerCase(); // Normalize row client name for matching.
         if (rowClientName === normalizedClientName) { // Stop at the first matching client row.
-            var currentLabels = normalizeGreenLabelStrings_(data[i][6]); // Parse current Column G labels.
+            var currentLabels = normalizeGreenLabelStrings_(data[i][labelIdx]); // Parse current LABEL column labels.
             var updatedLabels = currentLabels.filter(function(label) { // Keep all labels except the one to remove.
               return String(label || '').trim().toLowerCase() !== normalizedLabelToRemove.toLowerCase(); // Case-insensitive remove comparison.
             });
-            sheet.getRange(i + 1, 7).setValue(updatedLabels.join(' • ')); // Save remaining labels back to Column G.
+            sheet.getRange(i + 1, labelIdx + 1).setValue(updatedLabels.join(' • ')); // Save remaining labels back to LABEL column.
             break; // Exit once target client row is updated.
         }
     }
@@ -2178,38 +2237,62 @@ function sendEditSummaryEmail(clientName, type, oldText, newText) {
 
 function getAllClientsData() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
-  var data = sheet.getDataRange().getValues();
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+
+  var headerMap = getHeaderMap_(sheet);
+  var clientNameIdx = colOptional_(headerMap, ['CLIENT NAME', 'CLIENTNAME', 'NAME'], 0);
+  var categoryIdx = col_(headerMap, 'CATEGORY');
+  var data = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getDisplayValues();
   var clients = [];
 
-  for (var i = 1; i < data.length; i++) { // Start from 1 to skip header row if there's a header
+  for (var i = 0; i < data.length; i++) {
     var row = data[i];
-    var clientName = row[0];
-    if (clientName) {
-      var clientData = {
-        clientName: clientName,
-        category: row[5], // Assuming column F is index 5
-        rowText: row.join(' ').toLowerCase() // Concatenate all cell values in the row
-      };
-      clients.push(clientData);
-    }
+    var clientName = row[clientNameIdx];
+    if (!clientName) continue;
+
+    clients.push({
+      clientName: clientName,
+      category: row[categoryIdx],
+      rowText: row.join(' ').toLowerCase()
+    });
   }
+
   return clients;
 }
 
-/** Return sorted unique, non-empty categories from Column F (row 2 → last). */
+/** Return sorted unique, non-empty categories from CATEGORY header (row 2 → last). */
 function getUniqueCategories() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sh = ss.getSheetByName('DASHBOARD 8.0');
-  const last = sh.getLastRow();
-  if (last < 2) return [];
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('DASHBOARD 8.0');
+  if (!sheet) return [];
 
-  const vals = sh.getRange(2, 6, last - 1, 1).getValues()  // Col F
-                 .map(r => String(r[0] || '').trim())
-                 .filter(Boolean);
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
 
-  const uniq = Array.from(new Set(vals));
-  uniq.sort(function(a, b){ return a.localeCompare(b, 'en', { sensitivity:'base' }); });
-  return uniq;
+  var headerMap = getHeaderMap_(sheet);
+  var categoryIdx = col_(headerMap, 'CATEGORY');
+  var categories = sheet
+    .getRange(2, categoryIdx + 1, lastRow - 1, 1)
+    .getDisplayValues()
+    .map(function (row) { return String(row[0] || '').trim(); })
+    .filter(Boolean);
+
+  var seen = {};
+  var unique = [];
+  categories.forEach(function (category) {
+    var key = category.toLowerCase();
+    if (seen[key]) return;
+    seen[key] = true;
+    unique.push(category);
+  });
+
+  unique.sort(function (a, b) {
+    return a.localeCompare(b, undefined, { sensitivity: 'base' });
+  });
+
+  Logger.log('getUniqueCategories returning ' + unique.length + ' categories');
+  return unique;
 }
 
 /**
@@ -2220,21 +2303,27 @@ function updateClientCategory(clientName, newCategory) {
   if (!clientName) throw new Error('Missing clientName.');
   if (!newCategory) throw new Error('Missing category.');
 
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sh = ss.getSheetByName('DASHBOARD 8.0');
-  const data = sh.getRange(2, 1, sh.getLastRow() - 1, 6).getValues(); // A..F
-  const targetName = normalizeClientNameForCategoryMatch_(clientName);
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('DASHBOARD 8.0');
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) throw new Error('No client rows available.');
 
-  let updatedRows = 0;
-  for (let i = 0; i < data.length; i++) {
-    const rawName = String(data[i][0] || '').trim();
+  var headerMap = getHeaderMap_(sheet);
+  var clientNameIdx = colOptional_(headerMap, ['CLIENT NAME', 'CLIENTNAME', 'NAME'], 0);
+  var categoryIdx = col_(headerMap, 'CATEGORY');
+
+  var data = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getDisplayValues();
+  var targetName = normalizeClientNameForCategoryMatch_(clientName);
+
+  var updatedRows = 0;
+  for (var i = 0; i < data.length; i++) {
+    var rawName = String(data[i][clientNameIdx] || '').trim();
     if (!rawName) continue;
 
-    // Accept both exact and "legacy" row names that may include numeric suffixes.
-    const exactMatch = rawName.toLowerCase() === String(clientName).trim().toLowerCase();
-    const normalizedMatch = normalizeClientNameForCategoryMatch_(rawName) === targetName;
+    var exactMatch = rawName.toLowerCase() === String(clientName).trim().toLowerCase();
+    var normalizedMatch = normalizeClientNameForCategoryMatch_(rawName) === targetName;
     if (exactMatch || normalizedMatch) {
-      sh.getRange(i + 2, 6).setValue(newCategory); // Column F
+      sheet.getRange(i + 2, categoryIdx + 1).setValue(newCategory);
       updatedRows++;
     }
   }
@@ -2603,37 +2692,6 @@ function getStrictPastTopClients() {
 
   return strictPastClients;
 }
-// Code.gs — REPLACE entire getUniqueCategories with this
-function getUniqueCategories() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('DASHBOARD 8.0');
-  if (!sheet) return [];
-
-  const lastRow = sheet.getLastRow();
-  if (lastRow < 2) return []; // no data rows
-
-  // Column F (6th), rows 2..last
-  const values = sheet
-    .getRange(2, 6, lastRow - 1, 1)
-    .getValues()
-    .flat()
-    .map(v => (v == null ? '' : String(v).trim()))
-    .filter(v => v !== ''); // drop blanks (including "" from formulas)
-
-  if (values.length === 0) return [];
-
-  // Case-insensitive dedupe while preserving first-seen casing
-  const seen = new Map(); // key = lowercased, value = original
-  for (const v of values) {
-    const k = v.toLowerCase();
-    if (!seen.has(k)) seen.set(k, v);
-  }
-
-  // Sort a→z, case-insensitive
-  return Array.from(seen.values())
-    .sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }));
-}
-
 
 
 
