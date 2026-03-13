@@ -1,3 +1,5 @@
+// Version 1.0.1 | 55d4a51
+
 function doGet(e) {
   var userEmail = Session.getActiveUser().getEmail(); // Ensure it gets the active user
   Logger.log("Detected User Email: " + userEmail); // Debugging - logs detected email
@@ -1291,12 +1293,11 @@ function getAllLabels() {
   var data = dataRange.getValues();
   var labelsSet = new Set();
 
-  data.forEach(function(row) {
-    var labelsCell = row[6]; // Assuming labels are in column G
-    if (labelsCell) {
-      var labels = labelsCell.toString().split(' • ');
-      labels.forEach(label => labelsSet.add(label.trim()));
-    }
+  data.forEach(function(row, index) {
+    if (index === 0) return;
+    normalizeGreenLabelStrings_(row[6]).forEach(function(label) {
+      labelsSet.add(label);
+    });
   });
 
   var labelsArray = Array.from(labelsSet);
@@ -1311,15 +1312,34 @@ function addLabelToClient(clientName, label) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
   var data = sheet.getDataRange().getValues();
   var clientFound = false;
+  var normalizedClientName = String(clientName || '').trim().toLowerCase();
+  var normalizedLabel = String(label || '').trim();
 
-  for (var i = 0; i < data.length; i++) {
+  if (!normalizedClientName) {
+    throw new Error('Client name is required');
+  }
+  if (!normalizedLabel) {
+    throw new Error('Label is required');
+  }
+
+  for (var i = 1; i < data.length; i++) {
     var thisClientName = data[i][0]; // Assuming client names are in column A
-    if (thisClientName && thisClientName.toString().toLowerCase() === clientName.toLowerCase()) {
+    var normalizedRowClient = String(thisClientName || '').replace(/\d+$/, '').trim().toLowerCase();
+
+    if (normalizedRowClient && normalizedRowClient === normalizedClientName) {
       clientFound = true;
-      var existingLabels = data[i][6] ? data[i][6].toString() : ''; // Column G for labels
-      var newLabels = existingLabels ? existingLabels + " • " + label : label;
+      var labelList = normalizeGreenLabelStrings_(data[i][6]);
+      var hasMatch = labelList.some(function(existingLabel) {
+        return existingLabel.toLowerCase() === normalizedLabel.toLowerCase();
+      });
+
+      if (!hasMatch) {
+        labelList.push(normalizedLabel);
+      }
+
+      var newLabels = labelList.join(' • ');
       sheet.getRange(i + 1, 7).setValue(newLabels); // Update the cell in column G
-      break;
+      return newLabels;
     }
   }
 
@@ -1331,15 +1351,37 @@ function addLabelToClient(clientName, label) {
 function removeLabelFromClient(clientName, labelToRemove) {
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
     var data = sheet.getDataRange().getValues();
+    var normalizedClientName = String(clientName || '').trim().toLowerCase();
+    var normalizedLabelToRemove = String(labelToRemove || '').trim();
 
-    for (var i = 0; i < data.length; i++) {
-        if (data[i][0].trim().toLowerCase() === clientName.toLowerCase()) {
-            var currentLabels = data[i][6] ? data[i][6].toString().split(' • ') : [];
-            var updatedLabels = currentLabels.filter(label => label.trim() !== labelToRemove.trim());
+    if (!normalizedClientName || !normalizedLabelToRemove) {
+      throw new Error('Client name and label are required');
+    }
+
+    for (var i = 1; i < data.length; i++) {
+        var rowClientName = String(data[i][0] || '').replace(/\d+$/, '').trim().toLowerCase();
+        if (rowClientName === normalizedClientName) {
+            var currentLabels = normalizeGreenLabelStrings_(data[i][6]);
+            var updatedLabels = currentLabels.filter(function(label) {
+              return String(label || '').trim().toLowerCase() !== normalizedLabelToRemove.toLowerCase();
+            });
             sheet.getRange(i + 1, 7).setValue(updatedLabels.join(' • '));
             break;
         }
     }
+}
+
+function normalizeGreenLabelStrings_(labelsCell) {
+  if (labelsCell == null) return [];
+
+  return String(labelsCell)
+    .split('•')
+    .map(function(label) {
+      return String(label || '').trim();
+    })
+    .filter(function(label) {
+      return label.length > 0;
+    });
 }
 
 
@@ -1628,22 +1670,6 @@ function getAllClientsData() {
   return clients;
 }
 
-/** Return sorted unique, non-empty categories from Column F (row 2 → last). */
-function getUniqueCategories() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sh = ss.getSheetByName('DASHBOARD 8.0');
-  const last = sh.getLastRow();
-  if (last < 2) return [];
-
-  const vals = sh.getRange(2, 6, last - 1, 1).getValues()  // Col F
-                 .map(r => String(r[0] || '').trim())
-                 .filter(Boolean);
-
-  const uniq = Array.from(new Set(vals));
-  uniq.sort(function(a, b){ return a.localeCompare(b, 'en', { sensitivity:'base' }); });
-  return uniq;
-}
-
 /**
  * Update a client's Category (Column F) by exact match on Column A (Client Name).
  * Returns { ok:true } if saved, otherwise throws.
@@ -1656,23 +1682,33 @@ function updateClientCategory(clientName, newCategory) {
   const sh = ss.getSheetByName('DASHBOARD 8.0');
   const data = sh.getRange(2, 1, sh.getLastRow() - 1, 6).getValues(); // A..F
 
-  let foundRow = -1;
+  const targetName = normalizeClientNameForCategoryMatch_(clientName);
+  let updatedRows = 0;
+
   for (let i = 0; i < data.length; i++) {
-    const name = String(data[i][0] || '').trim();
-    if (name.toLowerCase() === String(clientName).trim().toLowerCase()) {
-      foundRow = i + 2; // sheet row (offset from header)
-      break;
+    const rawName = String(data[i][0] || '').trim();
+    if (!rawName) continue;
+
+    const exactMatch = rawName.toLowerCase() === String(clientName).trim().toLowerCase();
+    const normalizedMatch = normalizeClientNameForCategoryMatch_(rawName) === targetName;
+    if (exactMatch || normalizedMatch) {
+      sh.getRange(i + 2, 6).setValue(newCategory);
+      updatedRows++;
     }
   }
 
-  if (foundRow === -1) {
+  if (updatedRows === 0) {
     throw new Error('Client not found: ' + clientName);
   }
 
-  // Write Column F
-  sh.getRange(foundRow, 6).setValue(newCategory);
+  return { ok: true, updatedRows: updatedRows, category: newCategory };
+}
 
-  return { ok: true, row: foundRow, category: newCategory };
+function normalizeClientNameForCategoryMatch_(name) {
+  return String(name || '')
+    .replace(/\d+$/, '')
+    .trim()
+    .toLowerCase();
 }
 
 
