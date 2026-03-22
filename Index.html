@@ -1,4 +1,4 @@
-<!-- Version 1.0.0 | 72afdbe -->
+<!-- Version 1.0.51 | 55d4a51 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -6237,24 +6237,97 @@ function normalizeTopClientsFilter(val) {
   return map.hasOwnProperty(raw) ? map[raw] : raw.toUpperCase();
 }
 
-// === CATEGORY CHANGE GUARDS ===
+// === CATEGORY/LABEL CHANGE GUARDS ===
 let __suppressCategoryChange = false;     // don't fire when we set value in code
 let __categoryReqToken = 0;               // ignore stale success/failure
+let __categoryRefreshToken = 0;           // ignore stale option refreshes
 let __categoryInFlight = false;           // optional: disable UI while saving
 let __currentCategory = '';               // last category we know is applied
+let __labelReqToken = 0;                  // ignore stale label saves
+let __labelRefreshToken = 0;              // ignore stale label refreshes
+let __labelInFlight = false;              // prevent double label submits
+let __currentLabelSelection = '';         // keep label dropdown stable during refreshes
+
+function ensureDropdownOption(selectEl, value, beforeValue) {
+  if (!selectEl) return null;
+  var normalizedValue = String(value || '').trim();
+  if (!normalizedValue) return null;
+
+  var existing = Array.from(selectEl.options).find(function(option) {
+    return String(option.value || '').trim().toLowerCase() === normalizedValue.toLowerCase();
+  });
+  if (existing) return existing;
+
+  var option = document.createElement('option');
+  option.value = normalizedValue;
+  option.textContent = normalizedValue;
+
+  if (beforeValue) {
+    var beforeOption = Array.from(selectEl.options).find(function(opt) {
+      return opt.value === beforeValue;
+    });
+    if (beforeOption) {
+      selectEl.add(option, beforeOption);
+      return option;
+    }
+  }
+
+  selectEl.appendChild(option);
+  return option;
+}
+
+function refreshCategoryDropdownOptions(reason, preferredValue) {
+  var refreshToken = ++__categoryRefreshToken;
+  var selectedValue = String(preferredValue || __currentCategory || '').trim();
+  console.log('[category] refreshing options:', reason || 'unknown', selectedValue);
+
+  google.script.run
+    .withSuccessHandler(function(categories) {
+      if (refreshToken !== __categoryRefreshToken) {
+        console.log('[category] ignoring stale refresh:', reason || 'unknown');
+        return;
+      }
+      populateCategoryDropdown(Array.isArray(categories) ? categories : [], selectedValue);
+      updateCategoryLabel();
+    })
+    .withFailureHandler(function(err) {
+      if (refreshToken !== __categoryRefreshToken) return;
+      console.warn('[category] refresh failed:', err && err.message ? err.message : err);
+      var sel = document.getElementById('categorySelect');
+      if (sel) sel.disabled = false;
+    })
+    .getUniqueCategories();
+}
 
 function wireCategorySelectChange(){
   const sel = document.getElementById('categorySelect');
   if (!sel || sel.__wired) return;
 
   sel.addEventListener('change', function(){
-    if (__suppressCategoryChange) return;               // ignore programmatic set
+    if (__suppressCategoryChange || __categoryInFlight) return; // ignore programmatic set
     const newCat = (sel.value || '').trim();
+    if (newCat === '__NEW__') {
+      updateCategorySelectValue(__currentCategory || '');
+      openNewCategoryModal();
+      return;
+    }
+    if (!newCat) {
+      updateCategorySelectValue(__currentCategory || '');
+      return;
+    }
     // Dedupe: don't call server if the value didn't actually change
-    if (newCat === (__currentCategory || '')) return;
-    setCategoryPlaceholderText(newCat || '');
-    positionCategoryDropdownOverAutocomplete();
+    if (newCat === (__currentCategory || '')) {
+      updateCategoryLabel();
+      return;
+    }
     requestCategoryChange(newCat);
+  });
+
+  ['focus', 'mousedown'].forEach(function(eventName) {
+    sel.addEventListener(eventName, function() {
+      if (__categoryInFlight) return;
+      refreshCategoryDropdownOptions(eventName, sel.value || __currentCategory || '');
+    });
   });
 
   sel.__wired = true;
@@ -6264,6 +6337,9 @@ function wireCategorySelectChange(){
 function updateCategorySelectValue(newValue){
   const sel = document.getElementById('categorySelect');
   if (!sel) return;
+  if (newValue) {
+    ensureDropdownOption(sel, newValue, '__NEW__');
+  }
   __suppressCategoryChange = true;
   sel.value = (newValue || '');
   __currentCategory = (newValue || '');  // keep our local notion in sync
@@ -6276,50 +6352,44 @@ function updateCategorySelectValue(newValue){
 /* Single, tokened pipeline to update category on the server */
 function requestCategoryChange(newCategory){
   const clientName = (document.getElementById('clientSelect')||{}).value || '';
-  if (!clientName || !newCategory) return;
+  const normalizedCategory = String(newCategory || '').trim();
+  const previousCategory = __currentCategory || '';
+  if (!clientName || !normalizedCategory || __categoryInFlight) return;
 
   const token = ++__categoryReqToken;
   __categoryInFlight = true;
+  var selectEl = document.getElementById('categorySelect');
+  if (selectEl) selectEl.disabled = true;
+  console.log('[category] saving:', clientName, '->', normalizedCategory);
   try { if (typeof showLoadingBar === 'function') showLoadingBar(); } catch(_){}
 
   google.script.run
     .withSuccessHandler(function(){
       // Only act if this is the latest request
       if (token !== __categoryReqToken) return;
-      __currentCategory = newCategory;                       // lock in
+      __currentCategory = normalizedCategory;                // lock in
       __categoryInFlight = false;
-      setCategoryPlaceholderText(__currentCategory || '');
-      positionCategoryDropdownOverAutocomplete();
+      if (selectEl) selectEl.disabled = false;
+      updateCategorySelectValue(__currentCategory || '');
       try { if (typeof hideLoadingBar === 'function') hideLoadingBar(); } catch(_){}
-      // Optional toast near the select
-      try {
-        const sel = document.getElementById('categorySelect');
-        if (sel) {
-          const ok = document.createElement('span');
-          ok.textContent = 'Saved';
-          ok.style.marginLeft = '8px';
-          ok.style.fontSize = '0.8em';
-          ok.style.opacity = '0.85';
-          ok.style.background = '#e8f5e9';
-          ok.style.border = '1px solid #c8e6c9';
-          ok.style.borderRadius = '10px';
-          ok.style.padding = '2px 8px';
-          sel.parentNode.appendChild(ok);
-          setTimeout(() => ok.remove(), 1200);
-        }
-      } catch(_){}
+      if (typeof retriggerTopClientsFilter === 'function') retriggerTopClientsFilter();
+      if (typeof refreshUIWithNewCategory === 'function') {
+        try { refreshUIWithNewCategory(clientName, normalizedCategory); } catch (err) { console.warn('[category] refreshUIWithNewCategory failed:', err); }
+      }
+      refreshCategoryDropdownOptions('save-success', normalizedCategory);
     })
     .withFailureHandler(function(err){
       // Ignore failures from stale requests
       if (token !== __categoryReqToken) return;
       __categoryInFlight = false;
+      if (selectEl) selectEl.disabled = false;
       try { if (typeof hideLoadingBar === 'function') hideLoadingBar(); } catch(_){}
+      console.warn('[category] save failed:', err && err.message ? err.message : err);
       alert('Category change failed: ' + (err && err.message ? err.message : err));
       // Revert UI to the last known good category
-      updateCategorySelectValue(__currentCategory);
+      updateCategorySelectValue(previousCategory);
     })
-    // TODO: replace with your server function name/signature
-    .updateClientCategory(clientName, newCategory);
+    .updateClientCategory(clientName, normalizedCategory);
 }
 
 
@@ -6532,47 +6602,14 @@ function confirmNewCategory() {
     return;
   }
 
-  // Set the dropdown to the new value, close modal, then save
   var sel = document.getElementById('categorySelect');
   closeNewCategoryModal();
 
-  // Add it to the dropdown immediately for this session
-  // (it will be truly "permanent" after we save it to the client and re-pull unique categories)
   if (sel) {
-    var exists = Array.from(sel.options).some(function(opt){ return opt.value.toLowerCase() === name.toLowerCase(); });
-    if (!exists) {
-      var opt = document.createElement('option');
-      opt.value = name;
-      opt.textContent = name;
-      // insert alphabetically before the sentinel NEW CATEGORY…
-      var inserted = false;
-      for (var i = 0; i < sel.options.length; i++) {
-        var o = sel.options[i];
-        if (o.value && o.value !== '__NEW__' && o.value.localeCompare(name, 'en', {sensitivity:'base'}) > 0) {
-          sel.add(opt, o);
-          inserted = true;
-          break;
-        }
-      }
-      if (!inserted) sel.add(opt, sel.querySelector('option[value="__NEW__"]') || null);
-    }
-    sel.value = name;
+    ensureDropdownOption(sel, name, '__NEW__');
   }
-
-  // Persist: assign this new category to the currently loaded client
-  // Your existing updateCategory() reads #categorySelect and #clientSelect
-  updateCategory();
-  updateCategoryLabel();
-
-  // Refresh master list so the new category appears next time (pulls Column F uniques)
-  google.script.run
-    .withSuccessHandler(function(categories){
-      populateCategoryDropdown(categories);
-      // keep the just-saved value selected
-      var sel2 = document.getElementById('categorySelect');
-      if (sel2) sel2.value = name;
-    })
-    .getUniqueCategories();
+  updateCategorySelectValue(name);
+  requestCategoryChange(name);
 }
 
 /* Save the selected dropdown category to Column F for the currently loaded client. */
@@ -6592,40 +6629,7 @@ function updateCategory() {
     alert('Please pick a category.');
     return;
   }
-
-  // Visual feedback (optional)
-  if (typeof showLoadingBar === 'function') showLoadingBar();
-
-google.script.run
-  .withSuccessHandler(function(res){
-    if (typeof hideLoadingBar === 'function') hideLoadingBar();
-
-    if (typeof updateCategoryLabel === 'function') updateCategoryLabel();
-
-    // ⬇️ re-run the Top Clients filter now
-    retriggerTopClientsFilter();
-
-    google.script.run
-      .withSuccessHandler(function(categories){
-        if (typeof populateCategoryDropdown === 'function') {
-          populateCategoryDropdown(categories);
-          var sel = document.getElementById('categorySelect');
-          if (sel) sel.value = category;
-        }
-      })
-      .getUniqueCategories();
-
-          // Refresh the autocomplete + dropdown data so the updated category appears immediately.
-    if (typeof refreshUIWithNewCategory === 'function') {
-      refreshUIWithNewCategory(clientName, category);
-    }
-  })
-
-    .withFailureHandler(function(err){
-      if (typeof hideLoadingBar === 'function') hideLoadingBar();
-      alert('Failed to save category: ' + (err && err.message ? err.message : err));
-    })
-    .updateClientCategory(clientName, category);
+  requestCategoryChange(category);
 }
 
 
@@ -6643,18 +6647,8 @@ function loadCategoriesForClientAfterNotes() {
     return;
   }
 
-  google.script.run
-    .withSuccessHandler(function (cats) {
-      // Populate the dropdown, but DO NOT unhide the section here.
-      // Visibility is controlled strictly by showClientNotes() when a client is loaded.
-      populateCategoryDropdown(Array.isArray(cats) ? cats : []);
-      // Intentionally do NOT do:
-      //   document.getElementById('categoryChangeSection').style.display = 'block';
-    })
-    .withFailureHandler(function (err) {
-      console.error('Failed to load categories:', err);
-    })
-    .getUniqueCategories();
+  wireCategorySelectChange();
+  refreshCategoryDropdownOptions('client-load', sel.value || __currentCategory || '');
 }
 
 
@@ -6663,20 +6657,18 @@ function updateCategorySelectValue(currentCategory) {
   if (!sel) return;
 
   if (currentCategory) {
-    // If the current category isn't yet in the dropdown (e.g., just created),
-    // temporarily insert it before the sentinel so it's selectable.
-    var exists = Array.from(sel.options)
-      .some(function (o) { return o.value.toLowerCase() === String(currentCategory).toLowerCase(); });
-
-    if (!exists) {
-      var opt = document.createElement('option');
-      opt.value = currentCategory;
-      opt.textContent = currentCategory;
-      var sentinel = sel.querySelector('option[value="__NEW__"]');
-      sel.add(opt, sentinel); // insert before NEW CATEGORY…
-    }
+    ensureDropdownOption(sel, currentCategory, '__NEW__');
   }
+  __suppressCategoryChange = true;
   sel.value = currentCategory || '';
+  __suppressCategoryChange = false;
+  __currentCategory = currentCategory || '';
+  setCategoryPlaceholderText(__currentCategory || '');
+  if (__currentCategory) {
+    positionCategoryDropdownOverAutocomplete();
+  } else {
+    hideCategoryOverlay();
+  }
 }
 
 function sanitizeSuggestionBulbs() {
@@ -8980,6 +8972,7 @@ function positionCategoryDropdownOverAutocomplete() {
 
 function populateLabelsDropdown(labels) {
     var dropdown = document.getElementById('labelsDropdown');
+    if (!dropdown) return;
     dropdown.innerHTML = ''; // Clear existing options
 
     // Add a disabled and selected placeholder option at the beginning
@@ -8998,6 +8991,29 @@ function populateLabelsDropdown(labels) {
         option.textContent = label;
         dropdown.appendChild(option);
     });
+
+    var seen = {};
+    (labels || []).forEach(function(label) {
+        var normalized = String(label || '').trim();
+        if (!normalized || fixedLabels.indexOf(normalized) !== -1) return;
+        var key = normalized.toLowerCase();
+        if (seen[key]) return;
+        seen[key] = true;
+        var option = document.createElement('option');
+        option.value = normalized;
+        option.textContent = normalized;
+        dropdown.appendChild(option);
+    });
+
+    var preservedValue = dropdown.dataset.pendingValue || __currentLabelSelection || '';
+    if (preservedValue) {
+        ensureDropdownOption(dropdown, preservedValue);
+        dropdown.value = preservedValue;
+        __currentLabelSelection = preservedValue;
+    } else {
+        dropdown.selectedIndex = 0;
+    }
+    delete dropdown.dataset.pendingValue;
 }
 
 
@@ -9006,25 +9022,67 @@ function populateLabelsDropdown(labels) {
 
 function addLabelToClient(label) {
     var clientSelect = document.getElementById('clientSelect');
+    var dropdown = document.getElementById('labelsDropdown');
     var clientName = clientSelect.value;
+    var selectedLabel = String(label || '').trim();
 
-    if (label === "NEW LABEL") {
+    if (!dropdown || !clientName || !selectedLabel) {
+        if (dropdown) dropdown.selectedIndex = 0;
+        return;
+    }
+    if (__labelInFlight) {
+        dropdown.value = __currentLabelSelection || '';
+        return;
+    }
+
+    var labelToken = ++__labelReqToken;
+    var labelToSave = selectedLabel;
+    dropdown.disabled = true;
+
+    if (selectedLabel === "NEW LABEL") {
         // Prompt user to enter the new label name
         var newLabel = prompt("Please enter the new label name:");
-        if (newLabel) {
-            // Call server-side function to add the new label to the client
-            google.script.run.withSuccessHandler(function() {
-                alert("New label added successfully!");
-                showClientNotes(); // Refresh to show the new label
-            }).addLabelToClient(clientName, newLabel);
+        if (!newLabel || !String(newLabel).trim()) {
+            dropdown.disabled = false;
+            dropdown.selectedIndex = 0;
+            return;
         }
-    } else {
-        // Existing logic to add existing label to client
-        google.script.run.withSuccessHandler(function() {
-            alert("Label added successfully!");
-            showClientNotes(); // Refresh to show the added label
-        }).addLabelToClient(clientName, label);
+        labelToSave = String(newLabel).trim();
     }
+
+    __labelInFlight = true;
+    __currentLabelSelection = labelToSave;
+    console.log('[label] saving:', clientName, '->', labelToSave);
+
+    google.script.run
+      .withSuccessHandler(function() {
+        if (labelToken !== __labelReqToken) return;
+        __labelInFlight = false;
+        dropdown.disabled = false;
+        dropdown.dataset.pendingValue = labelToSave;
+        console.log('[label] refreshing options');
+        google.script.run
+          .withSuccessHandler(function(labels) {
+            if (labelToken !== __labelReqToken) return;
+            populateLabelsDropdown(labels);
+            showClientNotes(); // Refresh to show the added label
+          })
+          .withFailureHandler(function(err) {
+            if (labelToken !== __labelReqToken) return;
+            dropdown.selectedIndex = 0;
+            console.warn('[label] refresh failed:', err && err.message ? err.message : err);
+            showClientNotes();
+          })
+          .getAllLabels();
+      })
+      .withFailureHandler(function(error) {
+        if (labelToken !== __labelReqToken) return;
+        __labelInFlight = false;
+        dropdown.disabled = false;
+        dropdown.selectedIndex = 0;
+        alert('Error adding label: ' + (error && error.message ? error.message : error));
+      })
+      .addLabelToClient(clientName, labelToSave);
 }
 
 
@@ -9061,21 +9119,28 @@ function displayTodayNotes(notes) {
 
 
 // REPLACEMENT: populateCategoryDropdown — fills #categorySelect with unique Column F values (A→Z)
-function populateCategoryDropdown(categories) {
+function populateCategoryDropdown(categories, preferredValue) {
   var sel = document.getElementById('categorySelect');
   if (!sel) return;
+  var desiredValue = String(typeof preferredValue === 'string' ? preferredValue : (sel.value || __currentCategory || '')).trim();
 
   sel.innerHTML = '';
 
   var ph = document.createElement('option');
   ph.value = '';
-  ph.textContent = __currentCategory || '';
+  ph.textContent = desiredValue || __currentCategory || 'Select category';
   sel.appendChild(ph);
 
+  var seen = {};
   (categories || []).forEach(function (cat) {
+    var normalized = String(cat || '').trim();
+    if (!normalized) return;
+    var key = normalized.toLowerCase();
+    if (seen[key]) return;
+    seen[key] = true;
     var opt = document.createElement('option');
-    opt.value = cat;
-    opt.textContent = cat;
+    opt.value = normalized;
+    opt.textContent = normalized;
     sel.appendChild(opt);
   });
 
@@ -9084,21 +9149,12 @@ function populateCategoryDropdown(categories) {
   newOpt.textContent = 'NEW CATEGORY…';
   sel.appendChild(newOpt);
 
-  // 🔧 One unified handler for both cases
-  if (!sel._wiredChange) {
-    sel.addEventListener('change', function () {
-      if (this.value === '__NEW__') {
-        this.value = '';
-        openNewCategoryModal();
-        return;
-      }
-      if (this.value) {
-        updateCategory();                 // <- saves to sheet
-        if (typeof updateCategoryLabel === 'function') updateCategoryLabel();
-      }
-    });
-    sel._wiredChange = true;
+  if (desiredValue && !seen[desiredValue.toLowerCase()]) {
+    ensureDropdownOption(sel, desiredValue, '__NEW__');
   }
+
+  wireCategorySelectChange();
+  updateCategorySelectValue(desiredValue);
 }
 
 
@@ -9594,35 +9650,19 @@ function updateCategorySelectValue(clientCategory) {
     if (!categorySelect) return;
 
     var normalizedCategory = (clientCategory || '').trim();
-
-    // Ensure the category exists in the dropdown
     if (normalizedCategory) {
-        var optionExists = Array.from(categorySelect.options).some(function(option) {
-            return option.value === normalizedCategory;
-        });
+        ensureDropdownOption(categorySelect, normalizedCategory, '__NEW__');
+    }
 
-        // If not, add it to the dropdown
-        if (!optionExists) {
-            var newOption = document.createElement('option');
-            newOption.value = normalizedCategory;
-            newOption.textContent = normalizedCategory;
-            categorySelect.appendChild(newOption);
-        }
+    __suppressCategoryChange = true;
+    categorySelect.value = normalizedCategory || '';
+    __suppressCategoryChange = false;
 
-        __suppressCategoryChange = true;
-        categorySelect.value = normalizedCategory;
-        __suppressCategoryChange = false;
-
-        __currentCategory = normalizedCategory;
-        setCategoryPlaceholderText(__currentCategory);
+    __currentCategory = normalizedCategory;
+    setCategoryPlaceholderText(__currentCategory);
+    if (__currentCategory) {
         positionCategoryDropdownOverAutocomplete();
     } else {
-        __suppressCategoryChange = true;
-        categorySelect.value = '';
-        __suppressCategoryChange = false;
-
-        __currentCategory = '';
-        setCategoryPlaceholderText(__currentCategory);
         hideCategoryOverlay();
     }
 }
@@ -10683,31 +10723,6 @@ document.addEventListener('DOMContentLoaded', ensureSuggestionsButtonInToolbar);
     };
   }
 })();
-
-// Wire #categorySelect change to handle normal updates vs. NEW CATEGORY modal
-(function wireCategorySelectChange(){
-  var sel = document.getElementById('categorySelect');
-  if (!sel || sel._wiredForNewCat) return;
-  sel.addEventListener('change', function() {
-    var v = sel.value;
-
-    if (v === '__NEW__') {
-      // Open modal and revert select to prior value to avoid accidental save
-      sel.value = '';
-      openNewCategoryModal();
-      return;
-    }
-
-    // Normal path: save the chosen category for the current client
-    if (v) {
-      updateCategory();       // already defined in your file
-      updateCategoryLabel();  // already defined in your file
-    }
-  });
-  sel._wiredForNewCat = true;
-})();
-
-
 
   // Example renderer (adapt to your UI)
   function renderRecentBar(items) {
