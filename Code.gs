@@ -1,3 +1,4 @@
+// Version 1.0.50 | 55d4a51
 function doGet(e) {
   var userEmail = Session.getActiveUser().getEmail(); // Ensure it gets the active user
   Logger.log("Detected User Email: " + userEmail); // Debugging - logs detected email
@@ -1630,37 +1631,60 @@ function getAllClientsData() {
 
 /** Return sorted unique, non-empty categories from Column F (row 2 → last). */
 function getUniqueCategories() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sh = ss.getSheetByName('DASHBOARD 8.0');
-  const last = sh.getLastRow();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('DASHBOARD 8.0');
+  if (!sh) return [];
+
+  var last = sh.getLastRow();
   if (last < 2) return [];
 
-  const vals = sh.getRange(2, 6, last - 1, 1).getValues()  // Col F
-                 .map(r => String(r[0] || '').trim())
-                 .filter(Boolean);
+  var vals = sh.getRange(2, 6, last - 1, 1).getValues()
+    .map(function(row) { return row[0] == null ? '' : String(row[0]).trim(); })
+    .filter(function(value) { return value !== ''; });
 
-  const uniq = Array.from(new Set(vals));
-  uniq.sort(function(a, b){ return a.localeCompare(b, 'en', { sensitivity:'base' }); });
+  if (!vals.length) return [];
+
+  var seen = {};
+  var uniq = [];
+  vals.forEach(function(value) {
+    var key = value.toLowerCase();
+    if (!seen[key]) {
+      seen[key] = true;
+      uniq.push(value);
+    }
+  });
+
+  uniq.sort(function(a, b) {
+    return a.localeCompare(b, 'en', { sensitivity: 'base' });
+  });
+
+  Logger.log('getUniqueCategories returning %s categories', uniq.length);
   return uniq;
 }
 
 /**
  * Update a client's Category (Column F) by exact match on Column A (Client Name).
- * Returns { ok:true } if saved, otherwise throws.
+ * Backward-compatible with old callers that may pass an optional third label argument.
  */
-function updateClientCategory(clientName, newCategory) {
+function updateClientCategory(clientName, newCategory, label) {
   if (!clientName) throw new Error('Missing clientName.');
   if (!newCategory) throw new Error('Missing category.');
 
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sh = ss.getSheetByName('DASHBOARD 8.0');
-  const data = sh.getRange(2, 1, sh.getLastRow() - 1, 6).getValues(); // A..F
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('DASHBOARD 8.0');
+  if (!sh) throw new Error('Sheet not found: DASHBOARD 8.0');
 
-  let foundRow = -1;
-  for (let i = 0; i < data.length; i++) {
-    const name = String(data[i][0] || '').trim();
-    if (name.toLowerCase() === String(clientName).trim().toLowerCase()) {
-      foundRow = i + 2; // sheet row (offset from header)
+  var lastRow = sh.getLastRow();
+  if (lastRow < 2) throw new Error('No client rows found.');
+
+  var data = sh.getRange(2, 1, lastRow - 1, 7).getValues(); // A..G
+  var normalizedClient = String(clientName).trim().toLowerCase();
+  var foundRow = -1;
+
+  for (var i = 0; i < data.length; i++) {
+    var name = String(data[i][0] || '').replace(/\d+$/, '').trim().toLowerCase();
+    if (name === normalizedClient) {
+      foundRow = i + 2;
       break;
     }
   }
@@ -1669,10 +1693,14 @@ function updateClientCategory(clientName, newCategory) {
     throw new Error('Client not found: ' + clientName);
   }
 
-  // Write Column F
   sh.getRange(foundRow, 6).setValue(newCategory);
 
-  return { ok: true, row: foundRow, category: newCategory };
+  if (typeof label !== 'undefined') {
+    Logger.log('updateClientCategory received optional label for %s: %s', clientName, label);
+  }
+  Logger.log('updateClientCategory saved row %s for %s -> %s', foundRow, clientName, newCategory);
+
+  return { ok: true, row: foundRow, category: newCategory, label: typeof label === 'undefined' ? null : label };
 }
 
 
@@ -2025,39 +2053,6 @@ function getStrictPastTopClients() {
 
   return strictPastClients;
 }
-// Code.gs — REPLACE entire getUniqueCategories with this
-function getUniqueCategories() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName('DASHBOARD 8.0');
-  if (!sheet) return [];
-
-  const lastRow = sheet.getLastRow();
-  if (lastRow < 2) return []; // no data rows
-
-  // Column F (6th), rows 2..last
-  const values = sheet
-    .getRange(2, 6, lastRow - 1, 1)
-    .getValues()
-    .flat()
-    .map(v => (v == null ? '' : String(v).trim()))
-    .filter(v => v !== ''); // drop blanks (including "" from formulas)
-
-  if (values.length === 0) return [];
-
-  // Case-insensitive dedupe while preserving first-seen casing
-  const seen = new Map(); // key = lowercased, value = original
-  for (const v of values) {
-    const k = v.toLowerCase();
-    if (!seen.has(k)) seen.set(k, v);
-  }
-
-  // Sort a→z, case-insensitive
-  return Array.from(seen.values())
-    .sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }));
-}
-
-
-
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 // PASTE THIS SNIPPET AFTER THE LAST LINE OF YOUR Code.gs (e.g., after line 866)
