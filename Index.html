@@ -1,4 +1,4 @@
-<!-- Version 1.0.51 | 55d4a51 -->
+<!-- Version 1.0.62 | ea16e86 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -2771,6 +2771,24 @@ input#clientAutocomplete, select#clientSelect {
 .chip .chip-sep { opacity: 0.7; }
 .chip .chip-date { letter-spacing: 0.2px; }
 
+#topClientsDisplay .birthday-toggle-button {
+  margin-left: 8px;
+  border: none;
+  border-radius: 12px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+#topClientsDisplay .birthday-toggle-button.is-add { background: #d4edda; }
+#topClientsDisplay .birthday-toggle-button.is-remove { background: #f8d7da; }
+
+.birthday-month-row { display: none; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.birthday-month-button { border: 1px solid #ccc; border-radius: 6px; padding: 4px 8px; background: #f8f9fa; cursor: pointer; font-size: 12px; }
+.birthday-month-button.birthday-month-selected { background: #ff8c00; color: #fff; border-color: #ff8c00; }
+.client-button.bday-eligible { background: #d4edda !important; }
+.client-button.bday-ineligible { background: #f8d7da !important; }
+
 /* Colors: on top of yellow highlight */
 .chip.JB { background: #1E90FF; color: #fff; }   /* blue */
 .chip.RB { background: #28A745; color: #fff; }   /* green */
@@ -3837,6 +3855,7 @@ input#clientAutocomplete, select#clientSelect {
             <option value="GRADCAP">🎓</option>
             <option value="PHONE">📞</option>
         </select>
+        <div id="birthdayMonthRow" class="birthday-month-row" style="display:none;"></div>
 
         <!-- NEW: SUGGESTIONS button inline with the dropdown -->
         <button id="suggestionsToggleBtn" type="button" class="secondary-button" onclick="toggleSuggestions()">
@@ -6237,6 +6256,8 @@ function normalizeTopClientsFilter(val) {
   return map.hasOwnProperty(raw) ? map[raw] : raw.toUpperCase();
 }
 
+const OWNER_INITIALS = ['JB', 'RB', 'QC', 'TEAM', 'BDAY'];
+
 // === CATEGORY/LABEL CHANGE GUARDS ===
 let __suppressCategoryChange = false;     // don't fire when we set value in code
 let __categoryReqToken = 0;               // ignore stale success/failure
@@ -6410,6 +6431,15 @@ function repaintTopClientsWithCurrentFilter(clients) {
   // Re-wire suggestion textareas + keep visibility state
   if (typeof wireToplistSuggestionTextareas === 'function') wireToplistSuggestionTextareas();
   if (typeof applySuggestionsVisibility === 'function') applySuggestionsVisibility();
+}
+function toggleBirthdayCakeLabel(clientName, hasCakeLabel) {
+  if (!clientName) return;
+  var label = '🎂';
+  var runner = google.script.run
+    .withSuccessHandler(function() { showToast(hasCakeLabel ? 'Label removed successfully!' : 'Label added successfully!'); retriggerTopClientsFilter(); })
+    .withFailureHandler(function(err) { console.error('Failed to toggle birthday label', err); showToast('Unable to update birthday label'); });
+  if (hasCakeLabel) runner.removeLabelFromClient(clientName, label);
+  else runner.addLabelToClient(clientName, label);
 }
 
 
@@ -7616,52 +7646,83 @@ document.getElementById('topClientsTitle').style.display = 'none';
     }).getTopClients(); // Your server-side function to fetch top clients
 }
 
+
+function getCurrentTopClientsFilter() {
+  var dd = document.getElementById('topClientsFilterDropdown');
+  return normalizeTopClientsFilter((dd && dd.value) || 'JB');
+}
+function clientHasBirthdayFields(client) { if (!client) return false; return Boolean(client.birthdayActive || client.birthdayMonth || client.birthdayDay || client.birthday); }
+function clientHasBirthdayChipOrCake(client) {
+  if (!client) return false;
+  var initials = (client.chipInitials || client.initials || '').toUpperCase();
+  if (initials === 'BDAY') return true;
+  var labelsText = String(client.labelsText || client.labelsRaw || '');
+  return labelsText.indexOf('🎂') !== -1 || client.hasCakeLabel;
+}
+function clientHasBirthdayIndicator(client) { return clientHasBirthdayFields(client) || clientHasBirthdayChipOrCake(client); }
+var __birthdayMonthSelection = new Date().getMonth() + 1;
+function getActiveBirthdayMonth() { var m = Number(__birthdayMonthSelection); if (!m || m < 1 || m > 12) { m = new Date().getMonth() + 1; __birthdayMonthSelection = m; } return m; }
+function resetBirthdayMonthSelection() { __birthdayMonthSelection = new Date().getMonth() + 1; syncBirthdayMonthButtons(); }
+function buildBirthdayMonthButtons() {
+  var row = document.getElementById('birthdayMonthRow'); if (!row) return;
+  var months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']; row.innerHTML='';
+  months.forEach(function(label, idx){ var month=idx+1; var btn=document.createElement('button'); btn.type='button'; btn.className='birthday-month-button'; btn.dataset.month=month; btn.textContent=label; btn.addEventListener('click', function(){ if (month===getActiveBirthdayMonth()) return; __birthdayMonthSelection=month; syncBirthdayMonthButtons(); retriggerTopClientsFilter(); }); row.appendChild(btn); });
+  syncBirthdayMonthButtons();
+}
+function syncBirthdayMonthButtons() {
+  var row = document.getElementById('birthdayMonthRow'); if (!row) return; var selected=getActiveBirthdayMonth();
+  row.querySelectorAll('button').forEach(function(btn){ var active=Number(btn.dataset.month)===selected; btn.classList.toggle('birthday-month-selected', active); btn.setAttribute('aria-pressed', active); });
+}
+function updateBirthdayMonthRowVisibility(currentFilter) {
+  var row = document.getElementById('birthdayMonthRow'); if (!row) return;
+  var isBirthday = (currentFilter || getCurrentTopClientsFilter()) === 'BDAY';
+  if (isBirthday) { if (!row.dataset.built) { buildBirthdayMonthButtons(); row.dataset.built='true'; } else { syncBirthdayMonthButtons(); } row.style.display='flex'; } else { row.style.display='none'; }
+}
+function getClientBirthdayMonth(client) {
+  if (!client) return null; var month = Number(client.birthdayMonth || client.month); if (!Number.isNaN(month) && month > 0) return month;
+  var raw = client.birthday || client.birthdayRaw || client.birthdayDisplay || ''; var match = String(raw).match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/); return match ? parseInt(match[1],10) : null;
+}
+function birthdayFilterAllowsClient(client, currentMonth) { if (!clientHasBirthdayIndicator(client)) return false; return getClientBirthdayMonth(client) === (currentMonth || getActiveBirthdayMonth()); }
+function birthdaySortValue(client, startMonth){ var m=Number(client&&client.birthdayMonth); var d=Number(client&&client.birthdayDay); if(!m||!d) return Number.POSITIVE_INFINITY; var off=((m-startMonth)%12+12)%12; return off*100+d; }
+
 /**********************************************
   (A) The "OLD" function (for updates/reloading)
 **********************************************/function showTopClients(clients, filterKey) {
-  // Keep dropdown visually in sync
   var dd = document.getElementById('topClientsFilterDropdown');
   if (dd && filterKey) dd.value = filterKey;
-
-  var filter = normalizeTopClientsFilter(filterKey || 'JB'); // you already have this helper
+  var filter = normalizeTopClientsFilter(filterKey || 'JB');
+  window.__currentTopClientsFilter = filter;
+  updateBirthdayMonthRowVisibility(filter);
   var out = document.getElementById('topClientsDisplay');
   if (!out) return;
   out.innerHTML = '';
 
-  // Map emojis → actual emoji to look for
-  var emojiMap = {
-    BRIEFCASE: '💼',
-    STAR: '⭐',
-    GRADCAP: '🎓',
-    PHONE: '📞'
-  };
+  var emojiMap = { BRIEFCASE:'💼', STAR:'⭐', GRADCAP:'🎓', PHONE:'📞' };
+  function hasEmojiLabel(c, emoji) { if (!emoji) return false; const L = String(c.columnLContent || c.suggestion || ''); return L.includes(emoji); }
 
-  // Robust emoji checker for various label shapes
-  function hasEmojiLabel(c, emoji) {
-    if (!emoji) return false;
-    const L = String(c.columnLContent || c.suggestion || '');
-    return L.includes(emoji);
-  }
+  var OWNER_KEYS = OWNER_INITIALS.slice();
+  var isBirthdayFilter = filter === 'BDAY';
+  var selectedBirthdayMonth = getActiveBirthdayMonth();
 
-  // OWNER filters (JB/RB/QC/TEAM)
-  var OWNER_KEYS = ['JB','RB','QC','TEAM','BDAY'];
-
-  var filtered = clients.filter(function(c){
+  var filtered = (clients || []).filter(function(c){
+    if (isBirthdayFilter) return birthdayFilterAllowsClient(c, selectedBirthdayMonth);
     if (OWNER_KEYS.includes(filter)) {
       var initials = (c.chipInitials || c.initials || '').toUpperCase();
       return initials === filter;
     }
-    // ICON filters
     var emoji = emojiMap[filter];
     return emoji ? hasEmojiLabel(c, emoji) : true;
   });
 
-  // Sort: chipDate (valid earliest first), blanks LAST; then name
   filtered.sort(function(a, b){
+    if (isBirthdayFilter) {
+      var ba = birthdaySortValue(a, selectedBirthdayMonth);
+      var bb = birthdaySortValue(b, selectedBirthdayMonth);
+      if (ba !== bb) return ba - bb;
+    }
     var ta = chipDateToTimeForSort(a && a.chipDate);
     var tb = chipDateToTimeForSort(b && b.chipDate);
     if (ta !== tb) return ta - tb;
-
     var na = (a.clientName || a.name || '').toLowerCase();
     var nb = (b.clientName || b.name || '').toLowerCase();
     if (na < nb) return -1;
@@ -7669,61 +7730,44 @@ document.getElementById('topClientsTitle').style.display = 'none';
     return 0;
   });
 
-  // Paint
   filtered.forEach(function(c){ displayClient(c, out); });
-
-  // Re-wire suggestion textareas + visibility
   if (typeof wireToplistSuggestionTextareas === 'function') wireToplistSuggestionTextareas();
   if (typeof applySuggestionsVisibility === 'function') applySuggestionsVisibility();
 }
 
-/* Helper: push blank/invalid chip dates to the BOTTOM */
 function chipDateToTimeForSort(chipDateStr){
-  // Expecting like "MM/DD/YY" (you can reuse your existing parser if you have one)
   if (!chipDateStr) return Number.POSITIVE_INFINITY;
   var d = new Date(chipDateStr);
   return isNaN(d) ? Number.POSITIVE_INFINITY : d.getTime();
 }
 
-
 /**********************************************
   (B) The "NEW" function (for initial page load)
 **********************************************/function showTopClientsOnLoad(clients, filterKey) {
-  // 1) Stamp the date + clear the title (your existing UI bits)
   stampTodayDateTitle();
-
-  (function clearInitialTitle(){
-    var titleEl = document.getElementById('topClientsTitle');
-    if (!titleEl) return;
-    titleEl.innerText = '';
-    titleEl.style.display = 'none';
-  })();
-
+  (function clearInitialTitle(){ var titleEl = document.getElementById('topClientsTitle'); if (!titleEl) return; titleEl.innerText = ''; titleEl.style.display = 'none'; })();
   fitTopClientsHeaderControls();
 
-  // 2) Resolve filter from dropdown if not passed; default to JB
   var dd = document.getElementById('topClientsFilterDropdown');
   var chosen = filterKey || (dd && dd.value) || 'JB';
-  var filter = normalizeTopClientsFilter(chosen); // you already have this helper
-
-  // Keep dropdown visually in sync with what we render
+  var filter = normalizeTopClientsFilter(chosen);
+  window.__currentTopClientsFilter = filter;
+  updateBirthdayMonthRowVisibility(filter);
   if (dd) dd.value = filter;
 
   var out = document.getElementById('topClientsDisplay');
   if (!out) return;
   out.innerHTML = '';
 
-  // 3) Filtering: owners OR emoji labels only
-  var OWNER_KEYS = ['JB','RB','QC','TEAM','BDAY'];
+  var OWNER_KEYS = OWNER_INITIALS.slice();
+  var isBirthdayFilter = filter === 'BDAY';
+  var currentMonth = getActiveBirthdayMonth();
   var emojiMap = { BRIEFCASE:'💼', STAR:'⭐', GRADCAP:'🎓', PHONE:'📞' };
 
-  function hasEmojiLabel(c, emoji) {
-    if (!emoji) return false;
-    const L = String(c.columnLContent || c.suggestion || '');
-    return L.includes(emoji);
-  }
+  function hasEmojiLabel(c, emoji) { if (!emoji) return false; const L = String(c.columnLContent || c.suggestion || ''); return L.includes(emoji); }
 
   var filtered = (clients || []).filter(function(c){
+    if (isBirthdayFilter) return birthdayFilterAllowsClient(c, currentMonth);
     if (OWNER_KEYS.includes(filter)) {
       var initials = (c.chipInitials || c.initials || '').toUpperCase();
       return initials === filter;
@@ -7732,12 +7776,15 @@ function chipDateToTimeForSort(chipDateStr){
     return emoji ? hasEmojiLabel(c, emoji) : true;
   });
 
-  // 4) Sort: chipDate ascending; blanks/invalids LAST; then name
   filtered.sort(function(a, b){
+    if (isBirthdayFilter) {
+      var ba = birthdaySortValue(a, currentMonth);
+      var bb = birthdaySortValue(b, currentMonth);
+      if (ba !== bb) return ba - bb;
+    }
     var ta = chipDateToTimeForSort(a && a.chipDate);
     var tb = chipDateToTimeForSort(b && b.chipDate);
     if (ta !== tb) return ta - tb;
-
     var na = (a.clientName || a.name || '').toLowerCase();
     var nb = (b.clientName || b.name || '').toLowerCase();
     if (na < nb) return -1;
@@ -7745,23 +7792,10 @@ function chipDateToTimeForSort(chipDateStr){
     return 0;
   });
 
-  // 5) Paint
   filtered.forEach(function(c){ displayClient(c, out); });
-
-  // 6) Wire suggestion areas & visibility
   if (typeof wireToplistSuggestionTextareas === 'function') wireToplistSuggestionTextareas();
   if (typeof applySuggestionsVisibility === 'function') applySuggestionsVisibility();
 }
-
-/* Helper used above: push blank/invalid chip dates to BOTTOM */
-function chipDateToTimeForSort(chipDateStr){
-  if (!chipDateStr) return Number.POSITIVE_INFINITY;
-  var d = new Date(chipDateStr);
-  return isNaN(d) ? Number.POSITIVE_INFINITY : d.getTime();
-}
-
-
-
 
 function updateColumnB(clientName, columnBValue) {
     // Show the loading bar when the update process begins
@@ -9489,7 +9523,6 @@ REPLACE ENTIRE displayClient FUNCTION WITH THIS
   + Adds green Ricky’s Suggestion block (hidden by default)
 **********************************************/
 function displayClient(client, container) {
-  // Card wrapper (keep your existing task-display sizing)
   var clientDiv = document.createElement('div');
   clientDiv.className = 'task-display';
   clientDiv.style.display = 'flex';
@@ -9497,71 +9530,67 @@ function displayClient(client, container) {
   clientDiv.style.alignItems = 'flex-start';
   clientDiv.style.marginBottom = '10px';
 
-  /* ── Top row: Client button ONLY (no day-of-week dropdown in Top Clients list) ── */
   var topRow = document.createElement('div');
   topRow.style.cssText = "display:flex; align-items:center; justify-content:center; width:100%;";
 
   var baseClientName = client.clientName || client.name || '';
   var clientCategory = client.category || '';
+  var isBirthdayFilter = window.__currentTopClientsFilter === 'BDAY';
+  var birthdayLabel = client.birthdayDisplay || client.birthday || client.birthdayRaw || '';
+  var labelsText = String(client.labelsText || client.labelsRaw || '');
+  var hasCakeLabel = labelsText.indexOf('🎂') !== -1 || client.hasCakeLabel;
+  var hasBirthdayFields = clientHasBirthdayFields(client);
+  var hasBirthdayChipOrCake = clientHasBirthdayChipOrCake(client);
 
   var clientButton = document.createElement('button');
   clientButton.className = 'inline-button client-button';
   clientButton.dataset.client = baseClientName;
   clientButton.dataset.category = clientCategory;
-  clientButton.innerText = baseClientName + (clientCategory ? ' (' + clientCategory + ')' : '');
+  var birthdaySuffix = (isBirthdayFilter && birthdayLabel) ? (' • 🎂 (DOB: ' + birthdayLabel + ')') : '';
+  clientButton.innerText = baseClientName + (clientCategory ? ' (' + clientCategory + ')' : '') + birthdaySuffix;
   clientButton.style.cssText = "display:inline-flex; align-items:center;";
+  if (isBirthdayFilter) {
+    var colorClass = hasBirthdayFields && hasBirthdayChipOrCake ? 'bday-eligible' : 'bday-ineligible';
+    clientButton.classList.add(colorClass);
+  }
   clientButton.addEventListener('click', function () {
     var btnClient = this.getAttribute('data-client') || baseClientName || this.innerText || '';
-
-    // prime chip cache so details view shows same chip
-    window.__chipForCurrentClient = {
-      initials: (client.chipInitials || '').toUpperCase(),
-      date: normalizeChipDate(client.chipDate || '')
-    };
+    window.__chipForCurrentClient = { initials: (client.chipInitials || '').toUpperCase(), date: normalizeChipDate(client.chipDate || '') };
     selectClientFromButton(btnClient);
   });
   topRow.appendChild(clientButton);
 
+  if (isBirthdayFilter) {
+    var cakeToggle = document.createElement('button');
+    cakeToggle.type = 'button';
+    cakeToggle.className = 'birthday-toggle-button ' + (hasCakeLabel ? 'is-remove' : 'is-add');
+    cakeToggle.textContent = '🎂';
+    cakeToggle.title = hasCakeLabel ? 'Remove cake label' : 'Add cake label';
+    cakeToggle.addEventListener('click', function(event) { event.stopPropagation(); toggleBirthdayCakeLabel(baseClientName, hasCakeLabel); });
+    topRow.appendChild(cakeToggle);
+  }
+
   clientDiv.appendChild(topRow);
 
-  /* ── Notes highlight section (read-only in list) ── */
   var allC = [];
   (client.pastWorks || []).forEach(function(pw){
-    String(pw || '').split('\n').forEach(function(line){
-      var t = (line || '').trim();
-      if (t) allC.push(t);
-    });
+    String(pw || '').split('\n').forEach(function(line){ var t = (line || '').trim(); if (t) allC.push(t); });
   });
 
   if (allC.length > 0) {
-    function parseMDY(line){
-      var m = String(line).match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/);
-      if (!m) return null;
-      var mm=+m[1], dd=+m[2], yy=+m[3]; if (yy<100) yy+=2000;
-      return new Date(yy, mm-1, dd);
-    }
-    function safeFormatNoteHTML(s){
-      return typeof formatNoteHTML === 'function' ? formatNoteHTML(s)
-        : String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    }
+    function parseMDY(line){ var m = String(line).match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/); if (!m) return null; var mm=+m[1], dd=+m[2], yy=+m[3]; if (yy<100) yy+=2000; return new Date(yy, mm-1, dd); }
+    function safeFormatNoteHTML(s){ return typeof formatNoteHTML === 'function' ? formatNoteHTML(s) : String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
     var withDates=[], noDates=[];
-    allC.forEach(function(line){
-      var d=parseMDY(line);
-      if(d) withDates.push({line,d}); else noDates.push({line});
-    });
+    allC.forEach(function(line){ var d=parseMDY(line); if(d) withDates.push({line,d}); else noDates.push({line}); });
     withDates.sort(function(a,b){ return a.d - b.d; });
-    var sorted = withDates.map(x=>x.line).concat(noDates.map(x=>x.line));
+    var sorted = withDates.map(function(x){return x.line;}).concat(noDates.map(function(x){return x.line;}));
 
     var notesWrap = document.createElement('div');
     notesWrap.style.cssText = "display:flex; flex-direction:column; align-items:stretch; margin-top:5px; width:100%;";
-
-    // Older notes container (remains hidden, and no MORE button in the list)
     var olderWrap = document.createElement('div');
     olderWrap.style.cssText = "display:none; flex-direction:column; gap:5px;";
     notesWrap.appendChild(olderWrap);
-
-    // Highlighted (newest 3) container
     var hiWrap = document.createElement('div');
     hiWrap.style.cssText = "display:flex; flex-direction:column; gap:5px;";
     notesWrap.appendChild(hiWrap);
@@ -9576,52 +9605,31 @@ function displayClient(client, container) {
       div.style.fontSize = '32px';
       div.style.marginBottom = '0px';
       div.innerHTML = safeFormatNoteHTML(line);
-
       if (i >= firstHi) {
-        // HIGHLIGHTED
         div.classList.add('latest-note');
         div.style.backgroundColor = 'yellow';
         hiWrap.appendChild(div);
-
-        // Newest line gets chip (read-only edit still opens chip editor if clicked)
         if (i === lastIdx) {
-          var chipEl = createChipElement(
-            client.name,
-            (client.chipInitials || "").toUpperCase(),
-            client.chipDate || ""
-          );
+          var chipEl = createChipElement(client.name, (client.chipInitials || "").toUpperCase(), client.chipDate || "");
           div.appendChild(chipEl);
         }
       } else {
-        // OLDER — stays hidden (no MORE button to reveal)
         div.classList.add('older-note');
         div.style.display = 'none';
         olderWrap.appendChild(div);
       }
     });
 
-    // (list remains read-only)
     clientDiv.appendChild(notesWrap);
-
-    if (typeof attachMentionHandlers === 'function') {
-      attachMentionHandlers(hiWrap);
-      attachMentionHandlers(olderWrap);
-    }
+    if (typeof attachMentionHandlers === 'function') { attachMentionHandlers(hiWrap); attachMentionHandlers(olderWrap); }
   }
 
-  /* ── Ricky’s Suggestion (Column L) — green block; obeys global toggle; unchanged ── */
   var sugWrap = document.createElement('div');
   sugWrap.className = 'toplist-suggestion';
-  sugWrap.style.display = 'none'; // toggled by your existing toggleSuggestions()
-  sugWrap.style.alignSelf = 'stretch';   // ensure it spans the whole card width
+  sugWrap.style.display = 'none';
+  sugWrap.style.alignSelf = 'stretch';
   sugWrap.setAttribute('data-client', client.name);
-
-  var bulb = document.createElement('span');
-  bulb.className = 'bulb';
-  bulb.setAttribute('aria-hidden', 'true');
-  bulb.textContent = '💡';
-  sugWrap.appendChild(bulb);
-
+  var bulb = document.createElement('span'); bulb.className = 'bulb'; bulb.setAttribute('aria-hidden', 'true'); bulb.textContent = '💡'; sugWrap.appendChild(bulb);
   var ta = document.createElement('textarea');
   ta.className = 'note-textarea inProgressArea';
   ta.style.minHeight = '60px';
@@ -9629,19 +9637,16 @@ function displayClient(client, container) {
   ta.setAttribute('data-client', client.name);
   ta.setAttribute('data-last-saved', ta.value || '');
   sugWrap.appendChild(ta);
-
   clientDiv.appendChild(sugWrap);
 
-  /* ── Thick divider like before ── */
   var thickLine = document.createElement('hr');
   thickLine.style.cssText = "width:100%; border:3px solid black; margin:10px 0;";
   clientDiv.appendChild(thickLine);
 
   container.appendChild(clientDiv);
-
-  // Respect current Suggestions toggle state
   if (typeof applySuggestionsVisibility === 'function') applySuggestionsVisibility();
 }
+
 
 
 
@@ -9887,58 +9892,25 @@ var selectEl = document.getElementById('clientSelect');
 
 function handleTopClientsFilterChange(selectedFilter) {
   var titleEl = document.getElementById('topClientsTitle');
-  var val = normalizeFilterValue(selectedFilter);
+  var val = normalizeTopClientsFilter(selectedFilter);
+  var previousFilter = window.__currentTopClientsFilter;
+  window.__currentTopClientsFilter = val;
 
-  // Title updates (owners & ALL only)
-  if (['JB','RB','QC','TEAM','BDAY'].includes(val)) {
+  if (val === 'BDAY' && previousFilter !== 'BDAY') resetBirthdayMonthSelection();
+  updateBirthdayMonthRowVisibility(val);
+
+  if (OWNER_INITIALS.includes(val)) {
     titleEl.innerText = val;
   } else if (val === 'ALL') {
     titleEl.innerText = 'TOP CLIENTS';
-  } else {
-    // For text or emoji filters we keep the date-only header per your current UI
-    if (titleEl) { titleEl.innerText = ''; titleEl.style.display = 'none'; }
+  } else if (titleEl) {
+    titleEl.innerText = '';
+    titleEl.style.display = 'none';
   }
 
-  // Always pull the latest list, then filter client-side
-  showLoadingBar();
-  google.script.run
-    .withSuccessHandler(function(clients){
-      var filtered = clients || [];
-      var emoji = asEmojiOrNull(val);
-
-      if (val === 'ALL') {
-        // no-op
-      } else if (isOwnerKey(val)) {
-        // Owner filter = exact initials match
-        var target = val.toUpperCase();
-        filtered = filtered.filter(function(c){
-          return String(c.chipInitials || c.initials || '').toUpperCase() === target;
-        });
-      } else if (emoji) {
-        // Emoji filter = look inside Column L (suggestions/lightbulb)
-        filtered = filtered.filter(function(c){
-          return suggestionsContainEmoji(c, emoji);
-        });
-      } else {
-        // Text filter = look inside Column P (chip text)
-        var needle = val.toLowerCase();
-        filtered = filtered.filter(function(c){
-          return chipSearchString(c).includes(needle);
-        });
-      }
-
-      showTopClients(filtered, 'all');
-      hideLoadingBar();
-
-      // Keep the dropdown visually in sync
-      var dd = document.getElementById('topClientsFilterDropdown');
-      if (dd) dd.value = selectedFilter;
-    })
-    .withFailureHandler(function(err){
-      hideLoadingBar();
-      alert('Failed to filter top clients: ' + (err && err.message ? err.message : err));
-    })
-    .getTopClients();
+  var dd = document.getElementById('topClientsFilterDropdown');
+  if (dd) dd.value = val;
+  syncClientsListToDropdown();
 }
 
 
@@ -10814,7 +10786,7 @@ function retriggerTopClientsFilter() {
 
 // --- helpers for the unified dropdown behavior ---
 function isOwnerKey(v) {
-  return ['JB','RB','QC','TEAM','BDAY'].includes(String(v || '').toUpperCase());
+  return OWNER_INITIALS.includes(String(v || '').toUpperCase());
 }
 
 function normalizeFilterValue(v) {

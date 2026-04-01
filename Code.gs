@@ -1,4 +1,4 @@
-// Version 1.0.50 | 55d4a51
+// Version 1.0.58 | ea16e86
 function doGet(e) {
   var userEmail = Session.getActiveUser().getEmail(); // Ensure it gets the active user
   Logger.log("Detected User Email: " + userEmail); // Debugging - logs detected email
@@ -594,6 +594,8 @@ function getTopClients() {
     var columnD       = row[3];   // Day-of-week (Mon/Tues/etc) or a date
     var followUpNote  = row[4];   // Column E
     var category      = row[5];   // Column F
+    var columnGLabels = row[6] ? row[6].toString() : ""; // Column G labels
+    var birthdayRaw   = row[13];  // Column N (birthday)
     var columnLRaw    = row[11];  // Column L (In Progress)
     var chipInitials  = row[15] ? row[15].toString().trim() : ""; // Column P
     var chipDateRaw   = row[16];                                 // Column Q
@@ -612,6 +614,26 @@ function getTopClients() {
       }
     }
 
+    var birthdayDisplay = "";
+    var birthdayMonth = null;
+    var birthdayDay = null;
+    if (birthdayRaw) {
+      var bDate = (birthdayRaw instanceof Date) ? birthdayRaw : new Date(birthdayRaw);
+      if (!isNaN(bDate.getTime())) {
+        birthdayDisplay = Utilities.formatDate(bDate, tz, "M/d");
+        birthdayMonth = bDate.getMonth() + 1;
+        birthdayDay = bDate.getDate();
+      } else {
+        var parts = birthdayRaw.toString().split('/');
+        if (parts.length >= 2) {
+          birthdayMonth = parseInt(parts[0], 10);
+          birthdayDay = parseInt(parts[1], 10);
+          if (!isNaN(birthdayMonth) && !isNaN(birthdayDay)) birthdayDisplay = birthdayMonth + '/' + birthdayDay;
+        }
+      }
+    }
+    var birthdayActive = !!birthdayDisplay;
+
     var key = clientName + ':' + (category || ''); // combine name+category
 
     if (!clientMap[key]) {
@@ -628,8 +650,14 @@ function getTopClients() {
         columnL: colL,
         columnLContent: colL,
 
+        labelsText: columnGLabels,
+        hasCakeLabel: columnGLabels.indexOf('🎂') !== -1,
         chipInitials: chipInitials,
-        chipDate: chipDate
+        chipDate: chipDate,
+        birthday: birthdayDisplay,
+        birthdayMonth: birthdayMonth,
+        birthdayDay: birthdayDay,
+        birthdayActive: birthdayActive
       };
       if (followUpNote) clientMap[key].followUps.push(followUpNote);
       if (pastWorkNote) clientMap[key].pastWorks.push(pastWorkNote);
@@ -650,6 +678,12 @@ function getTopClients() {
       // Keep columnB/columnD if empty previously
       if (!clientMap[key].columnB && columnB) clientMap[key].columnB = columnB;
       if (!clientMap[key].columnD && columnD) clientMap[key].columnD = columnD;
+      if (!clientMap[key].birthday && birthdayDisplay) clientMap[key].birthday = birthdayDisplay;
+      if (!clientMap[key].birthdayMonth && birthdayMonth) clientMap[key].birthdayMonth = birthdayMonth;
+      if (!clientMap[key].birthdayDay && birthdayDay) clientMap[key].birthdayDay = birthdayDay;
+      if (birthdayActive) clientMap[key].birthdayActive = true;
+      if (!clientMap[key].labelsText && columnGLabels) clientMap[key].labelsText = columnGLabels;
+      if (columnGLabels && columnGLabels.indexOf('🎂') !== -1) clientMap[key].hasCakeLabel = true;
     }
   });
 
