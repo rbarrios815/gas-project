@@ -94,11 +94,15 @@ function importGoogleVoiceToSheet() {
 
   threads.forEach(function (thread) {
     const messages = thread.getMessages();
+    let sawAllowedMessage = false;
+
     messages.forEach(function (message) {
       const subject = message.getSubject() || '';
       if (!isAllowedVoiceSubject(subject)) {
         return; // Ignore messages from other numbers
       }
+
+      sawAllowedMessage = true;
 
       const body = message.getPlainBody();
       if (!body) return;
@@ -136,9 +140,11 @@ function importGoogleVoiceToSheet() {
       sheet.getRange(nextRow, 3).setValue(formattedDate);
     });
 
-    // Mark thread as processed: add processed label, remove import label
-    thread.addLabel(processedLabel);
-    thread.removeLabel(importLabel);
+    // Only move to processed when the thread actually contained a target GV message.
+    if (sawAllowedMessage) {
+      thread.addLabel(processedLabel);
+      thread.removeLabel(importLabel);
+    }
   });
 }
 
