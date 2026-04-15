@@ -51,7 +51,9 @@ const GV_PROCESSED_LABEL_NAME = 'GV-Processed';
 // Only import messages from this phone number (via subject line)
 const GV_ALLOWED_SUBJECTS = [
   'New voicemail from (281) 714-6370',
-  'New text message from (281) 714-6370'
+  'New text message from (281) 714-6370',
+  'New voicemail from (832) 621-5185',
+  'New text message from (832) 621-5185'
 ];
 
 /**
