@@ -71,8 +71,9 @@ function importGoogleVoiceToSheet() {
     );
   }
 
-  // Cache existing notes in Column A to prevent duplicate entries.
+  // Cache existing notes in Column A and existing timestamps in Column C to prevent duplicate rows.
   const existingNotes = buildExistingNotesSet_(sheet);
+  const existingTimestamps = buildExistingTimestampsSet_(sheet);
 
   // Get or create labels
   let importLabel = GmailApp.getUserLabelByName(GV_IMPORT_LABEL_NAME);
@@ -126,6 +127,10 @@ function importGoogleVoiceToSheet() {
         'MM/dd/yyyy HH:mm:ss'
       );
 
+      if (existingTimestamps.has(formattedDate)) {
+        return; // Skip duplicates with the same datetime in Column C
+      }
+
       // FIRST EMPTY CELL IN COLUMN A
       const nextRow = sheet.getLastRow() + 1; // if 0 rows, becomes 1
 
@@ -140,6 +145,7 @@ function importGoogleVoiceToSheet() {
 
       // Column C: email received time in desired format
       sheet.getRange(nextRow, 3).setValue(formattedDate);
+      existingTimestamps.add(formattedDate);
     });
 
     // Only move to processed when the thread actually contained a target GV message.
@@ -160,6 +166,39 @@ function buildExistingNotesSet_(sheet) {
     const normalized = normalizeVoiceNote_(row[0]);
     if (normalized) set.add(normalized);
   });
+  return set;
+}
+
+
+function buildExistingTimestampsSet_(sheet) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return new Set();
+
+  const tz = Session.getScriptTimeZone();
+  const values = sheet.getRange(2, 3, lastRow - 1, 1).getValues();
+  const set = new Set();
+
+  values.forEach(function (row) {
+    const raw = row[0];
+    if (!raw) return;
+
+    let dateObj = null;
+    if (raw instanceof Date) {
+      dateObj = raw;
+    } else {
+      const parsed = new Date(raw);
+      if (!isNaN(parsed.getTime())) dateObj = parsed;
+    }
+
+    if (dateObj) {
+      set.add(Utilities.formatDate(dateObj, tz, 'MM/dd/yyyy HH:mm:ss'));
+      return;
+    }
+
+    const clean = String(raw).trim();
+    if (clean) set.add(clean);
+  });
+
   return set;
 }
 
