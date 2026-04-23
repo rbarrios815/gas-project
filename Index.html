@@ -1,4 +1,4 @@
-<!-- Version 1.0.63 | 893267f -->
+<!-- Version 1.0.64 | 3d13d4e -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -8328,7 +8328,7 @@ function handleCalendarTaskSelection(taskName) {
 
 var loadingBarHideTimer = null;
 
-function showLoadingBar() {
+function legacyShowLoadingBarFallback() {
     var loadingBarContainer = document.getElementById('loadingBarContainer');
     var loadingBar = document.getElementById('loadingBar');
     if (!loadingBarContainer || !loadingBar) return;
@@ -8345,11 +8345,11 @@ function showLoadingBar() {
 
     // Fallback auto-hide to prevent a stuck bar if a caller forgets to stop it
     loadingBarHideTimer = setTimeout(function(){
-        hideLoadingBar();
+        legacyHideLoadingBarFallback();
     }, 8000);
 }
 
-function hideLoadingBar() {
+function legacyHideLoadingBarFallback() {
     var loadingBarContainer = document.getElementById('loadingBarContainer');
     var loadingBar = document.getElementById('loadingBar');
     if (!loadingBarContainer || !loadingBar) return;
