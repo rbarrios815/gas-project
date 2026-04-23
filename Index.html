@@ -1,4 +1,4 @@
-<!-- Version 1.0.64 | 3d13d4e -->
+<!-- Version 1.0.65 | 4c2fc60 -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -5665,63 +5665,7 @@ if (inputElement) {
   });
 }
 
-/* === SNIPPET (REPLACEMENT): balanced show/hide per autocomplete call === */
-(function installAutocompleteLoadingWrapper(){
-  // We’ll make sure each call to autocompleteClient pairs exactly one show with one hide.
-  let tries = 0;
-  const maxTries = 50;
-  // Track only typing-related shows, so we don’t interfere with other areas using the bar.
-  let typingInFlight = 0;
-
-  const tick = () => {
-    tries++;
-    const ready = (typeof window.autocompleteClient === 'function') && !window.autocompleteClient.__wrapped;
-    if (!ready) {
-      if (tries < maxTries) setTimeout(tick, 100);
-      return;
-    }
-
-    const orig = window.autocompleteClient;
-
-    const wrapped = function wrappedAutocompleteClient(/* ...args */) {
-      // Show only once per concurrent invocation
-      typingInFlight++;
-      try { if (typeof window.showLoadingBar === 'function') window.showLoadingBar(); } catch(_) {}
-
-      try {
-        // Run the original (usually synchronous DOM update)
-        const result = orig.apply(this, arguments);
-
-        // After the frame paints suggestions, hide for this call
-        requestAnimationFrame(() => {
-          setTimeout(() => {
-            typingInFlight = Math.max(typingInFlight - 1, 0);
-            if (typingInFlight === 0) {
-              try { if (typeof window.hideLoadingBar === 'function') window.hideLoadingBar(); } catch(_) {}
-            }
-          }, 0);
-        });
-
-        return result;
-      } catch (err) {
-        // If the original throws, still balance the count
-        typingInFlight = Math.max(typingInFlight - 1, 0);
-        if (typingInFlight === 0) {
-          try { if (typeof window.hideLoadingBar === 'function') window.hideLoadingBar(); } catch(_) {}
-        }
-        throw err;
-      }
-    };
-
-    wrapped.__wrapped = true;
-    window.autocompleteClient = wrapped;
-
-    // IMPORTANT: we intentionally DO NOT add any extra `input` listener that calls showLoadingBar().
-    // The wrapper handles showing/hiding per call, so refCounts stay balanced.
-  };
-
-  tick();
-})();
+/* Autocomplete loading is handled inside autocompleteClient() for guaranteed balancing. */
 
 
 /* === WIRING: run fit after suggestions render & after a client loads into the input === */
@@ -8045,111 +7989,120 @@ function displayAddNewClientForm() {
 var suggestions; // Keep this global to store suggestions
 
 function autocompleteClient() {
-  var clientSelect = document.getElementById('clientSelect');
-  var inputElement = document.getElementById('clientAutocomplete');
-  if (!inputElement) return;
+  if (typeof showLoadingBar === 'function') showLoadingBar();
 
-  suggestions = document.getElementById('autocompleteSuggestions');
-  if (!suggestions) {
-    suggestions = document.createElement('div');
-    suggestions.id = 'autocompleteSuggestions';
-    inputElement.parentNode.appendChild(suggestions);
-    var clientContainer = document.querySelector('.client-container');
-    if (clientContainer && clientContainer.classList.contains('hide-recents')) {
-      suggestions.classList.add('is-contracted');
-      suggestions.style.display = 'none';
-    }
-  }
+  try {
+    var clientSelect = document.getElementById('clientSelect');
+    var inputElement = document.getElementById('clientAutocomplete');
+    if (!inputElement) return;
 
-  var inputValue = (inputElement.value || '').trim().toLowerCase();
-
-  // Hide category dropdown until a client is actually chosen
-  if (!inputValue) {
-    setClientDropdownVisibility(false);
-    if (clientSelect) clientSelect.value = '';
-
-    var catInput = document.getElementById('categoryCombo');
-    if (catInput) {
-      catInput.value = '';
-      catInput.placeholder = 'Select category';
-      catInput.title = 'Select category';
+    suggestions = document.getElementById('autocompleteSuggestions');
+    if (!suggestions) {
+      suggestions = document.createElement('div');
+      suggestions.id = 'autocompleteSuggestions';
+      inputElement.parentNode.appendChild(suggestions);
+      var clientContainer = document.querySelector('.client-container');
+      if (clientContainer && clientContainer.classList.contains('hide-recents')) {
+        suggestions.classList.add('is-contracted');
+        suggestions.style.display = 'none';
+      }
     }
 
-    var catSel = document.getElementById('categorySelect');
-    if (catSel) catSel.value = '';
+    var inputValue = (inputElement.value || '').trim().toLowerCase();
 
-    if (typeof hideCategoryOverlay === 'function') {
-      hideCategoryOverlay();
-    }
+    // Hide category dropdown until a client is actually chosen
+    if (!inputValue) {
+      setClientDropdownVisibility(false);
+      if (clientSelect) clientSelect.value = '';
 
-    if (typeof __currentCategory !== 'undefined') {
-      __currentCategory = '';
-    }
-  }
-
-  // Clear current suggestions
-  suggestions.innerHTML = '';
-
-  // Calculate the available height below the input field
-  var rect = inputElement.getBoundingClientRect();
-  var availableHeight = window.innerHeight - rect.bottom;
-
-  // Set the max-height of suggestions to the available height
-  suggestions.style.maxHeight = availableHeight + 'px';
-
-  if (!inputValue || !Array.isArray(clientsData) || !clientsData.length) {
-    suggestions.style.display = 'none';
-    return;
-  }
-
-  // Populate suggestions using case-insensitive matching against name, category, or row text
-  var matchedClients = clientsData.filter(function(client) {
-    var name = (client.clientName || '').toLowerCase();
-    var category = (client.category || '').toLowerCase();
-    var rowText = (client.rowText || '').toLowerCase();
-    return name.includes(inputValue) || category.includes(inputValue) || rowText.includes(inputValue);
-  });
-
-  if (!matchedClients.length) {
-    suggestions.style.display = 'none';
-    return;
-  }
-
-  matchedClients.forEach(function(client) {
-    var suggestion = document.createElement('div');
-    suggestion.classList.add('autocomplete-row');
-
-    var nameSpan = document.createElement('span');
-    nameSpan.className = 'autocomplete-name';
-    nameSpan.textContent = client.clientName;
-
-    var categoryLabel = document.createElement('span');
-    categoryLabel.className = 'autocomplete-category-label';
-    categoryLabel.textContent = client.category ? '(' + client.category + ')' : '';
-
-    suggestion.onclick = function() {
-      var chosenCategory = client.category || '';
-      inputElement.value = client.clientName;
       var catInput = document.getElementById('categoryCombo');
       if (catInput) {
-        catInput.value = chosenCategory;
+        catInput.value = '';
+        catInput.placeholder = 'Select category';
+        catInput.title = 'Select category';
       }
-      if (clientSelect) clientSelect.value = client.clientName;
-      setClientDropdownVisibility(true);
-      showClientNotes();
-      scrollToTop(); // Add this line to scroll to the top
 
-      suggestions.innerHTML = ''; // Hide suggestions after selection
+      var catSel = document.getElementById('categorySelect');
+      if (catSel) catSel.value = '';
+
+      if (typeof hideCategoryOverlay === 'function') {
+        hideCategoryOverlay();
+      }
+
+      if (typeof __currentCategory !== 'undefined') {
+        __currentCategory = '';
+      }
+    }
+
+    // Clear current suggestions
+    suggestions.innerHTML = '';
+
+    // Calculate the available height below the input field
+    var rect = inputElement.getBoundingClientRect();
+    var availableHeight = window.innerHeight - rect.bottom;
+
+    // Set the max-height of suggestions to the available height
+    suggestions.style.maxHeight = availableHeight + 'px';
+
+    if (!inputValue || !Array.isArray(clientsData) || !clientsData.length) {
       suggestions.style.display = 'none';
-    };
+      return;
+    }
 
-    suggestion.appendChild(nameSpan);
-    suggestion.appendChild(categoryLabel);
+    // Populate suggestions using case-insensitive matching against name, category, or row text
+    var matchedClients = clientsData.filter(function(client) {
+      var name = (client.clientName || '').toLowerCase();
+      var category = (client.category || '').toLowerCase();
+      var rowText = (client.rowText || '').toLowerCase();
+      return name.includes(inputValue) || category.includes(inputValue) || rowText.includes(inputValue);
+    });
 
-    suggestions.appendChild(suggestion);
-  });
+    if (!matchedClients.length) {
+      suggestions.style.display = 'none';
+      return;
+    }
 
-  suggestions.style.display = 'block';
+    matchedClients.forEach(function(client) {
+      var suggestion = document.createElement('div');
+      suggestion.classList.add('autocomplete-row');
+
+      var nameSpan = document.createElement('span');
+      nameSpan.className = 'autocomplete-name';
+      nameSpan.textContent = client.clientName;
+
+      var categoryLabel = document.createElement('span');
+      categoryLabel.className = 'autocomplete-category-label';
+      categoryLabel.textContent = client.category ? '(' + client.category + ')' : '';
+
+      suggestion.onclick = function() {
+        var chosenCategory = client.category || '';
+        inputElement.value = client.clientName;
+        var catInput = document.getElementById('categoryCombo');
+        if (catInput) {
+          catInput.value = chosenCategory;
+        }
+        if (clientSelect) clientSelect.value = client.clientName;
+        setClientDropdownVisibility(true);
+        showClientNotes();
+        scrollToTop(); // Add this line to scroll to the top
+
+        suggestions.innerHTML = ''; // Hide suggestions after selection
+        suggestions.style.display = 'none';
+      };
+
+      suggestion.appendChild(nameSpan);
+      suggestion.appendChild(categoryLabel);
+
+      suggestions.appendChild(suggestion);
+    });
+
+    suggestions.style.display = 'block';
+  } finally {
+    // Keep autocomplete loading and hide balanced, even on early returns/exceptions.
+    requestAnimationFrame(function() {
+      if (typeof hideLoadingBar === 'function') hideLoadingBar();
+    });
+  }
 }
 
 
