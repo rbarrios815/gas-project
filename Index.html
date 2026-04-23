@@ -1,4 +1,4 @@
-<!-- Version 1.0.62 | ea16e86 -->
+<!-- Version 1.0.63 | 893267f -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -3443,6 +3443,8 @@ input#clientAutocomplete, select#clientSelect {
 .client-autocomplete-row #clientAutocomplete,
 .cat-pill {
   min-height: 44px;
+  height: 44px;
+  box-sizing: border-box;
   font: 700 clamp(1rem, 2vw, 1.8rem)/1.25 "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
   color: #1f2937;
   background: #e7f6ed;
@@ -3461,6 +3463,12 @@ input#clientAutocomplete, select#clientSelect {
   max-width: none;
 }
 
+.client-autocomplete-row.has-client #clientAutocomplete {
+  flex: 0 0 50%;
+  width: 50%;
+  max-width: 50%;
+}
+
 .cat-pill {
   display: inline-flex;
   align-items: center;
@@ -3469,17 +3477,17 @@ input#clientAutocomplete, select#clientSelect {
   border-radius: 12px;
   background: #e7f6ed;
   border-color: #9ed6b8;
-  flex: 0 0 auto;
-  width: fit-content;
-  min-width: fit-content;
+  flex: 1 1 0;
+  width: 100%;
+  min-width: 0;
   max-width: 100%;
 }
 
 .cat-input {
   font: inherit;
   color: inherit;
-  width: auto;
-  min-width: fit-content;
+  width: 100%;
+  min-width: 0;
   max-width: none;
   flex: 1 1 auto;
   padding: 4px 0;
@@ -3650,7 +3658,9 @@ input#clientAutocomplete, select#clientSelect {
 
   .cat-cal-wrap {
     display: none;
-    flex: 0 0 auto;
+    flex: 0 0 50%;
+    width: 50%;
+    max-width: 50%;
     min-width: 0;
     align-items: center;
     gap: 6px;
@@ -4137,11 +4147,9 @@ function fitClientInputNow(){
   const input = document.getElementById('clientAutocomplete');
   if (!input) return null;
   const basePx = parseFloat(getComputedStyle(input).fontSize) || 15;
-  const selectEl = document.getElementById('clientSelect');
-  const hasLoadedClient = !!(selectEl && selectEl.value);
-  const maxPx = hasLoadedClient ? basePx * 4 : basePx;
-  const preferredMinPx = Math.min(getRecentRowFontPx(), maxPx);
-  const minPx = Math.min(Math.max(6, preferredMinPx), maxPx);
+  const maxPx = basePx;
+  const preferredMinPx = basePx;
+  const minPx = 6;
 
   fitElementTextToOneLine(input, {
     minPx,
@@ -4155,10 +4163,10 @@ function fitClientInputNow(){
 function fitCategoryComboNow(maxPx){
   const input = document.getElementById('categoryCombo');
   if (!input || input.offsetParent === null) return null; // skip if hidden
-  const opts = { minPx: 6, preferredMinPx: getRecentRowFontPx() };
-  if (maxPx) opts.maxPx = maxPx;
+  const basePx = parseFloat(getComputedStyle(document.getElementById('clientAutocomplete')).fontSize) || 15;
+  const opts = { minPx: 6, preferredMinPx: basePx, maxPx: maxPx || basePx };
   fitElementTextToOneLine(input, opts);
-  return parseFloat(getComputedStyle(input).fontSize) || maxPx || 15;
+  return parseFloat(getComputedStyle(input).fontSize) || maxPx || basePx;
 }
 
 function syncClientAndCategorySizes(){
