@@ -1,4 +1,4 @@
-<!-- Version 1.0.66 | 9c5b71d -->
+<!-- Version 1.0.67 | 53c9b1a -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -9540,19 +9540,18 @@ function displayClient(client, container) {
 
   clientDiv.appendChild(topRow);
 
-  var allC = [];
+  var allLines = [];
   (client.pastWorks || []).forEach(function(pw){
-    String(pw || '').split('\n').forEach(function(line){ var t = (line || '').trim(); if (t) allC.push(t); });
+    String(pw || '').split('\n').forEach(function(line){
+      allLines.push(String(line || ''));
+    });
   });
 
-  if (allC.length > 0) {
-    function parseMDY(line){ var m = String(line).match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b/); if (!m) return null; var mm=+m[1], dd=+m[2], yy=+m[3]; if (yy<100) yy+=2000; return new Date(yy, mm-1, dd); }
-    function safeFormatNoteHTML(s){ return typeof formatNoteHTML === 'function' ? formatNoteHTML(s) : String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-    var withDates=[], noDates=[];
-    allC.forEach(function(line){ var d=parseMDY(line); if(d) withDates.push({line,d}); else noDates.push({line}); });
-    withDates.sort(function(a,b){ return a.d - b.d; });
-    var sorted = withDates.map(function(x){return x.line;}).concat(noDates.map(function(x){return x.line;}));
+  if (allLines.length > 0) {
+    // Match the loaded-client panel behavior:
+    // - Group lines into dated blocks with undated-line date inheritance
+    // - Keep only the newest 3 blocks visible/highlighted
+    var blocks = groupLinesIntoBlocks(allLines);
 
     var notesWrap = document.createElement('div');
     notesWrap.style.cssText = "display:flex; flex-direction:column; align-items:stretch; margin-top:5px; width:100%;";
@@ -9563,16 +9562,16 @@ function displayClient(client, container) {
     hiWrap.style.cssText = "display:flex; flex-direction:column; gap:5px;";
     notesWrap.appendChild(hiWrap);
 
-    var lastIdx = sorted.length - 1;
-    var hiCount = Math.min(3, sorted.length);
+    var lastIdx = blocks.length - 1;
+    var hiCount = Math.min(3, blocks.length);
     var firstHi = lastIdx - (hiCount - 1);
 
-    sorted.forEach(function(line, i){
+    blocks.forEach(function(block, i){
       var div = document.createElement('div');
       div.className = 'note-line';
       div.style.fontSize = '32px';
       div.style.marginBottom = '0px';
-      div.innerHTML = safeFormatNoteHTML(line);
+      div.innerHTML = renderBlockHTML(block);
       if (i >= firstHi) {
         div.classList.add('latest-note');
         div.style.backgroundColor = 'yellow';
