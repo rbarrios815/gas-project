@@ -1,4 +1,4 @@
-// Version 1.0.59 | 4bf7050
+// Version 1.0.60 | 745eb97
 function doGet(e) {
   var userEmail = Session.getActiveUser().getEmail(); // Ensure it gets the active user
   Logger.log("Detected User Email: " + userEmail); // Debugging - logs detected email
@@ -2648,42 +2648,103 @@ function buildMbAssignmentLines_() {
   });
 }
 
-function buildDailyDashboardGroupText() {
+var DAILY_DASHBOARD_GROUP_RECIPIENTS = [
+  '8326215185@vzwpix.com',
+  '2817146370@vzwpix.com',
+  '8326216449@vzwpix.com'
+];
+
+var DAILY_DASHBOARD_SUBJECT = 'DAILY DASHBOARD';
+var DAILY_DASHBOARD_END_MARKER = 'END DAILY DASHBOARD';
+var DAILY_DASHBOARD_MAX_CHARS = 1200;
+
+function buildDailyDashboardSections_() {
   var dashboardSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
   if (!dashboardSheet) throw new Error("Sheet 'DASHBOARD 8.0' not found");
 
   var rows = dashboardSheet.getDataRange().getValues().slice(1);
 
-  var jbLines = buildTwoClientSectionLines_(rows, 'JB');
-  var mbLines = buildMbAssignmentLines_();
-  var rbLines = buildTwoClientSectionLines_(rows, 'RB');
-  var teamLines = buildTeamTaskLines_(rows);
-
   return [
-    'JB 2 DASHBOARD CLIENTS:',
-    '',
-    jbLines.join('\n'),
-    '',
-    'MB DASHBOARD ASSIGNMENTS NEEDED:',
-    '',
-    mbLines.join('\n'),
-    '',
-    'RB 2 DASHBOARD CLIENTS:',
-    '',
-    rbLines.join('\n'),
-    '',
-    'TEAM TASKS:',
-    '',
-    teamLines.join('\n')
-  ].join('\n');
+    {
+      title: 'JB 2 DASHBOARD CLIENTS:',
+      lines: buildTwoClientSectionLines_(rows, 'JB')
+    },
+    {
+      title: 'MB DASHBOARD ASSIGNMENTS NEEDED:',
+      lines: buildMbAssignmentLines_()
+    },
+    {
+      title: 'RB 2 DASHBOARD CLIENTS:',
+      lines: buildTwoClientSectionLines_(rows, 'RB')
+    },
+    {
+      title: 'TEAM TASKS:',
+      lines: buildTeamTaskLines_(rows)
+    }
+  ];
+}
+
+function buildDailyDashboardGroupText() {
+  var sections = buildDailyDashboardSections_();
+  var sectionBlocks = sections.map(function(section) {
+    return [section.title, '', section.lines.join('\n')].join('\n');
+  });
+
+  return sectionBlocks.join('\n\n') + '\n\n' + DAILY_DASHBOARD_END_MARKER;
+}
+
+function buildDailyDashboardGroupTextParts_() {
+  var sections = buildDailyDashboardSections_();
+  var parts = [];
+  var currentPartSections = [];
+
+  sections.forEach(function(section) {
+    var nextSections = currentPartSections.concat([section]);
+    var partText = nextSections.map(function(item) {
+      return [item.title, '', item.lines.join('\n')].join('\n');
+    }).join('\n\n') + '\n\n' + DAILY_DASHBOARD_END_MARKER;
+
+    if (partText.length <= DAILY_DASHBOARD_MAX_CHARS || currentPartSections.length === 0) {
+      currentPartSections = nextSections;
+      return;
+    }
+
+    parts.push(currentPartSections.map(function(item) {
+      return [item.title, '', item.lines.join('\n')].join('\n');
+    }).join('\n\n') + '\n\n' + DAILY_DASHBOARD_END_MARKER);
+
+    currentPartSections = [section];
+  });
+
+  if (currentPartSections.length) {
+    parts.push(currentPartSections.map(function(item) {
+      return [item.title, '', item.lines.join('\n')].join('\n')
+    }).join('\n\n') + '\n\n' + DAILY_DASHBOARD_END_MARKER);
+  }
+
+  return parts;
 }
 
 function sendDailyDashboardGroupText() {
   var body = buildDailyDashboardGroupText();
-  MailApp.sendEmail({
-    to: '8326215185@vtext.com,2817146370@vtext.com,8326216449@vtext.com',
-    subject: 'DAILY DASHBOARD',
-    body: body
+  var recipients = DAILY_DASHBOARD_GROUP_RECIPIENTS.join(',');
+
+  if (body.length <= DAILY_DASHBOARD_MAX_CHARS) {
+    MailApp.sendEmail({
+      to: recipients,
+      subject: DAILY_DASHBOARD_SUBJECT,
+      body: body
+    });
+    return;
+  }
+
+  var parts = buildDailyDashboardGroupTextParts_();
+  parts.forEach(function(partBody, index) {
+    MailApp.sendEmail({
+      to: recipients,
+      subject: DAILY_DASHBOARD_SUBJECT + ' ' + (index + 1) + '/' + parts.length,
+      body: partBody
+    });
   });
 }
 
