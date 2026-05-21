@@ -1,4 +1,4 @@
-// Version 1.0.58 | ea16e86
+// Version 1.0.59 | 4bf7050
 function doGet(e) {
   var userEmail = Session.getActiveUser().getEmail(); // Ensure it gets the active user
   Logger.log("Detected User Email: " + userEmail); // Debugging - logs detected email
@@ -6,7 +6,6 @@ function doGet(e) {
   var allowedUsers = ['jbgreatfamily1@gmail.com', 'rbarrios815@gmail.com', 'domlozano7@gmail.com', 'rbarrio1nd@gmail.com', 'rbarrio1@alumni.nd.edu','barriosgreatfamily1@gmail.com'];
 
   if (allowedUsers.includes(userEmail)) {
-    ensureJbChipDailyTrigger();
     return HtmlService.createHtmlOutputFromFile('Index');
   } else {
     return HtmlService.createHtmlOutput("Sorry, you do not have access to this app.<br>Your detected email: " + userEmail);
@@ -2333,10 +2332,15 @@ function findLineWithLargestDate(textArray) {
   return mostRecentLine;
 }
 
+
+var ENABLE_JB_CHIP_DAILY_TRIGGER = false;
+
 /**
  * Ensure a time-based trigger exists to send the JB chip summary at 8 AM daily.
  */
 function ensureJbChipDailyTrigger() {
+  if (ENABLE_JB_CHIP_DAILY_TRIGGER !== true) return;
+
   var handler = 'sendJbChipTasksEmail';
   var hasTrigger = ScriptApp.getProjectTriggers().some(function(t) {
     return t.getHandlerFunction() === handler;
@@ -2528,10 +2532,170 @@ function sendJbChipTasksEmail() {
     body: lines.join('\n')
   });
 
-  ensureJbChipDailyTrigger();
 }
 
 
+
+
+
+function deleteJbChipDailyTriggers() {
+  ScriptApp.getProjectTriggers().forEach(function(trigger) {
+    if (trigger.getHandlerFunction() === 'sendJbChipTasksEmail') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+}
+
+function deleteDailyDashboardGroupTextTriggers() {
+  ScriptApp.getProjectTriggers().forEach(function(trigger) {
+    if (trigger.getHandlerFunction() === 'sendDailyDashboardGroupText') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+}
+
+function installDailyDashboardGroupTextTrigger() {
+  deleteDailyDashboardGroupTextTriggers();
+  ScriptApp.newTrigger('sendDailyDashboardGroupText')
+    .timeBased()
+    .atHour(9)
+    .everyDays(1)
+    .create();
+}
+
+function getMostRecentNoteLineFromCell_(noteCell) {
+  var latest = findLargestDatedLine([String(noteCell || '')]);
+  if (latest) return latest;
+
+  var fallbackLine = String(noteCell || '')
+    .split(/\r?\n/)
+    .map(function(line) { return line.trim(); })
+    .filter(function(line) { return line; })[0];
+  return fallbackLine || 'No note found';
+}
+
+function normalizeClientName_(value) {
+  return String(value || '').replace(/\d+$/, '').trim();
+}
+
+function getDashboardChipCandidates_(rows, chip) {
+  return rows
+    .filter(function(row) {
+      return String(row[15] || '').trim().toUpperCase() === chip && normalizeChipDate_(row[16]);
+    })
+    .map(function(row) {
+      return {
+        name: normalizeClientName_(row[0]),
+        normalizedName: normalizeClientName_(row[0]).toUpperCase(),
+        chipDate: normalizeChipDate_(row[16]),
+        note: getMostRecentNoteLineFromCell_(row[2])
+      };
+    })
+    .filter(function(item) { return item.name; });
+}
+
+function buildTwoClientSectionLines_(rows, chip) {
+  var candidates = getDashboardChipCandidates_(rows, chip);
+  if (!candidates.length) return ['1. None found'];
+
+  candidates.sort(function(a, b) { return a.chipDate - b.chipDate; });
+  var earliest = candidates[0];
+  var latest = candidates[candidates.length - 1];
+
+  var selected = [earliest];
+  if (latest.normalizedName !== earliest.normalizedName) {
+    selected.push(latest);
+  }
+
+  return selected.map(function(item, index) {
+    return (index + 1) + '. ' + item.name + ' - ' + item.note;
+  });
+}
+
+function buildTeamTaskLines_(rows) {
+  var candidates = getDashboardChipCandidates_(rows, 'TEAM');
+  if (!candidates.length) return ['1. None found'];
+
+  candidates.sort(function(a, b) { return a.chipDate - b.chipDate; });
+  var first = candidates[0];
+  return ['1. ' + first.name + ' - ' + first.note];
+}
+
+function getFirstFiveWords_(text) {
+  var words = String(text || '').trim().split(/\s+/).filter(function(w) { return w; });
+  return words.slice(0, 5).join(' ');
+}
+
+function buildMbAssignmentLines_() {
+  var sheet = SpreadsheetApp.openById(GV_SPREADSHEET_ID).getSheetByName(GV_SHEET_NAME);
+  if (!sheet) return ['1. None found'];
+
+  var rows = sheet.getDataRange().getValues();
+  var matches = rows.slice(1).filter(function(row) {
+    return String(row[1] || '').trim().toUpperCase() === 'MB' && String(row[0] || '').trim();
+  });
+
+  matches.sort(function(a, b) {
+    var aDate = a[2] instanceof Date ? a[2] : new Date(a[2]);
+    var bDate = b[2] instanceof Date ? b[2] : new Date(b[2]);
+    return aDate - bDate;
+  });
+
+  if (!matches.length) return ['1. None found'];
+
+  return matches.map(function(row, index) {
+    return (index + 1) + '. ' + getFirstFiveWords_(row[0]);
+  });
+}
+
+function buildDailyDashboardGroupText() {
+  var dashboardSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('DASHBOARD 8.0');
+  if (!dashboardSheet) throw new Error("Sheet 'DASHBOARD 8.0' not found");
+
+  var rows = dashboardSheet.getDataRange().getValues().slice(1);
+
+  var jbLines = buildTwoClientSectionLines_(rows, 'JB');
+  var mbLines = buildMbAssignmentLines_();
+  var rbLines = buildTwoClientSectionLines_(rows, 'RB');
+  var teamLines = buildTeamTaskLines_(rows);
+
+  return [
+    'JB 2 DASHBOARD CLIENTS:',
+    '',
+    jbLines.join('\n'),
+    '',
+    'MB DASHBOARD ASSIGNMENTS NEEDED:',
+    '',
+    mbLines.join('\n'),
+    '',
+    'RB 2 DASHBOARD CLIENTS:',
+    '',
+    rbLines.join('\n'),
+    '',
+    'TEAM TASKS:',
+    '',
+    teamLines.join('\n')
+  ].join('\n');
+}
+
+function sendDailyDashboardGroupText() {
+  var body = buildDailyDashboardGroupText();
+  MailApp.sendEmail({
+    to: '8326215185@vtext.com,2817146370@vtext.com,8326216449@vtext.com',
+    subject: 'DAILY DASHBOARD',
+    body: body
+  });
+}
+
+function testBuildDailyDashboardGroupText() {
+  var body = buildDailyDashboardGroupText();
+  Logger.log(body);
+  return body;
+}
+
+function testSendDailyDashboardGroupText() {
+  sendDailyDashboardGroupText();
+}
 
 /***********************************************************************
  SNIPPET #4: SERVER-SIDE TASKS INTEGRATION
