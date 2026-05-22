@@ -1,4 +1,4 @@
-// Version 1.0.61 | 6e48248
+// Version 1.0.62 | 546972c
 function doGet(e) {
   var userEmail = Session.getActiveUser().getEmail(); // Ensure it gets the active user
   Logger.log("Detected User Email: " + userEmail); // Debugging - logs detected email
@@ -2597,8 +2597,8 @@ function getDashboardChipCandidates_(rows, chip) {
 function buildTwoClientSectionLines_(rows, chip) {
   var candidates = getDashboardChipCandidates_(rows, chip);
 
-  // For JB morning dashboard texts, only include tasks dated today or earlier.
-  if (chip === 'JB') {
+  // For JB/RB morning dashboard texts, only include tasks dated today or earlier.
+  if (chip === 'JB' || chip === 'RB') {
     var tomorrow = new Date();
     tomorrow.setHours(0, 0, 0, 0);
     tomorrow.setDate(tomorrow.getDate() + 1);
