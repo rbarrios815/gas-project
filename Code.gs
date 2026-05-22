@@ -1,4 +1,4 @@
-// Version 1.0.60 | 745eb97
+// Version 1.0.61 | 6e48248
 function doGet(e) {
   var userEmail = Session.getActiveUser().getEmail(); // Ensure it gets the active user
   Logger.log("Detected User Email: " + userEmail); // Debugging - logs detected email
@@ -2596,6 +2596,17 @@ function getDashboardChipCandidates_(rows, chip) {
 
 function buildTwoClientSectionLines_(rows, chip) {
   var candidates = getDashboardChipCandidates_(rows, chip);
+
+  // For JB morning dashboard texts, only include tasks dated today or earlier.
+  if (chip === 'JB') {
+    var tomorrow = new Date();
+    tomorrow.setHours(0, 0, 0, 0);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    candidates = candidates.filter(function(item) {
+      return item.chipDate && item.chipDate.getTime() < tomorrow.getTime();
+    });
+  }
+
   if (!candidates.length) return ['1. None found'];
 
   candidates.sort(function(a, b) { return a.chipDate - b.chipDate; });
