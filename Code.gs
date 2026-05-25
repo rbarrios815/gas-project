@@ -1,4 +1,4 @@
-// Version 1.0.62 | 546972c
+// Version 1.0.63 | cb2a3af
 function doGet(e) {
   var userEmail = Session.getActiveUser().getEmail(); // Ensure it gets the active user
   Logger.log("Detected User Email: " + userEmail); // Debugging - logs detected email
@@ -2660,9 +2660,7 @@ function buildMbAssignmentLines_() {
 }
 
 var DAILY_DASHBOARD_GROUP_RECIPIENTS = [
-  '8326215185@vzwpix.com',
-  '2817146370@vzwpix.com',
-  '8326216449@vzwpix.com'
+  '8326215185@vzwpix.com'
 ];
 
 var DAILY_DASHBOARD_SUBJECT = 'DAILY DASHBOARD';
