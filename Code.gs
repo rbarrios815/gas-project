@@ -1,4 +1,4 @@
-// Version 1.0.63 | cb2a3af
+// Version 1.0.64 | 374086e
 function doGet(e) {
   var userEmail = Session.getActiveUser().getEmail(); // Ensure it gets the active user
   Logger.log("Detected User Email: " + userEmail); // Debugging - logs detected email
@@ -2567,11 +2567,59 @@ function getMostRecentNoteLineFromCell_(noteCell) {
   var latest = findLargestDatedLine([String(noteCell || '')]);
   if (latest) return latest;
 
-  var fallbackLine = String(noteCell || '')
+  return getFirstNonEmptyNoteLine_(noteCell) || 'No note found';
+}
+
+function getFirstNonEmptyNoteLine_(noteCell) {
+  return String(noteCell || '')
     .split(/\r?\n/)
     .map(function(line) { return line.trim(); })
-    .filter(function(line) { return line; })[0];
-  return fallbackLine || 'No note found';
+    .filter(function(line) { return line; })[0] || '';
+}
+
+function stripDatePrefixFromNoteLine_(line) {
+  var match = String(line || '').match(/\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/);
+  if (!match) return String(line || '').trim();
+
+  return String(line || '')
+    .slice(match.index + match[0].length)
+    .trim()
+    .replace(/^[:\-–\s]+/, '')
+    .trim();
+}
+
+function getLatestPriorDayNotesFromCell_(noteCell, today) {
+  var tz = Session.getScriptTimeZone();
+  var todayStart = new Date(today || new Date());
+  todayStart.setHours(0, 0, 0, 0);
+  var latestDate = null;
+  var latestNotes = [];
+
+  String(noteCell || '').split(/\r?\n/).forEach(function(line) {
+    var text = line.trim();
+    if (!text) return;
+
+    var noteDate = parseDateFromLine_(text);
+    if (!noteDate) return;
+    noteDate.setHours(0, 0, 0, 0);
+
+    // JB/RB dashboard texts should summarize the latest note day before today.
+    if (noteDate.getTime() >= todayStart.getTime()) return;
+
+    var noteText = stripDatePrefixFromNoteLine_(text) || text;
+    if (!latestDate || noteDate.getTime() > latestDate.getTime()) {
+      latestDate = noteDate;
+      latestNotes = [noteText];
+    } else if (noteDate.getTime() === latestDate.getTime()) {
+      latestNotes.push(noteText);
+    }
+  });
+
+  if (!latestDate || !latestNotes.length) {
+    return getFirstNonEmptyNoteLine_(noteCell) || 'No note found';
+  }
+
+  return Utilities.formatDate(latestDate, tz, 'MM/dd/yy') + ': ' + latestNotes.join('; ');
 }
 
 function normalizeClientName_(value) {
@@ -2579,16 +2627,20 @@ function normalizeClientName_(value) {
 }
 
 function getDashboardChipCandidates_(rows, chip) {
+  var today = new Date();
   return rows
     .filter(function(row) {
       return String(row[15] || '').trim().toUpperCase() === chip && normalizeChipDate_(row[16]);
     })
     .map(function(row) {
+      var name = normalizeClientName_(row[0]);
       return {
-        name: normalizeClientName_(row[0]),
-        normalizedName: normalizeClientName_(row[0]).toUpperCase(),
+        name: name,
+        normalizedName: name.toUpperCase(),
         chipDate: normalizeChipDate_(row[16]),
-        note: getMostRecentNoteLineFromCell_(row[2])
+        note: chip === 'JB' || chip === 'RB'
+          ? getLatestPriorDayNotesFromCell_(row[2], today)
+          : getMostRecentNoteLineFromCell_(row[2])
       };
     })
     .filter(function(item) { return item.name; });
